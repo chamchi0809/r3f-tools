@@ -1,7 +1,7 @@
 {
   "name": "gltfjsx-ui",
   "displayName": "gltfjsx UI",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Run gltfjsx with UI for paths and arguments",
   "categories": [
     "Other"
