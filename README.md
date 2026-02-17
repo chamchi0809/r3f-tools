@@ -2,4 +2,4 @@
 
 ## gltfjsx-ui
 
-- VS Code UI wrapper for `gltfjsx` that lets you configure input/output paths and CLI arguments.
+- VS Code UI wrapper for [pmndrs/gltfjsx](https://github.com/pmndrs/gltfjsx) that lets you configure input/output paths and CLI arguments.
