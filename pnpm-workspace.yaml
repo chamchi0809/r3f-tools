@@ -1,0 +1,4 @@
+packages:
+  - "gltfjsx-ui"
+  - "common"
+  - "demo"

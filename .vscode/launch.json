@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run gltfjsx-ui Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--new-window",
+        "${workspaceFolder}/r3f-tools.code-workspace",
+        "--extensionDevelopmentPath=${workspaceFolder}/gltfjsx-ui"
+      ],
+      "outFiles": ["${workspaceFolder}/gltfjsx-ui/out/**/*.js"],
+      "preLaunchTask": "gltfjsx-ui: build"
+    }
+  ]
+}

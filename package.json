@@ -1,0 +1,35 @@
+{
+  "name": "r3f-tools",
+  "version": "0.0.1",
+  "description": "",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "scripts": {
+    "build:gltfjsx-ui": "pnpm --filter gltfjsx-ui run build",
+    "publish:gltfjsx-ui": "pnpm --filter gltfjsx-ui run publish",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "oxlint . --ignore-path .gitignore",
+    "lint:fix": "oxlint . --ignore-path .gitignore --fix",
+    "fmt": "oxfmt .",
+    "fmt:check": "oxfmt . --check"
+  },
+  "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@types/vscode": "^1.85.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "@vscode/vsce": "^2.26.1",
+    "oxfmt": "^0.28.0",
+    "oxlint": "^1.43.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.0"
+  },
+  "packageManager": "pnpm@10.20.0"
+}

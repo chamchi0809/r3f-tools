@@ -1,0 +1,13 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "gltfjsx-ui: build",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["--filter", "gltfjsx-ui", "run", "build"],
+      "group": "build",
+      "problemMatcher": ["$tsc"]
+    }
+  ]
+}

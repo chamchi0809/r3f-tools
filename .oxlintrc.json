@@ -1,0 +1,8 @@
+{
+  "extends": ["recommended"],
+  "rules": {
+    "react/jsx-uses-react": "off",
+    "react/react-in-jsx-scope": "off"
+  },
+  "ignorePatterns": ["**/node_modules/**", "**/dist/**", "**/.turbo/**", "**/*.d.ts"]
+}

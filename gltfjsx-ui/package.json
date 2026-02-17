@@ -1,0 +1,70 @@
+{
+  "name": "gltfjsx-ui",
+  "displayName": "gltfjsx UI",
+  "version": "0.0.1",
+  "description": "Run gltfjsx with UI for paths and arguments",
+  "categories": [
+    "Other"
+  ],
+  "license": "MIT",
+  "publisher": "chamchi",
+  "main": "./out/extension.js",
+  "scripts": {
+    "build:extension": "tsc -p tsconfig.json",
+    "build:webview": "vite build",
+    "build": "pnpm run build:extension && pnpm run build:webview",
+    "watch:webview": "vite dev",
+    "watch:extension": "tsc -w -p tsconfig.json",
+    "package": "pnpm exec vsce package --no-dependencies",
+    "publish": "pnpm exec vsce publish --no-dependencies"
+  },
+  "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@types/vscode": "^1.85.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "@vscode/vsce": "^2.26.1",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.0"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "gltfjsx.open",
+        "title": "gltfjsx: Open UI"
+      }
+    ],
+    "views": {
+      "gltfjsx": [
+        {
+          "type": "webview",
+          "id": "gltfjsx.sidePanel",
+          "name": "gltfjsx UI"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "gltfjsx",
+          "title": "gltfjsx",
+          "icon": "resources/gltfjsx-icon.png"
+        }
+      ]
+    }
+  },
+  "activationEvents": [
+    "onCommand:gltfjsx.open",
+    "onView:gltfjsx.sidePanel"
+  ],
+  "icon": "resources/gltfjsx-icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "packageManager": "pnpm@10.20.0"
+}
