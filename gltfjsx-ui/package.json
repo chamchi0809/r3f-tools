@@ -9,6 +9,10 @@
   "license": "MIT",
   "publisher": "chamchi",
   "main": "./out/extension.js",
+  "repository": {
+    "url": "https://github.com/chamchi0809/r3f-tools",
+    "directory": "/gltfjsx-ui"
+  },
   "scripts": {
     "build:extension": "tsc -p tsconfig.json",
     "build:webview": "vite build",
