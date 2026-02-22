@@ -1,4 +1,5 @@
 packages:
   - "gltfjsx-ui"
   - "common"
-  - "demo"
+  - "react-three-engine-demo"
+  - "react-three-engine"

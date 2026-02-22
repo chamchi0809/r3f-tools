@@ -1,0 +1,22 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "sourceMap": true,
+    "noEmit": true,
+    "types": ["vite/client"],
+    "paths": {
+      "react-three-engine": ["../react-three-engine/src/index.ts"],
+      "react-three-engine/vite": ["../react-three-engine/src/vitePlugin.ts"]
+    }
+  },
+  "include": ["src"]
+}

@@ -128,7 +128,7 @@ const buildCommandString = (command: string, args: string[]) => {
   return parts.join(" ");
 };
 
-const resolveWebviewAsset = (
+const _resolveWebviewAsset = (
   webview: vscode.Webview,
   extensionUri: vscode.Uri,
   assetPath: string,
