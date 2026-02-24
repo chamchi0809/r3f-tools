@@ -1,7 +1,8 @@
 import { OrbitControls, TransformControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three/webgpu";
+import { editorConfig } from "virtual:react-three-engine/config";
 import {
   makeObject,
   sceneActions,
@@ -632,40 +633,211 @@ function TransformModeBar({
   );
 }
 
-function Toolbar() {
-  const handleSave = () => {
-    const nodes = sceneActions.serialize();
-    const json = JSON.stringify(nodes, null, 2);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "scene-prefab.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+function PrefabPanel({
+  onClose,
+  onRefresh,
+}: {
+  onClose: () => void;
+  onRefresh: () => void;
+}) {
+  const [prefabs, setPrefabs] = useState<string[]>([]);
+  const [saveName, setSaveName] = useState("");
+  const [status, setStatus] = useState<string | null>(null);
+  const { apiBase } = editorConfig;
 
-  const handleLoad = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".json";
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const nodes = JSON.parse(
-            e.target?.result as string,
-          ) as SerializedObject[];
-          sceneActions.deserialize(nodes);
-        } catch {}
+  const fetchList = useCallback(async () => {
+    try {
+      const res = await fetch(`${apiBase}/list`);
+      const data = (await res.json()) as string[];
+      setPrefabs(data);
+    } catch {
+      setStatus("Failed to fetch prefab list");
+    }
+  }, [apiBase]);
+
+  useEffect(() => {
+    fetchList();
+  }, [fetchList]);
+
+  const handleSave = async () => {
+    const name = saveName.trim();
+    if (!name) {
+      setStatus("Enter a name first");
+      return;
+    }
+    const data = sceneActions.serialize();
+    try {
+      const res = await fetch(`${apiBase}/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, data }),
+      });
+      const json = (await res.json()) as {
+        ok?: boolean;
+        file?: string;
+        error?: string;
       };
-      reader.readAsText(file);
-    };
-    input.click();
+      if (json.ok) {
+        setStatus(`Saved ${json.file}`);
+        await fetchList();
+        onRefresh();
+      } else {
+        setStatus(json.error ?? "Save failed");
+      }
+    } catch {
+      setStatus("Save failed");
+    }
   };
 
+  const handleLoad = async (name: string) => {
+    try {
+      const res = await fetch(
+        `${apiBase}/load?name=${encodeURIComponent(name)}`,
+      );
+      const data = (await res.json()) as SerializedObject[];
+      sceneActions.deserialize(data);
+      onClose();
+    } catch {
+      setStatus("Load failed");
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "#181818",
+        zIndex: 200,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          padding: "10px 12px 8px",
+          borderBottom: "1px solid #333",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: "#aaa",
+            textTransform: "uppercase",
+            letterSpacing: 1,
+            flex: 1,
+          }}
+        >
+          Prefabs
+        </span>
+        <button
+          onClick={onClose}
+          style={{ ...btnStyle, padding: "2px 8px", fontSize: 11 }}
+        >
+          ✕
+        </button>
+      </div>
+
+      <div
+        style={{
+          padding: "10px 12px",
+          borderBottom: "1px solid #2a2a2a",
+          display: "flex",
+          gap: 6,
+        }}
+      >
+        <input
+          value={saveName}
+          onChange={(e) => {
+            setSaveName(e.target.value);
+            setStatus(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSave();
+          }}
+          placeholder="Prefab name…"
+          style={{ ...textInputStyle, flex: 1 }}
+        />
+        <button onClick={handleSave} style={btnStyle}>
+          Save
+        </button>
+      </div>
+
+      {status && (
+        <div
+          style={{
+            padding: "6px 12px",
+            fontSize: 11,
+            color: "#888",
+            borderBottom: "1px solid #2a2a2a",
+          }}
+        >
+          {status}
+        </div>
+      )}
+          <div style={{ flex: 1, overflowY: "auto" }}>
+        {prefabs.length === 0 && (
+          <div
+            style={{
+              padding: "16px 12px",
+              fontSize: 12,
+              color: "#555",
+              textAlign: "center",
+            }}
+          >
+            No saved prefabs
+          </div>
+        )}
+        {prefabs.map((name) => (
+          <div
+            key={name}
+            onClick={() => handleLoad(name)}
+            style={{
+              padding: "8px 12px",
+              fontSize: 12,
+              color: "#ccc",
+              cursor: "pointer",
+              borderBottom: "1px solid #222",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+            onMouseEnter={(e) =>
+              ((e.currentTarget as HTMLElement).style.background = "#252525")
+            }
+            onMouseLeave={(e) =>
+              ((e.currentTarget as HTMLElement).style.background =
+                "transparent")
+            }
+          >
+            <span style={{ opacity: 0.5, fontSize: 10 }}>📄</span>
+            <span
+              style={{
+                flex: 1,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {name}
+            </span>
+            <span style={{ fontSize: 10, opacity: 0.4 }}>.r3eprefab</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Toolbar({ onTogglePrefabs }: { onTogglePrefabs: () => void }) {
   return (
     <div
       style={{
@@ -676,6 +848,9 @@ function Toolbar() {
         alignItems: "center",
         gap: 8,
         padding: "0 12px",
+        flexShrink: 0,
+        zIndex: 201,
+        position: "relative",
       }}
     >
       <span
@@ -683,20 +858,18 @@ function Toolbar() {
       >
         r3e
       </span>
-      <button onClick={handleSave} style={btnStyle}>
-        Save Prefab
-      </button>
-      <button onClick={handleLoad} style={btnStyle}>
-        Load Prefab
+      <button onClick={onTogglePrefabs} style={btnStyle}>
+        Prefabs
       </button>
     </div>
   );
 }
-
 export default function App(): React.JSX.Element {
   const [transformDragging, setTransformDragging] = useState(false);
   const [transformMode, setTransformMode] =
     useState<TransformMode>("translate");
+  const [showPrefabs, setShowPrefabs] = useState(false);
+  const refreshRef = useRef(0);
 
   return (
     <div
@@ -710,8 +883,23 @@ export default function App(): React.JSX.Element {
         fontFamily: "system-ui, sans-serif",
       }}
     >
-      <Toolbar />
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+      <Toolbar onTogglePrefabs={() => setShowPrefabs((v) => !v)} />
+      <div
+        style={{
+          display: "flex",
+          flex: 1,
+          overflow: "hidden",
+          position: "relative",
+        }}
+      >
+        {showPrefabs && (
+          <PrefabPanel
+            onClose={() => setShowPrefabs(false)}
+            onRefresh={() => {
+              refreshRef.current += 1;
+            }}
+          />
+        )}
         <div
           style={{
             width: 220,
@@ -723,7 +911,6 @@ export default function App(): React.JSX.Element {
         >
           <HierarchyPane />
         </div>
-
         <div style={{ flex: 1, position: "relative" }}>
           <Canvas
             gl={async (props) => {
@@ -757,7 +944,10 @@ export default function App(): React.JSX.Element {
           }}
         >
           <div
-            style={{ padding: "10px 12px 8px", borderBottom: "1px solid #333" }}
+            style={{
+              padding: "10px 12px 8px",
+              borderBottom: "1px solid #333",
+            }}
           >
             <span
               style={{
