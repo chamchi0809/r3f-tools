@@ -1,0 +1,29 @@
+[
+  {
+    "uuid": "0db1532b-adcf-458b-b607-e17b1a9b647d",
+    "name": "Mesh",
+    "kind": "mesh",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "children": [],
+    "material": {
+      "type": "MeshStandardMaterial",
+      "color": "#888888",
+      "roughness": 1,
+      "metalness": 0
+    }
+  }
+]

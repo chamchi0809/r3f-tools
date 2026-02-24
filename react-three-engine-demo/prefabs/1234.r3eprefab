@@ -1,0 +1,56 @@
+[
+  {
+    "uuid": "ea55f9f9-abba-4507-8fec-1416249bdeaa",
+    "name": "Mesh",
+    "kind": "mesh",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "children": [],
+    "material": {
+      "type": "MeshStandardMaterial",
+      "color": "#888888",
+      "roughness": 1,
+      "metalness": 0
+    }
+  },
+  {
+    "uuid": "2a7758ce-1351-45aa-bbf0-b07e62fd3a21",
+    "name": "Mesh",
+    "kind": "mesh",
+    "position": [
+      -1.4998825245390066,
+      0,
+      0
+    ],
+    "rotation": [
+      -1.7358782940947803,
+      -0.13341820401020255,
+      -2.6653062633545566
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "children": [],
+    "material": {
+      "type": "MeshStandardMaterial",
+      "color": "#888888",
+      "roughness": 1,
+      "metalness": 0
+    }
+  }
+]
