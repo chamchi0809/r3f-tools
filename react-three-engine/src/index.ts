@@ -8,3 +8,4 @@ export { prefabRegistry, type ScenePrefab } from "./prefabs/registry";
 export { useSceneStore, sceneActions } from "./store";
 export type { ObjectKind, SerializedMaterial, SerializedObject } from "./store";
 export { Prefab, type PrefabProps } from "./components";
+export type { PrefabTypeRegistry, PrefabRef } from "./prefabTypes";

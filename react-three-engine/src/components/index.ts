@@ -1,1 +1,1 @@
-export { Prefab } from "./Prefab";
+export { Prefab, type PrefabProps } from "./Prefab";

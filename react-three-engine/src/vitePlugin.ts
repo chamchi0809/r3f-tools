@@ -1,6 +1,6 @@
 import path from "node:path";
 import fs from "node:fs";
-import type { Plugin, ViteDevServer } from "vite";
+import type { Plugin, ViteDevServer, FSWatcher } from "vite";
 
 export interface ReactThreeEnginePluginOptions {
   webgpu?: boolean;
@@ -30,6 +30,7 @@ export function reactThreeEnginePlugin(
 
   const prefabRefIds = new Map<string, string>();
   let prefabUrls: Record<string, string> | null = null;
+  let dtsAbsPath: string | null = null;
 
   return {
     name: "react-three-engine",
@@ -56,10 +57,12 @@ export function reactThreeEnginePlugin(
     },
 
     buildStart() {
-      if (!isBuild || !resolvedSavePath) return;
+      if (!resolvedSavePath) return;
+      dtsAbsPath = path.join(resolvedSavePath, "prefabs.d.ts");
+      writePrefabsDts(resolvedSavePath, PREFAB_EXT, dtsAbsPath);
+      if (!isBuild) return;
       prefabRefIds.clear();
       prefabUrls = null;
-
       let files: string[] = [];
       try {
         files = fs
@@ -68,16 +71,11 @@ export function reactThreeEnginePlugin(
       } catch {
         return;
       }
-
       for (const file of files) {
         const name = file.slice(0, -PREFAB_EXT.length);
         const filePath = path.join(resolvedSavePath, file);
         const source = fs.readFileSync(filePath);
-        const refId = this.emitFile({
-          type: "asset",
-          name: file,
-          source,
-        });
+        const refId = this.emitFile({ type: "asset", name: file, source });
         prefabRefIds.set(name, refId);
       }
     },
@@ -129,6 +127,21 @@ if (root) {
       );
 
       registerApiRoutes(server, apiBase, resolvedSavePath, PREFAB_EXT);
+
+      if (resolvedSavePath && dtsAbsPath) {
+        const watchDir = resolvedSavePath;
+        const watchDts = dtsAbsPath;
+        const watcher: FSWatcher = server.watcher;
+        const regenerate = (changedPath: string) => {
+          if (changedPath === watchDts) return;
+          if (changedPath.endsWith(PREFAB_EXT)) {
+            writePrefabsDts(watchDir, PREFAB_EXT, watchDts);
+          }
+        };
+        watcher.on("add", regenerate);
+        watcher.on("change", regenerate);
+        watcher.on("unlink", regenerate);
+      }
 
       server.middlewares.use(editorPath, async (req, res, next) => {
         if (req.method !== "GET" && req.method !== "HEAD") {
@@ -304,6 +317,78 @@ function normalizeBase(base: string | undefined): string {
   if (!base || base === "./") return "/";
   const withLeading = base.startsWith("/") ? base : `/${base}`;
   return withLeading.endsWith("/") ? withLeading : `${withLeading}/`;
+}
+
+type SerializedObjectKind =
+  | "mesh"
+  | "group"
+  | "ambientLight"
+  | "directionalLight"
+  | "pointLight"
+  | "perspectiveCamera";
+
+interface RawNode {
+  kind: SerializedObjectKind;
+  children: RawNode[];
+}
+
+const KIND_TO_THREE: Record<SerializedObjectKind, string> = {
+  mesh: "THREE.Mesh",
+  group: "THREE.Group",
+  ambientLight: "THREE.AmbientLight",
+  directionalLight: "THREE.DirectionalLight",
+  pointLight: "THREE.PointLight",
+  perspectiveCamera: "THREE.PerspectiveCamera",
+};
+
+function nodeToType(node: RawNode): string {
+  const threeType = KIND_TO_THREE[node.kind] ?? "THREE.Object3D";
+  if (node.children.length === 0) return threeType;
+  const childTypes = node.children.map(nodeToType).join(", ");
+  return `Omit<${threeType}, "children"> & { children: [${childTypes}] }`;
+}
+
+function generatePrefabsDts(saveDir: string, ext: string): string {
+  let files: string[] = [];
+  try {
+    files = fs.readdirSync(saveDir).filter((f) => f.endsWith(ext));
+  } catch {
+    files = [];
+  }
+  const entries: string[] = [];
+  for (const file of files) {
+    const name = file.slice(0, -ext.length);
+    try {
+      const raw = JSON.parse(
+        fs.readFileSync(path.join(saveDir, file), "utf-8"),
+      ) as RawNode[];
+      const childTypes = raw.map(nodeToType).join(", ");
+      const groupType = `Omit<import("three").Group, "children"> & { children: [${childTypes}] }`;
+      entries.push(`    ${JSON.stringify(name)}: ${groupType};`);
+    } catch {
+      entries.push(`    ${JSON.stringify(name)}: import("three").Group;`);
+    }
+  }
+  const body = entries.length > 0 ? entries.join("\n") : "";
+  return [
+    "import \"react-three-engine\";",
+    "import * as THREE from \"three/webgpu\";",
+    "",
+    "declare module \"react-three-engine\" {",
+    "  interface PrefabTypeRegistry {",
+    body,
+    "  }",
+    "}",
+    "",
+  ].join("\n");
+}
+
+function writePrefabsDts(saveDir: string, ext: string, dtsPath: string): void {
+  try {
+    fs.mkdirSync(saveDir, { recursive: true });
+    fs.writeFileSync(dtsPath, generatePrefabsDts(saveDir, ext), "utf-8");
+  } catch {
+  }
 }
 
 export default reactThreeEnginePlugin;

@@ -18,5 +18,5 @@
       "react-three-engine/vite": ["../react-three-engine/src/vitePlugin.ts"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "prefabs"]
 }
