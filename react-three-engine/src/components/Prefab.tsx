@@ -51,7 +51,7 @@ export function Prefab({
   id,
   ...groupProps
 }: PrefabProps): React.ReactElement | null {
-  const { apiBase } = editorConfig;
+  const { apiBase, prefabUrls } = editorConfig;
   const [nodes, setNodes] = useState<SerializedObject[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,8 +59,17 @@ export function Prefab({
     let cancelled = false;
     setNodes(null);
     setError(null);
+    const url =
+      prefabUrls != null
+        ? (prefabUrls[id] ?? null)
+        : `${apiBase}/load?name=${encodeURIComponent(id)}`;
 
-    fetch(`${apiBase}/load?name=${encodeURIComponent(id)}`)
+    if (!url) {
+      setError(`Prefab "${id}" not found`);
+      return;
+    }
+
+    fetch(url)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json() as Promise<SerializedObject[]>;
@@ -72,11 +81,10 @@ export function Prefab({
         if (!cancelled)
           setError(err instanceof Error ? err.message : String(err));
       });
-
     return () => {
       cancelled = true;
     };
-  }, [id, apiBase]);
+  }, [id, apiBase, prefabUrls]);
 
   const group = useMemo(() => {
     if (!nodes) return null;

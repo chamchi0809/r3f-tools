@@ -4,9 +4,7 @@ import type { Plugin, ViteDevServer } from "vite";
 
 export interface ReactThreeEnginePluginOptions {
   webgpu?: boolean;
-  // The URL path where the editor will be served (e.g. "localhost:[your-port]/editor"). Defaults to "/editor".
   editorPath?: string;
-  // The directory where prefabs will be saved. Defaults to "./prefabs".
   savePath?: string;
   [key: string]: unknown;
 }
@@ -28,12 +26,17 @@ export function reactThreeEnginePlugin(
   const PREFAB_EXT = ".r3eprefab";
   let resolvedSavePath: string | null = null;
   let apiBase: string;
+  let isBuild = false;
+
+  const prefabRefIds = new Map<string, string>();
+  let prefabUrls: Record<string, string> | null = null;
 
   return {
     name: "react-three-engine",
     enforce: "pre",
 
-    config() {
+    config(_cfg, { command }) {
+      isBuild = command === "build";
       return {
         optimizeDeps: {
           include: [
@@ -52,6 +55,42 @@ export function reactThreeEnginePlugin(
       apiBase = resolveApiBase(config.base, pathname);
     },
 
+    buildStart() {
+      if (!isBuild || !resolvedSavePath) return;
+      prefabRefIds.clear();
+      prefabUrls = null;
+
+      let files: string[] = [];
+      try {
+        files = fs
+          .readdirSync(resolvedSavePath)
+          .filter((f) => f.endsWith(PREFAB_EXT));
+      } catch {
+        return;
+      }
+
+      for (const file of files) {
+        const name = file.slice(0, -PREFAB_EXT.length);
+        const filePath = path.join(resolvedSavePath, file);
+        const source = fs.readFileSync(filePath);
+        const refId = this.emitFile({
+          type: "asset",
+          name: file,
+          source,
+        });
+        prefabRefIds.set(name, refId);
+      }
+    },
+
+    generateBundle() {
+      if (!isBuild || prefabRefIds.size === 0) return;
+      const urls: Record<string, string> = {};
+      for (const [name, refId] of prefabRefIds) {
+        urls[name] = `/${this.getFileName(refId)}`;
+      }
+      prefabUrls = urls;
+    },
+
     resolveId(id) {
       if (id === virtualEditorId) return resolvedVirtualEditorId;
       if (id === virtualConfigId) return resolvedVirtualConfigId;
@@ -60,7 +99,12 @@ export function reactThreeEnginePlugin(
 
     load(id) {
       if (id === resolvedVirtualConfigId) {
-        return `export const editorConfig = ${JSON.stringify({ savePath: savePath ?? null, apiBase })};\n`;
+        const config = {
+          savePath: savePath ?? null,
+          apiBase,
+          prefabUrls: prefabUrls ?? null,
+        };
+        return `export const editorConfig = ${JSON.stringify(config)};\n`;
       }
       if (id === resolvedVirtualEditorId) {
         return `import React from 'react'
