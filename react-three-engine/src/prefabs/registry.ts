@@ -16,43 +16,73 @@ export interface PrefabData {
 }
 
 export interface Prefab {
+  id: string
   key: string
   data: PrefabData
 }
 
 class PrefabRegistry {
-  private prefabs: Map<string, PrefabData> = new Map()
+  private prefabs: Map<string, Prefab> = new Map()
 
   /**
    * Add a new prefab with a unique key
-   * @param key - Unique identifier for the prefab
+   * @param key - Unique display key for the prefab
    * @param data - Serializable prefab data
-   * @returns true if added, false if key exists
+   * @returns Prefab if added, null if key exists
    */
-  add(key: string, data: PrefabData): boolean {
-    if (this.prefabs.has(key)) {
-      return false
+  add(key: string, data: PrefabData): Prefab | null {
+    if (this.hasKey(key)) {
+      return null
     }
-    this.prefabs.set(key, data)
-    return true
+    const prefab: Prefab = {
+      id: createPrefabId(),
+      key,
+      data
+    }
+    this.prefabs.set(prefab.id, prefab)
+    return prefab
+  }
+
+  /**
+   * Add a prefab with a pre-defined id (used when loading)
+   */
+  addWithId(id: string, key: string, data: PrefabData): Prefab | null {
+    if (this.prefabs.has(id) || this.hasKey(key)) {
+      return null
+    }
+    const prefab: Prefab = { id, key, data }
+    this.prefabs.set(id, prefab)
+    return prefab
+  }
+
+  /**
+   * Get a prefab by id
+   * @param id - Prefab id
+   * @returns Prefab or undefined if not found
+   */
+  get(id: string): Prefab | undefined {
+    return this.prefabs.get(id)
   }
 
   /**
    * Get a prefab by key
-   * @param key - Prefab key
-   * @returns Prefab data or undefined if not found
    */
-  get(key: string): PrefabData | undefined {
-    return this.prefabs.get(key)
+  getByKey(key: string): Prefab | undefined {
+    for (const prefab of this.prefabs.values()) {
+      if (prefab.key === key) {
+        return prefab
+      }
+    }
+    return undefined
   }
 
   /**
-   * Remove a prefab by key
-   * @param key - Prefab key to remove
+   * Remove a prefab by id
+   * @param id - Prefab id to remove
    * @returns true if removed, false if not found
    */
-  remove(key: string): boolean {
-    return this.prefabs.delete(key)
+  remove(id: string): boolean {
+    return this.prefabs.delete(id)
   }
 
   /**
@@ -64,15 +94,16 @@ class PrefabRegistry {
     return this.prefabs.has(key)
   }
 
+  hasKey(key: string): boolean {
+    return this.getByKey(key) !== undefined
+  }
+
   /**
    * Get all prefabs
-   * @returns Array of all prefabs with keys
+   * @returns Array of all prefabs with ids and keys
    */
   getAll(): Prefab[] {
-    return Array.from(this.prefabs.entries()).map(([key, data]) => ({
-      key,
-      data
-    }))
+    return Array.from(this.prefabs.values())
   }
 
   /**
@@ -85,3 +116,7 @@ class PrefabRegistry {
 
 // Singleton instance
 export const prefabRegistry: PrefabRegistry = new PrefabRegistry()
+
+function createPrefabId(): string {
+  return `prefab_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+}

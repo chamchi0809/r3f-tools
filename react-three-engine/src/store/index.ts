@@ -1,6 +1,17 @@
 /**
- * Provides Zustand-based state management for entities, selection, and traits
+ * Provides Koota-based state management for entities, selection, and traits
  */
 
-export { useEntityStore, generateEntityId } from './entities';
-export { useSelectionStore } from './selection';
+export { getCustomTraitFactories, setCustomTraitFactories } from './traits';
+export {
+  engineWorld,
+  selectionActions,
+  spawnEntityBlueprint,
+  updateEntityBlueprint,
+  addChild,
+  removeChild,
+  SelectionStateTrait,
+  EntityBlueprintTrait,
+  TraitDescriptorTrait,
+  ChildOf,
+} from './ecs';

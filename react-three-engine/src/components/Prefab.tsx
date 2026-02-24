@@ -30,7 +30,7 @@ function GLTFPrefab({ url, position, onClick, highlighted }: { url: string, posi
 
 export function Prefab({ data: dataProp, prefabKey, id: _id, onClick, highlighted }: PrefabProps): React.JSX.Element | null {
   // Load data from registry if prefabKey provided
-  const data = dataProp ?? (prefabKey ? prefabRegistry.get(prefabKey) : undefined)
+  const data = dataProp ?? (prefabKey ? prefabRegistry.getByKey(prefabKey)?.data : undefined)
   
   // If no data available, render nothing
   if (!data) return null

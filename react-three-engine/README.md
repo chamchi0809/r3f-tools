@@ -5,12 +5,12 @@ A React Three Fiber engine with WebGPU support. This package provides a scene ma
 ## Features
 
 - **WebGPU-Only**: Leverages the power of the `WebGPURenderer` for modern graphics.
-- **Entity Store**: Zustand-powered entity management for shapes, lights, and models.
+- **Entity Store**: Identity-only entities with trait-based values.
 - **Selection System**: Highlighting and interaction management for scene entities.
 - **Transform Controls**: Interactive gizmos for translating, rotating, and scaling objects.
 - **glTF Loading**: Support for importing local glTF/GLB files via blob URLs.
 - **Export to JSX**: Generate `gltfjsx`-style React components from the current scene.
-- **Save/Load Scene**: Persistence via JSON serialization.
+- **Save/Load Prefabs**: Persistence via JSON serialization.
 
 ## Prerequisites
 
@@ -44,6 +44,25 @@ pnpm dev
 ```
 
 The editor is accessible at `/editor` by default when integrated into the `r3f-tools` workspace or when using the provided Vite plugin. You can customize the URL via the plugin's `pathname` option.
+
+## Trait Injection
+
+You can inject custom traits via the Vite plugin. Provide a map of trait names to modules that export a default factory function:
+
+```ts
+// vite.config.ts
+import { reactThreeEnginePlugin } from 'react-three-engine/vite'
+
+export default defineConfig({
+  plugins: [
+    reactThreeEnginePlugin({
+      traits: {
+        myCustomTrait: '/src/traits/myCustomTrait'
+      }
+    })
+  ]
+})
+```
 
 ## Known Limitations
 

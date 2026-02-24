@@ -14,6 +14,12 @@ export interface ReactThreeEnginePluginOptions {
   pathname?: string
 
   /**
+   * Custom trait factories available to the runtime.
+   * Keys are trait names, values are modules exporting a default factory.
+   */
+  traits?: Record<string, string>
+
+  /**
    * Additional plugin options (reserved for future use)
    */
   [key: string]: unknown
@@ -38,9 +44,11 @@ export interface ReactThreeEnginePluginOptions {
 export function reactThreeEnginePlugin(
   options: ReactThreeEnginePluginOptions = {}
 ): Plugin {
-  const { webgpu = true, pathname = '/editor', ..._rest } = options
+  const { webgpu = true, pathname = '/editor', traits = {}, ..._rest } = options
   const virtualEditorId = 'virtual:react-three-engine/editor'
   const resolvedVirtualEditorId = `\0${virtualEditorId}`
+  const virtualTraitsId = 'virtual:react-three-engine/traits'
+  const resolvedVirtualTraitsId = `\0${virtualTraitsId}`
 
   return {
     name: 'react-three-engine',
@@ -74,6 +82,9 @@ export function reactThreeEnginePlugin(
       if (id === virtualEditorId) {
         return resolvedVirtualEditorId
       }
+      if (id === virtualTraitsId) {
+        return resolvedVirtualTraitsId
+      }
       return null
     },
 
@@ -82,12 +93,27 @@ export function reactThreeEnginePlugin(
         return `import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { App as EditorApp } from 'react-three-engine'
+import { setCustomTraitFactories } from 'react-three-engine'
+import { customTraits } from 'virtual:react-three-engine/traits'
+
+setCustomTraitFactories(customTraits)
 
 const root = document.getElementById('root')
 if (root) {
   ReactDOM.createRoot(root).render(
     React.createElement(React.StrictMode, null, React.createElement(EditorApp))
   )
+}
+`
+      }
+      if (id === resolvedVirtualTraitsId) {
+        const entries = Object.entries(traits)
+        const imports = entries.map(([key], index) => `import trait_${index} from ${JSON.stringify(traits[key])}`)
+        const mapping = entries.map(([key], index) => `  ${JSON.stringify(key)}: trait_${index}`)
+        return `${imports.join('\n')}
+
+export const customTraits = {
+${mapping.join(',\n')}
 }
 `
       }

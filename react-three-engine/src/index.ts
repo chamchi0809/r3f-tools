@@ -22,3 +22,28 @@ export { default as App } from './App'
 // Export prefab system
 export { Prefab } from './components/Prefab'
 export { prefabRegistry, type PrefabData, type Prefab as PrefabType } from './prefabs/registry'
+
+// Export entity/trait types and stores for runtime usage
+export type {
+  EntityId,
+  TraitDescriptor,
+  TraitId,
+  TraitKind,
+  TraitValue,
+  EntityBlueprint,
+  SelectionState,
+} from './store/ecs'
+
+export {
+  engineWorld,
+  selectionActions,
+  spawnEntityBlueprint,
+  updateEntityBlueprint,
+  addChild,
+  removeChild,
+  SelectionStateTrait,
+  EntityBlueprintTrait,
+  TraitDescriptorTrait,
+  ChildOf,
+} from './store'
+export { getCustomTraitFactories, setCustomTraitFactories } from './store'
