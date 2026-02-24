@@ -97,6 +97,9 @@ importers:
       '@react-three/fiber':
         specifier: ^9.0.0
         version: 9.5.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.182.0)
+      flexlayout-react:
+        specifier: ^0.8.18
+        version: 0.8.18(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       koota:
         specifier: 0.6.5
         version: 0.6.5(@types/react@19.2.14)(react@19.2.4)
@@ -1450,6 +1453,12 @@ packages:
 
   find-root@1.1.0:
     resolution: {integrity: sha512-NKfW6bec6GfKc0SGx1e07QZY9PE99u0Bft/0rzSD5k3sO/vwkVUpDUKVm5Gpp5Ue3YfShPFTX2070tDs5kB9Ng==}
+
+  flexlayout-react@0.8.18:
+    resolution: {integrity: sha512-xxifwxfS0NigaPHkunKZ39CafGzm7L+UDEcfuNatiOKhDQaIujmMwQrE1/B7uxbHNN3P19yoX/DJmtMo/sIiZA==}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
 
   form-data@4.0.5:
     resolution: {integrity: sha512-8RipRLol37bNs2bhoV67fiTEvdTrbMUYcFTiy3+wuuOnUog2QBHCZWXDRijWQfAkhBj2Uf5UnVaiWwA5vdd82w==}
@@ -3625,6 +3634,11 @@ snapshots:
   fflate@0.8.2: {}
 
   find-root@1.1.0: {}
+
+  flexlayout-react@0.8.18(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
+    dependencies:
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
 
   form-data@4.0.5:
     dependencies:

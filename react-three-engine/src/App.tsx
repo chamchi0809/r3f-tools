@@ -14,13 +14,125 @@ import {
 import "./styles";
 import { injectGlobal } from "@emotion/css";
 import styled from "@emotion/styled";
+import "flexlayout-react/style/dark.css";
+import { Layout, Model, TabNode } from "flexlayout-react";
 
-export default function App(): React.JSX.Element {
+const Viewport = () => {
   const [transformDragging, setTransformDragging] = useState(false);
   const [transformMode, setTransformMode] =
     useState<TransformMode>("translate");
-  const [showPrefabs, setShowPrefabs] = useState(false);
+  return (
+    <>
+      <Canvas
+        gl={async (props) => {
+          const renderer = new THREE.WebGPURenderer(props as any);
+          await renderer.init();
+          return renderer;
+        }}
+        camera={{ position: [0, 2, 8], fov: 60 }}
+        style={{ background: "#1a1a1a" }}
+      >
+        <ambientLight intensity={0.4} />
+        <directionalLight position={[5, 8, 5]} intensity={1} />
+        <gridHelper args={[20, 20, "#333", "#2a2a2a"]} />
+        <SceneContent
+          onTransformDrag={setTransformDragging}
+          transformDragging={transformDragging}
+          transformMode={transformMode}
+        />
+        <OrbitControls makeDefault enabled={!transformDragging} />
+      </Canvas>
+      <TransformModeBar mode={transformMode} setMode={setTransformMode} />
+    </>
+  );
+};
+const model = Model.fromJson({
+  global: {},
+  borders: [
+    {
+      type: "border",
+      location: "bottom",
+      autoSelectTabWhenOpen: true,
+      selected: 0,
+      children: [
+        {
+          type: "tab",
+          name: "Prefabs",
+          component: "prefabs",
+          enableClose: false,
+        },
+      ],
+    },
+  ],
+  layout: {
+    type: "row",
+    weight: 100,
+    children: [
+      {
+        type: "tabset",
+        weight: 50,
+        children: [
+          {
+            type: "tab",
+            name: "Hierarchy",
+            component: "hierarchy",
+            enableClose: false,
+          },
+        ],
+      },
+      {
+        type: "tabset",
+        weight: 100,
+        children: [
+          {
+            type: "tab",
+            name: "Viewport",
+            component: "viewport",
+            enableClose: false,
+          },
+        ],
+      },
+      {
+        type: "tabset",
+        weight: 50,
+        children: [
+          {
+            type: "tab",
+            name: "Inspector",
+            component: "inspector",
+            enableClose: false,
+          },
+        ],
+      },
+    ],
+  },
+});
+
+export default function App(): React.JSX.Element {
   const refreshRef = useRef(0);
+
+  const factory = (node: TabNode) => {
+    const component = node.getComponent();
+    if (component === "hierarchy") {
+      return <HierarchyPane />;
+    }
+    if (component === "viewport") {
+      return <Viewport />;
+    }
+    if (component === "inspector") {
+      return <InspectorPane />;
+    }
+    if (component === "prefabs") {
+      return (
+        <PrefabPanel
+          onClose={() => {}}
+          onRefresh={() => {
+            refreshRef.current += 1;
+          }}
+        />
+      );
+    }
+  };
 
   return (
     <div
@@ -34,87 +146,15 @@ export default function App(): React.JSX.Element {
         fontFamily: "system-ui, sans-serif",
       }}
     >
-      <Toolbar onTogglePrefabs={() => setShowPrefabs((v) => !v)} />
-
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        {/* Hierarchy */}
-        <div
-          style={{
-            width: 220,
-            flexShrink: 0,
-            borderRight: "1px solid #333",
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
-          <HierarchyPane />
-        </div>
-
-        {/* Viewport */}
-        <div style={{ flex: 1, position: "relative" }}>
-          <Canvas
-            gl={async (props) => {
-              const renderer = new THREE.WebGPURenderer(props as any);
-              await renderer.init();
-              return renderer;
-            }}
-            camera={{ position: [0, 2, 8], fov: 60 }}
-            style={{ background: "#1a1a1a" }}
-          >
-            <ambientLight intensity={0.4} />
-            <directionalLight position={[5, 8, 5]} intensity={1} />
-            <gridHelper args={[20, 20, "#333", "#2a2a2a"]} />
-            <SceneContent
-              onTransformDrag={setTransformDragging}
-              transformDragging={transformDragging}
-              transformMode={transformMode}
-            />
-            <OrbitControls makeDefault enabled={!transformDragging} />
-          </Canvas>
-          <TransformModeBar mode={transformMode} setMode={setTransformMode} />
-        </div>
-
-        {/* Inspector */}
-        <div
-          style={{
-            width: 240,
-            flexShrink: 0,
-            borderLeft: "1px solid #333",
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{ padding: "10px 12px 8px", borderBottom: "1px solid #333" }}
-          >
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: "#aaa",
-                textTransform: "uppercase",
-                letterSpacing: 1,
-              }}
-            >
-              Inspector
-            </span>
-          </div>
-          <div style={{ flex: 1, overflowY: "auto" }}>
-            <InspectorPane />
-          </div>
-        </div>
+      <Toolbar onTogglePrefabs={() => {}} />
+      <div
+        style={{
+          flex: 1,
+          position: "relative",
+        }}
+      >
+        <Layout model={model} factory={factory} />
       </div>
-
-      {showPrefabs && (
-        <PrefabPanel
-          onClose={() => setShowPrefabs(false)}
-          onRefresh={() => {
-            refreshRef.current += 1;
-          }}
-        />
-      )}
     </div>
   );
 }

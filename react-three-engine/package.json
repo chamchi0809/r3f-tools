@@ -41,6 +41,7 @@
     "@emotion/styled": "^11.14.1",
     "@react-three/drei": "^10.0.0",
     "@react-three/fiber": "^9.0.0",
+    "flexlayout-react": "^0.8.18",
     "koota": "0.6.5",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
