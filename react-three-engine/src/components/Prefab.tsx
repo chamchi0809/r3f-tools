@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import * as THREE from "three/webgpu";
 import { editorConfig } from "virtual:react-three-engine/config";
-import type { GroupProps } from "@react-three/fiber";
+import type { ThreeElements } from "@react-three/fiber";
 import { makeObject } from "../store/sceneStore";
 import type { SerializedObject, SerializedMaterial } from "../store/sceneStore";
 
-export interface PrefabProps extends GroupProps {
+export type PrefabProps = Omit<ThreeElements["group"], "id"> & {
   id: string;
-}
+};
 
 function buildMaterial(
   mat: SerializedMaterial,
@@ -47,8 +47,10 @@ function buildGroup(nodes: SerializedObject[]): THREE.Group {
   return root;
 }
 
-
-export function Prefab({ id, ...groupProps }: PrefabProps): React.ReactElement | null {
+export function Prefab({
+  id,
+  ...groupProps
+}: PrefabProps): React.ReactElement | null {
   const { apiBase } = editorConfig;
   const [nodes, setNodes] = useState<SerializedObject[] | null>(null);
   const [error, setError] = useState<string | null>(null);
