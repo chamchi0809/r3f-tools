@@ -1,916 +1,20 @@
-import { OrbitControls, TransformControls } from "@react-three/drei";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { OrbitControls } from "@react-three/drei";
+import { Canvas } from "@react-three/fiber";
+import React, { useRef, useState } from "react";
 import * as THREE from "three/webgpu";
-import { editorConfig } from "virtual:react-three-engine/config";
+import { HierarchyPane } from "./components/HierarchyPane";
+import { InspectorPane } from "./components/InspectorPane";
+import { PrefabPanel } from "./components/PrefabPanel";
+import { SceneContent } from "./components/SceneContent";
 import {
-  makeObject,
-  sceneActions,
-  useSceneStore,
-  type ObjectKind,
-  type SceneNode,
-  type SerializedObject,
-} from "./store/sceneStore";
+  Toolbar,
+  TransformModeBar,
+  type TransformMode,
+} from "./components/Toolbar";
+import "./styles";
+import { injectGlobal } from "@emotion/css";
+import styled from "@emotion/styled";
 
-type TransformMode = "translate" | "rotate" | "scale";
-
-const OBJECT_KINDS: { kind: ObjectKind; label: string }[] = [
-  { kind: "mesh", label: "Mesh" },
-  { kind: "group", label: "Group" },
-  { kind: "ambientLight", label: "Ambient Light" },
-  { kind: "directionalLight", label: "Directional Light" },
-  { kind: "pointLight", label: "Point Light" },
-  { kind: "perspectiveCamera", label: "Camera" },
-];
-
-function makeDeserializedObject(node: SerializedObject): THREE.Object3D {
-  const obj = makeObject(node.kind);
-  obj.name = node.name;
-  obj.position.set(...node.position);
-  obj.rotation.set(...node.rotation);
-  obj.scale.set(...node.scale);
-  if (node.material && obj instanceof THREE.Mesh) {
-    const mat =
-      node.material.type === "MeshStandardMaterial"
-        ? new THREE.MeshStandardMaterial()
-        : new THREE.MeshBasicMaterial();
-    mat.color.set(node.material.color);
-    if (mat instanceof THREE.MeshStandardMaterial) {
-      if (node.material.roughness !== undefined)
-        mat.roughness = node.material.roughness;
-      if (node.material.metalness !== undefined)
-        mat.metalness = node.material.metalness;
-    }
-    obj.material = mat;
-  }
-  return obj;
-}
-
-function addDeserializedSubtree(
-  scene: THREE.Scene,
-  serialized: SerializedObject,
-  parentObj: THREE.Object3D | THREE.Scene,
-  parentUUID: string | null,
-): void {
-  const obj = makeDeserializedObject(serialized);
-  parentObj.add(obj);
-  useSceneStore.getState().registerObject(obj, serialized.kind, parentUUID);
-  for (const child of serialized.children) {
-    addDeserializedSubtree(scene, child, obj, obj.uuid);
-  }
-}
-
-function ClickSelector({ transformDragging }: { transformDragging: boolean }) {
-  const { camera, raycaster, gl } = useThree();
-  const pointerDown = useRef<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    const canvas = gl.domElement;
-
-    const onPointerDown = (e: PointerEvent) => {
-      pointerDown.current = { x: e.clientX, y: e.clientY };
-    };
-
-    const onPointerUp = (e: PointerEvent) => {
-      if (transformDragging) return;
-      const down = pointerDown.current;
-      if (!down) return;
-      const dx = e.clientX - down.x;
-      const dy = e.clientY - down.y;
-      // Ignore if this was a drag (e.g. OrbitControls pan)
-      if (Math.sqrt(dx * dx + dy * dy) > 4) return;
-
-      const rect = canvas.getBoundingClientRect();
-      const ndcX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      const ndcY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
-
-      const { objects } = useSceneStore.getState();
-      const meshTargets = Array.from(objects.values()).filter(
-        (o) => o instanceof THREE.Mesh,
-      );
-      const hits = raycaster.intersectObjects(meshTargets, true);
-      if (hits.length === 0) { sceneActions.select(null); return; }
-
-      // Walk up from hit object to find the registered UUID
-      let target: THREE.Object3D | null = hits[0].object;
-      while (target) {
-        if (objects.has(target.uuid)) {
-          sceneActions.select(target.uuid);
-          return;
-        }
-        target = target.parent;
-      }
-    };
-
-    canvas.addEventListener("pointerdown", onPointerDown);
-    canvas.addEventListener("pointerup", onPointerUp);
-    return () => {
-      canvas.removeEventListener("pointerdown", onPointerDown);
-      canvas.removeEventListener("pointerup", onPointerUp);
-    };
-  }, [camera, raycaster, gl, transformDragging]);
-
-  return null;
-}
-
-function SceneContent({
-  onTransformDrag,
-  transformDragging,
-  transformMode,
-}: {
-  onTransformDrag: (dragging: boolean) => void;
-  transformDragging: boolean;
-  transformMode: TransformMode;
-}) {
-  const { scene } = useThree();
-  const pendingAdd = useSceneStore((s) => s.pendingAdd);
-  const pendingRemove = useSceneStore((s) => s.pendingRemove);
-  const pendingDeserialize = useSceneStore((s) => s.pendingDeserialize);
-  const selectedUUID = useSceneStore((s) => s.selectedUUID);
-
-  useFrame(() => {});
-  useFrame(() => {});
-
-  useEffect(() => {
-    if (!pendingAdd) return;
-    useSceneStore.getState().clearPendingAdd();
-    const { kind, parentUUID } = pendingAdd;
-    const obj = makeObject(kind);
-    const parent = parentUUID
-      ? (useSceneStore.getState().objects.get(parentUUID) ?? scene)
-      : scene;
-    parent.add(obj);
-    useSceneStore.getState().registerObject(obj, kind, parentUUID);
-  }, [pendingAdd, scene]);
-
-  useEffect(() => {
-    if (!pendingRemove) return;
-    useSceneStore.getState().clearPendingRemove();
-
-    const removeRecursive = (uuid: string) => {
-      const state = useSceneStore.getState();
-      const node = state.nodes.get(uuid);
-      const obj = state.objects.get(uuid);
-      if (node) {
-        for (const childUUID of [...node.childUUIDs]) {
-          removeRecursive(childUUID);
-        }
-      }
-      if (obj) {
-        obj.parent?.remove(obj);
-      }
-      state.unregisterObject(uuid);
-    };
-
-    removeRecursive(pendingRemove);
-  }, [pendingRemove]);
-
-  useEffect(() => {
-    if (!pendingDeserialize) return;
-    useSceneStore.getState().clearPendingDeserialize();
-
-    const state = useSceneStore.getState();
-    for (const uuid of [...state.rootUUIDs]) {
-      const obj = state.objects.get(uuid);
-      if (obj) scene.remove(obj);
-    }
-    useSceneStore.setState({
-      rootUUIDs: [],
-      nodes: new Map(),
-      objects: new Map(),
-      selectedUUID: null,
-    });
-
-    for (const serialized of pendingDeserialize) {
-      addDeserializedSubtree(scene, serialized, scene, null);
-    }
-  }, [pendingDeserialize, scene]);
-
-  const selectedObj = selectedUUID
-    ? (useSceneStore.getState().objects.get(selectedUUID) ?? null)
-    : null;
-
-  return (
-    <>
-      <ClickSelector transformDragging={transformDragging} />
-      {selectedObj && (
-        <TransformControls
-          object={selectedObj}
-          mode={transformMode}
-          onMouseDown={() => onTransformDrag(true)}
-          onMouseUp={() => {
-            onTransformDrag(false);
-            useSceneStore.getState().invalidate();
-          }}
-        />
-      )}
-    </>
-  );
-}
-
-function getIconForKind(kind: ObjectKind): string {
-  switch (kind) {
-    case "mesh":
-      return "⬛";
-    case "group":
-      return "📁";
-    case "ambientLight":
-      return "☀";
-    case "directionalLight":
-      return "🔆";
-    case "pointLight":
-      return "💡";
-    case "perspectiveCamera":
-      return "📷";
-  }
-}
-
-function HierarchyNode({
-  node,
-  depth,
-  selectedUUID,
-  nodes,
-}: {
-  node: SceneNode;
-  depth: number;
-  selectedUUID: string | null;
-  nodes: Map<string, SceneNode>;
-}) {
-  const isSelected = node.uuid === selectedUUID;
-  const [expanded, setExpanded] = useState(true);
-  const hasChildren = node.childUUIDs.length > 0;
-  const icon = getIconForKind(node.kind);
-
-  return (
-    <div>
-      <div
-        onClick={() => sceneActions.select(isSelected ? null : node.uuid)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          paddingLeft: 8 + depth * 14,
-          paddingTop: 4,
-          paddingBottom: 4,
-          paddingRight: 8,
-          cursor: "pointer",
-          background: isSelected ? "#2d5fa6" : "transparent",
-          color: isSelected ? "#fff" : "#ccc",
-          borderRadius: 3,
-          fontSize: 12,
-          userSelect: "none",
-        }}
-      >
-        {hasChildren && (
-          <span
-            onClick={(e) => {
-              e.stopPropagation();
-              setExpanded((v) => !v);
-            }}
-            style={{ opacity: 0.5, fontSize: 10, width: 10 }}
-          >
-            {expanded ? "▾" : "▸"}
-          </span>
-        )}
-        {!hasChildren && <span style={{ width: 10 }} />}
-        <span style={{ opacity: 0.6, marginRight: 2 }}>{icon}</span>
-        <span
-          style={{
-            flex: 1,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {node.name || node.kind}
-        </span>
-      </div>
-      {expanded &&
-        node.childUUIDs.map((childUUID) => {
-          const childNode = nodes.get(childUUID);
-          return childNode ? (
-            <HierarchyNode
-              key={childUUID}
-              node={childNode}
-              depth={depth + 1}
-              selectedUUID={selectedUUID}
-              nodes={nodes}
-            />
-          ) : null;
-        })}
-    </div>
-  );
-}
-
-function HierarchyPane() {
-  const rootUUIDs = useSceneStore((s) => s.rootUUIDs);
-  const nodes = useSceneStore((s) => s.nodes);
-  const selectedUUID = useSceneStore((s) => s.selectedUUID);
-  const [showAddMenu, setShowAddMenu] = useState(false);
-
-  const handleAdd = (kind: ObjectKind) => {
-    sceneActions.addObject(kind, selectedUUID);
-    setShowAddMenu(false);
-  };
-
-  const handleDelete = () => {
-    if (selectedUUID) sceneActions.removeObject(selectedUUID);
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div
-        style={{
-          padding: "10px 12px 8px",
-          borderBottom: "1px solid #333",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: "#aaa",
-            flex: 1,
-            textTransform: "uppercase",
-            letterSpacing: 1,
-          }}
-        >
-          Hierarchy
-        </span>
-        <div style={{ position: "relative" }}>
-          <button onClick={() => setShowAddMenu((v) => !v)} style={btnStyle}>
-            +
-          </button>
-          {showAddMenu && (
-            <div
-              style={{
-                position: "absolute",
-                top: "100%",
-                left: 0,
-                background: "#252525",
-                border: "1px solid #444",
-                borderRadius: 4,
-                zIndex: 100,
-                minWidth: 140,
-                boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-              }}
-            >
-              {OBJECT_KINDS.map(({ kind, label }) => (
-                <div
-                  key={kind}
-                  onClick={() => handleAdd(kind)}
-                  style={{
-                    padding: "7px 12px",
-                    fontSize: 12,
-                    cursor: "pointer",
-                    color: "#ddd",
-                  }}
-                  onMouseEnter={(e) =>
-                    ((e.target as HTMLElement).style.background = "#333")
-                  }
-                  onMouseLeave={(e) =>
-                    ((e.target as HTMLElement).style.background = "transparent")
-                  }
-                >
-                  {label}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <button
-          onClick={handleDelete}
-          disabled={!selectedUUID}
-          style={{ ...btnStyle, opacity: selectedUUID ? 1 : 0.3 }}
-        >
-          🗑
-        </button>
-      </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "4px 4px" }}>
-        {rootUUIDs.map((uuid) => {
-          const node = nodes.get(uuid);
-          return node ? (
-            <HierarchyNode
-              key={uuid}
-              node={node}
-              depth={0}
-              selectedUUID={selectedUUID}
-              nodes={nodes}
-            />
-          ) : null;
-        })}
-        {rootUUIDs.length === 0 && (
-          <div
-            style={{
-              padding: "16px 12px",
-              fontSize: 12,
-              color: "#555",
-              textAlign: "center",
-            }}
-          >
-            Empty scene. Click + to add.
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Vec3Field({
-  label,
-  value,
-  onChange,
-  step = 0.01,
-}: {
-  label: string;
-  value: [number, number, number];
-  onChange: (v: [number, number, number]) => void;
-  step?: number;
-}) {
-  const axes = ["X", "Y", "Z"] as const;
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <div
-        style={{
-          fontSize: 11,
-          color: "#888",
-          marginBottom: 4,
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
-        }}
-      >
-        {label}
-      </div>
-      <div style={{ display: "flex", gap: 4 }}>
-        {axes.map((axis, i) => (
-          <label
-            key={axis}
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              gap: 2,
-            }}
-          >
-            <span style={{ fontSize: 9, color: "#666", textAlign: "center" }}>
-              {axis}
-            </span>
-            <input
-              type="number"
-              value={parseFloat(value[i].toFixed(4))}
-              step={step}
-              onChange={(e) => {
-                const next = [...value] as [number, number, number];
-                next[i] = parseFloat(e.target.value) || 0;
-                onChange(next);
-              }}
-              style={numInputStyle}
-            />
-          </label>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function InspectorPane() {
-  const objects = useSceneStore((s) => s.objects);
-  const selectedUUID = useSceneStore((s) => s.selectedUUID);
-  const version = useSceneStore((s) => s.version);
-
-  const obj = selectedUUID ? (objects.get(selectedUUID) ?? null) : null;
-
-  const pos: [number, number, number] = obj
-    ? [obj.position.x, obj.position.y, obj.position.z]
-    : [0, 0, 0];
-  const rot: [number, number, number] = obj
-    ? [
-        parseFloat(THREE.MathUtils.radToDeg(obj.rotation.x).toFixed(4)),
-        parseFloat(THREE.MathUtils.radToDeg(obj.rotation.y).toFixed(4)),
-        parseFloat(THREE.MathUtils.radToDeg(obj.rotation.z).toFixed(4)),
-      ]
-    : [0, 0, 0];
-  const scl: [number, number, number] = obj
-    ? [obj.scale.x, obj.scale.y, obj.scale.z]
-    : [1, 1, 1];
-
-  const handleTransform = useCallback(
-    (
-      position: [number, number, number],
-      rotDeg: [number, number, number],
-      scale: [number, number, number],
-    ) => {
-      if (!selectedUUID) return;
-      const rotRad: [number, number, number] = [
-        THREE.MathUtils.degToRad(rotDeg[0]),
-        THREE.MathUtils.degToRad(rotDeg[1]),
-        THREE.MathUtils.degToRad(rotDeg[2]),
-      ];
-      sceneActions.setTransform(selectedUUID, position, rotRad, scale);
-    },
-    [selectedUUID],
-  );
-
-  const meshColor = (() => {
-    if (!(obj instanceof THREE.Mesh)) return "#888888";
-    const mat = obj.material as
-      | THREE.MeshStandardMaterial
-      | THREE.MeshBasicMaterial;
-    return `#${mat.color.getHexString()}`;
-  })();
-
-  if (!obj) {
-    return (
-      <div
-        style={{
-          padding: 16,
-          fontSize: 12,
-          color: "#555",
-          textAlign: "center",
-        }}
-      >
-        Select an object to inspect
-      </div>
-    );
-  }
-
-  return (
-    <div
-      style={{ padding: "12px", overflowY: "auto", height: "100%" }}
-      key={`${selectedUUID}-${version}`}
-    >
-      <div style={{ marginBottom: 14 }}>
-        <div
-          style={{
-            fontSize: 11,
-            color: "#888",
-            textTransform: "uppercase",
-            letterSpacing: 1,
-            marginBottom: 4,
-          }}
-        >
-          Name
-        </div>
-        <input
-          value={obj.name}
-          onChange={(e) => {
-            obj.name = e.target.value;
-            const state = useSceneStore.getState();
-            const node = state.nodes.get(obj.uuid);
-            if (node) {
-              const nodes = new Map(state.nodes);
-              nodes.set(obj.uuid, { ...node, name: e.target.value });
-              useSceneStore.setState({ nodes, version: state.version + 1 });
-            } else {
-              state.invalidate();
-            }
-          }}
-          style={{ ...textInputStyle, width: "100%" }}
-        />
-      </div>
-
-      <div
-        style={{
-          fontSize: 11,
-          color: "#888",
-          textTransform: "uppercase",
-          letterSpacing: 1,
-          marginBottom: 8,
-        }}
-      >
-        Transform
-      </div>
-
-      <Vec3Field
-        label="Position"
-        value={pos}
-        onChange={(v) => handleTransform(v, rot, scl)}
-      />
-      <Vec3Field
-        label="Rotation"
-        value={rot}
-        step={1}
-        onChange={(v) => handleTransform(pos, v, scl)}
-      />
-      <Vec3Field
-        label="Scale"
-        value={scl}
-        onChange={(v) => handleTransform(pos, rot, v)}
-      />
-
-      {obj instanceof THREE.Mesh && (
-        <div style={{ marginTop: 14 }}>
-          <div
-            style={{
-              fontSize: 11,
-              color: "#888",
-              textTransform: "uppercase",
-              letterSpacing: 1,
-              marginBottom: 8,
-            }}
-          >
-            Material
-          </div>
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: 12,
-              color: "#ccc",
-            }}
-          >
-            Color
-            <input
-              type="color"
-              value={meshColor}
-              onChange={(e) =>
-                sceneActions.setMaterialColor(selectedUUID!, e.target.value)
-              }
-              style={{
-                width: 32,
-                height: 24,
-                border: "none",
-                cursor: "pointer",
-                background: "none",
-                padding: 0,
-              }}
-            />
-            <span style={{ fontSize: 11, color: "#666" }}>{meshColor}</span>
-          </label>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TransformModeBar({
-  mode,
-  setMode,
-}: {
-  mode: TransformMode;
-  setMode: (m: TransformMode) => void;
-}) {
-  return (
-    <div
-      style={{
-        position: "absolute",
-        top: 8,
-        left: "50%",
-        transform: "translateX(-50%)",
-        background: "#1e1e1ecc",
-        border: "1px solid #444",
-        borderRadius: 6,
-        display: "flex",
-        gap: 2,
-        padding: 3,
-        backdropFilter: "blur(4px)",
-      }}
-    >
-      {(["translate", "rotate", "scale"] as TransformMode[]).map((m) => (
-        <button
-          key={m}
-          onClick={() => setMode(m)}
-          style={{
-            ...btnStyle,
-            background: mode === m ? "#2d5fa6" : "transparent",
-            color: mode === m ? "#fff" : "#888",
-            fontSize: 11,
-            padding: "3px 10px",
-          }}
-        >
-          {m[0].toUpperCase() + m.slice(1)}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function PrefabPanel({
-  onClose,
-  onRefresh,
-}: {
-  onClose: () => void;
-  onRefresh: () => void;
-}) {
-  const [prefabs, setPrefabs] = useState<string[]>([]);
-  const [saveName, setSaveName] = useState("");
-  const [status, setStatus] = useState<string | null>(null);
-  const { apiBase } = editorConfig;
-  const fetchList = useCallback(async () => {
-    try {
-      const res = await fetch(`${apiBase}/list`);
-      const data = (await res.json()) as string[];
-      setPrefabs(data);
-    } catch {
-      setStatus("Failed to fetch prefab list");
-    }
-  }, [apiBase]);
-  useEffect(() => {
-    fetchList();
-  }, [fetchList]);
-  const handleSave = async () => {
-    const name = saveName.trim();
-    if (!name) {
-      setStatus("Enter a name first");
-      return;
-    }
-    const data = sceneActions.serialize();
-    try {
-      const res = await fetch(`${apiBase}/save`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, data }),
-      });
-      const json = (await res.json()) as {
-        ok?: boolean;
-        file?: string;
-        error?: string;
-      };
-      if (json.ok) {
-        setStatus(`Saved ${json.file}`);
-        await fetchList();
-        onRefresh();
-      } else {
-        setStatus(json.error ?? "Save failed");
-      }
-    } catch {
-      setStatus("Save failed");
-    }
-  };
-  const handleLoad = async (name: string) => {
-    try {
-      const res = await fetch(
-        `${apiBase}/load?name=${encodeURIComponent(name)}`,
-      );
-      const data = (await res.json()) as SerializedObject[];
-      sceneActions.deserialize(data);
-      onClose();
-    } catch {
-      setStatus("Load failed");
-    }
-  };
-  return (
-    <div
-      style={{
-        height: 200,
-        borderTop: "1px solid #333",
-        background: "#181818",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        flexShrink: 0,
-      }}
-    >
-      <div
-        style={{
-          padding: "6px 12px",
-          borderBottom: "1px solid #333",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: "#aaa",
-            textTransform: "uppercase",
-            letterSpacing: 1,
-            flex: 1,
-          }}
-        >
-          Prefabs
-        </span>
-        <input
-          value={saveName}
-          onChange={(e) => {
-            setSaveName(e.target.value);
-            setStatus(null);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleSave();
-          }}
-          placeholder="Prefab name…"
-          style={{ ...textInputStyle, width: 160 }}
-        />
-        <button onClick={handleSave} style={btnStyle}>
-          Save
-        </button>
-        {status && (
-          <span style={{ fontSize: 11, color: "#888" }}>{status}</span>
-        )}
-        <button
-          onClick={onClose}
-          style={{ ...btnStyle, padding: "2px 8px", fontSize: 11, marginLeft: 4 }}
-        >
-          ✕
-        </button>
-      </div>
-
-      <div
-        style={{
-          flex: 1,
-          overflowX: "auto",
-          overflowY: "hidden",
-          display: "flex",
-          alignItems: "stretch",
-          padding: "8px 12px",
-          gap: 8,
-        }}
-      >
-        {prefabs.length === 0 && (
-          <div
-            style={{
-              fontSize: 12,
-              color: "#555",
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
-            No saved prefabs
-          </div>
-        )}
-        {prefabs.map((name) => (
-          <div
-            key={name}
-            onClick={() => handleLoad(name)}
-            style={{
-              minWidth: 110,
-              maxWidth: 140,
-              background: "#222",
-              border: "1px solid #333",
-              borderRadius: 4,
-              padding: "8px 10px",
-              fontSize: 12,
-              color: "#ccc",
-              cursor: "pointer",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              flexShrink: 0,
-            }}
-            onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLElement).style.background = "#2a2a2a")
-            }
-            onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLElement).style.background = "#222")
-            }
-          >
-            <span style={{ fontSize: 22, opacity: 0.6 }}>📄</span>
-            <span
-              style={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                width: "100%",
-                textAlign: "center",
-                fontSize: 11,
-              }}
-            >
-              {name}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Toolbar({ onTogglePrefabs }: { onTogglePrefabs: () => void }) {
-  return (
-    <div
-      style={{
-        height: 40,
-        background: "#1a1a1a",
-        borderBottom: "1px solid #333",
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "0 12px",
-        flexShrink: 0,
-        zIndex: 201,
-        position: "relative",
-      }}
-    >
-      <span
-        style={{ fontSize: 13, fontWeight: 600, color: "#aaa", marginRight: 8 }}
-      >
-        r3e
-      </span>
-      <button onClick={onTogglePrefabs} style={btnStyle}>
-        Prefabs
-      </button>
-    </div>
-  );
-}
 export default function App(): React.JSX.Element {
   const [transformDragging, setTransformDragging] = useState(false);
   const [transformMode, setTransformMode] =
@@ -931,16 +35,13 @@ export default function App(): React.JSX.Element {
       }}
     >
       <Toolbar onTogglePrefabs={() => setShowPrefabs((v) => !v)} />
-      <div
-        style={{
-          display: "flex",
-          flex: 1,
-          overflow: "hidden",
-        }}
-      >
+
+      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+        {/* Hierarchy */}
         <div
           style={{
             width: 220,
+            flexShrink: 0,
             borderRight: "1px solid #333",
             display: "flex",
             flexDirection: "column",
@@ -949,6 +50,8 @@ export default function App(): React.JSX.Element {
         >
           <HierarchyPane />
         </div>
+
+        {/* Viewport */}
         <div style={{ flex: 1, position: "relative" }}>
           <Canvas
             gl={async (props) => {
@@ -957,7 +60,6 @@ export default function App(): React.JSX.Element {
               return renderer;
             }}
             camera={{ position: [0, 2, 8], fov: 60 }}
-            style={{ background: "#1a1a1a" }}
             style={{ background: "#1a1a1a" }}
           >
             <ambientLight intensity={0.4} />
@@ -973,9 +75,11 @@ export default function App(): React.JSX.Element {
           <TransformModeBar mode={transformMode} setMode={setTransformMode} />
         </div>
 
+        {/* Inspector */}
         <div
           style={{
             width: 240,
+            flexShrink: 0,
             borderLeft: "1px solid #333",
             display: "flex",
             flexDirection: "column",
@@ -983,10 +87,7 @@ export default function App(): React.JSX.Element {
           }}
         >
           <div
-            style={{
-              padding: "10px 12px 8px",
-              borderBottom: "1px solid #333",
-            }}
+            style={{ padding: "10px 12px 8px", borderBottom: "1px solid #333" }}
           >
             <span
               style={{
@@ -1005,6 +106,7 @@ export default function App(): React.JSX.Element {
           </div>
         </div>
       </div>
+
       {showPrefabs && (
         <PrefabPanel
           onClose={() => setShowPrefabs(false)}
@@ -1017,35 +119,96 @@ export default function App(): React.JSX.Element {
   );
 }
 
-const btnStyle: React.CSSProperties = {
-  background: "#2a2a2a",
-  color: "#ccc",
-  border: "1px solid #444",
-  borderRadius: 4,
-  padding: "4px 10px",
-  fontSize: 12,
-  cursor: "pointer",
-  lineHeight: 1.4,
-};
+injectGlobal`
+  /* Box sizing rules */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
 
-const numInputStyle: React.CSSProperties = {
-  width: "100%",
-  background: "#2a2a2a",
-  border: "1px solid #3a3a3a",
-  borderRadius: 3,
-  color: "#ddd",
-  fontSize: 11,
-  padding: "3px 5px",
-  textAlign: "right",
-  boxSizing: "border-box",
-};
+  /* Prevent font size inflation */
+  html {
+    -moz-text-size-adjust: none;
+    -webkit-text-size-adjust: none;
+    text-size-adjust: none;
+  }
 
-const textInputStyle: React.CSSProperties = {
-  background: "#2a2a2a",
-  border: "1px solid #3a3a3a",
-  borderRadius: 3,
-  color: "#ddd",
-  fontSize: 12,
-  padding: "4px 8px",
-  boxSizing: "border-box",
-};
+  /* Remove default margin in favour of better control in authored CSS */
+  body,
+  h1,
+  h2,
+  h3,
+  h4,
+  p,
+  figure,
+  blockquote,
+  dl,
+  dd {
+    margin-block-end: 0;
+  }
+
+  /* Remove list styles on ul, ol elements with a list role, which suggests default styling will be removed */
+  ul[role="list"],
+  ol[role="list"] {
+    list-style: none;
+  }
+
+  /* Set core body defaults */
+  body {
+    min-height: 100vh;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  /* Set shorter line heights on headings and interactive elements */
+  h1,
+  h2,
+  h3,
+  h4,
+  button,
+  input,
+  label {
+    line-height: 1.1;
+  }
+
+  /* Balance text wrapping on headings */
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  /* A elements that don't have a class get default styles */
+  a:not([class]) {
+    text-decoration-skip-ink: auto;
+    color: currentColor;
+  }
+
+  /* Make images easier to work with */
+  img,
+  picture {
+    max-width: 100%;
+    display: block;
+  }
+
+  /* Inherit fonts for inputs and buttons */
+  input,
+  button,
+  textarea,
+  select {
+    font-family: inherit;
+    font-size: inherit;
+  }
+
+  /* Make sure textareas without a rows attribute are not tiny */
+  textarea:not([rows]) {
+    min-height: 10em;
+  }
+
+  /* Anything that has been anchored to should have extra scroll margin */
+  :target {
+    scroll-margin-block: 5ex;
+  }
+`;

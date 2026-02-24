@@ -1,0 +1,184 @@
+import React, { useState } from "react";
+import { sceneActions, useSceneStore, type ObjectKind, type SceneNode } from "../store/sceneStore";
+import { btnStyle } from "../styles";
+
+const OBJECT_KINDS: { kind: ObjectKind; label: string }[] = [
+  { kind: "mesh", label: "Mesh" },
+  { kind: "group", label: "Group" },
+  { kind: "ambientLight", label: "Ambient Light" },
+  { kind: "directionalLight", label: "Directional Light" },
+  { kind: "pointLight", label: "Point Light" },
+  { kind: "perspectiveCamera", label: "Camera" },
+];
+
+function getIconForKind(kind: ObjectKind): string {
+  switch (kind) {
+    case "mesh": return "⬛";
+    case "group": return "📁";
+    case "ambientLight": return "☀";
+    case "directionalLight": return "🔆";
+    case "pointLight": return "💡";
+    case "perspectiveCamera": return "📷";
+  }
+}
+
+function HierarchyNode({
+  node,
+  depth,
+  selectedUUID,
+  nodes,
+}: {
+  node: SceneNode;
+  depth: number;
+  selectedUUID: string | null;
+  nodes: Map<string, SceneNode>;
+}) {
+  const isSelected = node.uuid === selectedUUID;
+  const [expanded, setExpanded] = useState(true);
+  const hasChildren = node.childUUIDs.length > 0;
+  const icon = getIconForKind(node.kind);
+
+  return (
+    <div>
+      <div
+        onClick={() => sceneActions.select(isSelected ? null : node.uuid)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          paddingLeft: 8 + depth * 14,
+          paddingTop: 4,
+          paddingBottom: 4,
+          paddingRight: 8,
+          cursor: "pointer",
+          background: isSelected ? "#2d5fa6" : "transparent",
+          color: isSelected ? "#fff" : "#ccc",
+          borderRadius: 3,
+          fontSize: 12,
+          userSelect: "none",
+        }}
+      >
+        {hasChildren ? (
+          <span
+            onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+            style={{ opacity: 0.5, fontSize: 10, width: 10 }}
+          >
+            {expanded ? "▾" : "▸"}
+          </span>
+        ) : (
+          <span style={{ width: 10 }} />
+        )}
+        <span style={{ opacity: 0.6, marginRight: 2 }}>{icon}</span>
+        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {node.name || node.kind}
+        </span>
+      </div>
+      {expanded &&
+        node.childUUIDs.map((childUUID) => {
+          const childNode = nodes.get(childUUID);
+          return childNode ? (
+            <HierarchyNode
+              key={childUUID}
+              node={childNode}
+              depth={depth + 1}
+              selectedUUID={selectedUUID}
+              nodes={nodes}
+            />
+          ) : null;
+        })}
+    </div>
+  );
+}
+
+export function HierarchyPane(): React.JSX.Element {
+  const rootUUIDs = useSceneStore((s) => s.rootUUIDs);
+  const nodes = useSceneStore((s) => s.nodes);
+  const selectedUUID = useSceneStore((s) => s.selectedUUID);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+
+  const handleAdd = (kind: ObjectKind) => {
+    sceneActions.addObject(kind, selectedUUID);
+    setShowAddMenu(false);
+  };
+
+  const handleDelete = () => {
+    if (selectedUUID) sceneActions.removeObject(selectedUUID);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <div
+        style={{
+          padding: "10px 12px 8px",
+          borderBottom: "1px solid #333",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: "#aaa",
+            flex: 1,
+            textTransform: "uppercase",
+            letterSpacing: 1,
+          }}
+        >
+          Hierarchy
+        </span>
+        <div style={{ position: "relative" }}>
+          <button onClick={() => setShowAddMenu((v) => !v)} style={btnStyle}>+</button>
+          {showAddMenu && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                background: "#252525",
+                border: "1px solid #444",
+                borderRadius: 4,
+                zIndex: 100,
+                minWidth: 140,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+              }}
+            >
+              {OBJECT_KINDS.map(({ kind, label }) => (
+                <div
+                  key={kind}
+                  onClick={() => handleAdd(kind)}
+                  style={{ padding: "7px 12px", fontSize: 12, cursor: "pointer", color: "#ddd" }}
+                  onMouseEnter={(e) => ((e.target as HTMLElement).style.background = "#333")}
+                  onMouseLeave={(e) => ((e.target as HTMLElement).style.background = "transparent")}
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <button
+          onClick={handleDelete}
+          disabled={!selectedUUID}
+          style={{ ...btnStyle, opacity: selectedUUID ? 1 : 0.3 }}
+        >
+          🗑
+        </button>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "4px 4px" }}>
+        {rootUUIDs.map((uuid) => {
+          const node = nodes.get(uuid);
+          return node ? (
+            <HierarchyNode key={uuid} node={node} depth={0} selectedUUID={selectedUUID} nodes={nodes} />
+          ) : null;
+        })}
+        {rootUUIDs.length === 0 && (
+          <div style={{ padding: "16px 12px", fontSize: 12, color: "#555", textAlign: "center" }}>
+            Empty scene. Click + to add.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

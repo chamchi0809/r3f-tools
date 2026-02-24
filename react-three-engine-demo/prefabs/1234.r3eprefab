@@ -1,6 +1,6 @@
 [
   {
-    "uuid": "ea55f9f9-abba-4507-8fec-1416249bdeaa",
+    "uuid": "d4c515d7-c923-4f17-abd1-c977dffcafd0",
     "name": "Mesh",
     "kind": "mesh",
     "position": [
@@ -27,7 +27,7 @@
     }
   },
   {
-    "uuid": "2a7758ce-1351-45aa-bbf0-b07e62fd3a21",
+    "uuid": "49bf6253-bc33-4b59-879c-eb6191b82bd3",
     "name": "Mesh",
     "kind": "mesh",
     "position": [
@@ -52,5 +52,53 @@
       "roughness": 1,
       "metalness": 0
     }
+  },
+  {
+    "uuid": "c718ad14-cf5b-4319-abf9-07ee8b413f13",
+    "name": "Mesh",
+    "kind": "mesh",
+    "position": [
+      1.9328010886199456,
+      1.799877817340815,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "children": [],
+    "material": {
+      "type": "MeshStandardMaterial",
+      "color": "#888888",
+      "roughness": 1,
+      "metalness": 0
+    }
+  },
+  {
+    "uuid": "d3aaef8a-816f-48b4-ab48-e837c0557a62",
+    "name": "AmbientLight",
+    "kind": "ambientLight",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "children": []
   }
 ]

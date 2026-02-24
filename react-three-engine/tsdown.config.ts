@@ -12,5 +12,13 @@ export default defineConfig({
   outDir: "dist",
   target: "es2022",
   platform: "browser",
-  external: ["react", "react-dom", "@react-three/fiber", "@react-three/drei", "three", "vite"],
+  noExternal: ["@emotion/css", "@emotion/cache", "@emotion/serialize", "@emotion/utils", "@emotion/react", "@emotion/styled", "@emotion/sheet", "@emotion/hash", "@emotion/weak-memoize", "@emotion/memoize"],
+  external: [
+    "react",
+    "react-dom",
+    "@react-three/fiber",
+    "@react-three/drei",
+    "three",
+    "vite",
+  ],
 });
