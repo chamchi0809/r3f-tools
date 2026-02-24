@@ -644,7 +644,6 @@ function PrefabPanel({
   const [saveName, setSaveName] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const { apiBase } = editorConfig;
-
   const fetchList = useCallback(async () => {
     try {
       const res = await fetch(`${apiBase}/list`);
@@ -654,11 +653,9 @@ function PrefabPanel({
       setStatus("Failed to fetch prefab list");
     }
   }, [apiBase]);
-
   useEffect(() => {
     fetchList();
   }, [fetchList]);
-
   const handleSave = async () => {
     const name = saveName.trim();
     if (!name) {
@@ -688,7 +685,6 @@ function PrefabPanel({
       setStatus("Save failed");
     }
   };
-
   const handleLoad = async (name: string) => {
     try {
       const res = await fetch(
@@ -701,25 +697,21 @@ function PrefabPanel({
       setStatus("Load failed");
     }
   };
-
   return (
     <div
       style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        height: 200,
+        borderTop: "1px solid #333",
         background: "#181818",
-        zIndex: 200,
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
+        flexShrink: 0,
       }}
     >
       <div
         style={{
-          padding: "10px 12px 8px",
+          padding: "6px 12px",
           borderBottom: "1px solid #333",
           display: "flex",
           alignItems: "center",
@@ -738,22 +730,6 @@ function PrefabPanel({
         >
           Prefabs
         </span>
-        <button
-          onClick={onClose}
-          style={{ ...btnStyle, padding: "2px 8px", fontSize: 11 }}
-        >
-          ✕
-        </button>
-      </div>
-
-      <div
-        style={{
-          padding: "10px 12px",
-          borderBottom: "1px solid #2a2a2a",
-          display: "flex",
-          gap: 6,
-        }}
-      >
         <input
           value={saveName}
           onChange={(e) => {
@@ -764,33 +740,40 @@ function PrefabPanel({
             if (e.key === "Enter") handleSave();
           }}
           placeholder="Prefab name…"
-          style={{ ...textInputStyle, flex: 1 }}
+          style={{ ...textInputStyle, width: 160 }}
         />
         <button onClick={handleSave} style={btnStyle}>
           Save
         </button>
+        {status && (
+          <span style={{ fontSize: 11, color: "#888" }}>{status}</span>
+        )}
+        <button
+          onClick={onClose}
+          style={{ ...btnStyle, padding: "2px 8px", fontSize: 11, marginLeft: 4 }}
+        >
+          ✕
+        </button>
       </div>
 
-      {status && (
-        <div
-          style={{
-            padding: "6px 12px",
-            fontSize: 11,
-            color: "#888",
-            borderBottom: "1px solid #2a2a2a",
-          }}
-        >
-          {status}
-        </div>
-      )}
-          <div style={{ flex: 1, overflowY: "auto" }}>
+      <div
+        style={{
+          flex: 1,
+          overflowX: "auto",
+          overflowY: "hidden",
+          display: "flex",
+          alignItems: "stretch",
+          padding: "8px 12px",
+          gap: 8,
+        }}
+      >
         {prefabs.length === 0 && (
           <div
             style={{
-              padding: "16px 12px",
               fontSize: 12,
               color: "#555",
-              textAlign: "center",
+              display: "flex",
+              alignItems: "center",
             }}
           >
             No saved prefabs
@@ -801,35 +784,42 @@ function PrefabPanel({
             key={name}
             onClick={() => handleLoad(name)}
             style={{
-              padding: "8px 12px",
+              minWidth: 110,
+              maxWidth: 140,
+              background: "#222",
+              border: "1px solid #333",
+              borderRadius: 4,
+              padding: "8px 10px",
               fontSize: 12,
               color: "#ccc",
               cursor: "pointer",
-              borderBottom: "1px solid #222",
               display: "flex",
+              flexDirection: "column",
               alignItems: "center",
+              justifyContent: "center",
               gap: 6,
+              flexShrink: 0,
             }}
             onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLElement).style.background = "#252525")
+              ((e.currentTarget as HTMLElement).style.background = "#2a2a2a")
             }
             onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLElement).style.background =
-                "transparent")
+              ((e.currentTarget as HTMLElement).style.background = "#222")
             }
           >
-            <span style={{ opacity: 0.5, fontSize: 10 }}>📄</span>
+            <span style={{ fontSize: 22, opacity: 0.6 }}>📄</span>
             <span
               style={{
-                flex: 1,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
+                width: "100%",
+                textAlign: "center",
+                fontSize: 11,
               }}
             >
               {name}
             </span>
-            <span style={{ fontSize: 10, opacity: 0.4 }}>.r3eprefab</span>
           </div>
         ))}
       </div>
@@ -889,17 +879,8 @@ export default function App(): React.JSX.Element {
           display: "flex",
           flex: 1,
           overflow: "hidden",
-          position: "relative",
         }}
       >
-        {showPrefabs && (
-          <PrefabPanel
-            onClose={() => setShowPrefabs(false)}
-            onRefresh={() => {
-              refreshRef.current += 1;
-            }}
-          />
-        )}
         <div
           style={{
             width: 220,
@@ -966,6 +947,14 @@ export default function App(): React.JSX.Element {
           </div>
         </div>
       </div>
+      {showPrefabs && (
+        <PrefabPanel
+          onClose={() => setShowPrefabs(false)}
+          onRefresh={() => {
+            refreshRef.current += 1;
+          }}
+        />
+      )}
     </div>
   );
 }

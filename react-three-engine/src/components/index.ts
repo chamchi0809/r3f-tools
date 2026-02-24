@@ -1,1 +1,1 @@
-export {};
+export { Prefab } from "./Prefab";
