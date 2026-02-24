@@ -4,13 +4,22 @@ import type { Plugin, ViteDevServer } from "vite";
 
 export interface ReactThreeEnginePluginOptions {
   webgpu?: boolean;
-  pathname?: string;
+  // The URL path where the editor will be served (e.g. "localhost:[your-port]/editor"). Defaults to "/editor".
+  editorPath?: string;
+  // The directory where prefabs will be saved. Defaults to "./prefabs".
   savePath?: string;
   [key: string]: unknown;
 }
 
-export function reactThreeEnginePlugin(options: ReactThreeEnginePluginOptions = {}): Plugin {
-  const { webgpu = true, pathname = "/editor", savePath, ..._rest } = options;
+export function reactThreeEnginePlugin(
+  options: ReactThreeEnginePluginOptions = {},
+): Plugin {
+  const {
+    webgpu = true,
+    editorPath: pathname = "/editor",
+    savePath = "./prefabs",
+    ..._rest
+  } = options;
   const virtualEditorId = "virtual:react-three-engine/editor";
   const resolvedVirtualEditorId = `\0${virtualEditorId}`;
   const virtualConfigId = "virtual:react-three-engine/config";
@@ -27,15 +36,19 @@ export function reactThreeEnginePlugin(options: ReactThreeEnginePluginOptions = 
     config() {
       return {
         optimizeDeps: {
-          include: ["react", "react-dom", "@react-three/fiber", "@react-three/drei", "three"],
+          include: [
+            "react",
+            "react-dom",
+            "@react-three/fiber",
+            "@react-three/drei",
+            "three",
+          ],
         },
       };
     },
 
     configResolved(config) {
-      resolvedSavePath = savePath
-        ? path.resolve(config.root, savePath)
-        : null;
+      resolvedSavePath = savePath ? path.resolve(config.root, savePath) : null;
       apiBase = resolveApiBase(config.base, pathname);
     },
 
@@ -66,12 +79,18 @@ if (root) {
 
     configureServer(server) {
       const editorPath = resolveEditorPath(server.config.base, pathname);
-      const editorModuleUrl = resolveWithBase(server.config.base, `/@id/${virtualEditorId}`);
+      const editorModuleUrl = resolveWithBase(
+        server.config.base,
+        `/@id/${virtualEditorId}`,
+      );
 
       registerApiRoutes(server, apiBase, resolvedSavePath, PREFAB_EXT);
 
       server.middlewares.use(editorPath, async (req, res, next) => {
-        if (req.method !== "GET" && req.method !== "HEAD") { next(); return; }
+        if (req.method !== "GET" && req.method !== "HEAD") {
+          next();
+          return;
+        }
 
         const html = `<!DOCTYPE html>
 <html lang="en">
@@ -97,8 +116,12 @@ if (root) {
       });
     },
 
-    transformIndexHtml() { return []; },
-    transform(_code, _id) { return null; },
+    transformIndexHtml() {
+      return [];
+    },
+    transform(_code, _id) {
+      return null;
+    },
   };
 }
 
@@ -124,7 +147,8 @@ function registerApiRoutes(
       }
       try {
         fs.mkdirSync(saveDir, { recursive: true });
-        const files = fs.readdirSync(saveDir)
+        const files = fs
+          .readdirSync(saveDir)
           .filter((f) => f.endsWith(ext))
           .map((f) => f.slice(0, -ext.length));
         res.statusCode = 200;
@@ -144,11 +168,17 @@ function registerApiRoutes(
         return;
       }
       let body = "";
-      req.on("data", (chunk: Buffer) => { body += chunk.toString(); });
+      req.on("data", (chunk: Buffer) => {
+        body += chunk.toString();
+      });
       req.on("end", () => {
         try {
-          const { name, data } = JSON.parse(body) as { name: string; data: unknown };
-          if (!name || typeof name !== "string") throw new Error("Invalid name");
+          const { name, data } = JSON.parse(body) as {
+            name: string;
+            data: unknown;
+          };
+          if (!name || typeof name !== "string")
+            throw new Error("Invalid name");
           const safeName = name.replace(/[^a-zA-Z0-9_\-. ]/g, "_");
           fs.mkdirSync(saveDir, { recursive: true });
           const filePath = path.join(saveDir, `${safeName}${ext}`);
@@ -172,7 +202,11 @@ function registerApiRoutes(
       }
       const qs = new URLSearchParams(req.url?.split("?")[1] ?? "");
       const name = qs.get("name");
-      if (!name) { res.statusCode = 400; res.end(JSON.stringify({ error: "Missing name" })); return; }
+      if (!name) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ error: "Missing name" }));
+        return;
+      }
       try {
         const safeName = name.replace(/[^a-zA-Z0-9_\-. ]/g, "_");
         const filePath = path.join(saveDir, `${safeName}${ext}`);
@@ -194,7 +228,9 @@ function registerApiRoutes(
 function resolveApiBase(base: string | undefined, pathname: string): string {
   const resolvedBase = normalizeBase(base);
   const normalizedPathname = normalizePathname(pathname);
-  return `${resolvedBase}__r3e_api${normalizedPathname}`.replace(/\/+/g, "/").replace(/\/$/, "");
+  return `${resolvedBase}__r3e_api${normalizedPathname}`
+    .replace(/\/+/g, "/")
+    .replace(/\/$/, "");
 }
 
 function normalizePathname(pathname: string): string {

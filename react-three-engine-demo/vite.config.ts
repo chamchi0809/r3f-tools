@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     reactThreeEnginePlugin({
       webgpu: true,
-      pathname: "/__editor",
+      editorPath: "/editor",
       savePath: "./prefabs",
     }),
   ],
