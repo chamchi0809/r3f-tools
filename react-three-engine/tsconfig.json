@@ -14,7 +14,7 @@
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-    "jsx": "react-jsx",
+    "jsx": "react-jsx"
     // types field removed - let TypeScript auto-discover @types packages
   },
   "include": ["src"],

@@ -3,45 +3,46 @@
   "version": "0.0.1",
   "description": "React Three Fiber engine with WebGPU support",
   "keywords": [
+    "fiber",
     "react",
     "three",
-    "fiber",
-    "webgpu",
-    "vite"
+    "vite",
+    "webgpu"
   ],
   "license": "MIT",
   "author": "",
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.cjs",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.cjs"
     },
     "./vite": {
+      "types": "./dist/vitePlugin.d.ts",
       "import": "./dist/vitePlugin.js",
-      "require": "./dist/vitePlugin.cjs",
-      "types": "./dist/vitePlugin.d.ts"
+      "require": "./dist/vitePlugin.cjs"
     }
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@react-three/drei": "^10.0.0",
+    "@react-three/fiber": "^9.0.0",
+    "koota": "0.6.5",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "@react-three/fiber": "^9.0.0",
-    "@react-three/drei": "^10.0.0",
     "three": "0.182.0",
-    "koota": "0.6.5"
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@types/node": "^24.5.2",

@@ -18,11 +18,13 @@ Detect loss by attaching a callback to the device's `lost` promise:
 
 ```javascript
 const adapter = await navigator.gpu.requestAdapter();
-if (!adapter) { return; }
+if (!adapter) {
+  return;
+}
 const device = await adapter.requestDevice();
 
 device.lost.then((info) => {
-  console.error('WebGPU device lost:', info.message);
+  console.error("WebGPU device lost:", info.message);
   // Handle recovery
 });
 ```
@@ -33,14 +35,14 @@ device.lost.then((info) => {
 
 The `GPUDeviceLostInfo` object provides:
 
-| Property | Description |
-|----------|-------------|
-| `reason` | `'destroyed'` (intentional via `destroy()`) or `'unknown'` (unexpected) |
-| `message` | Human-readable debugging info (don't parse programmatically) |
+| Property  | Description                                                             |
+| --------- | ----------------------------------------------------------------------- |
+| `reason`  | `'destroyed'` (intentional via `destroy()`) or `'unknown'` (unexpected) |
+| `message` | Human-readable debugging info (don't parse programmatically)            |
 
 ```javascript
 device.lost.then((info) => {
-  if (info.reason === 'unknown') {
+  if (info.reason === "unknown") {
     // Unexpected loss - attempt recovery
     handleUnexpectedDeviceLoss();
   } else {
@@ -63,9 +65,9 @@ For simple applications:
 
 ```javascript
 device.lost.then((info) => {
-  if (info.reason === 'unknown') {
+  if (info.reason === "unknown") {
     // Warn user before reload
-    alert('Graphics error occurred. The page will reload.');
+    alert("Graphics error occurred. The page will reload.");
     location.reload();
   }
 });
@@ -76,7 +78,7 @@ device.lost.then((info) => {
 Recreate the device and reconfigure the canvas without full page reload:
 
 ```javascript
-import * as THREE from 'three/webgpu';
+import * as THREE from "three/webgpu";
 
 let renderer;
 let scene, camera;
@@ -89,8 +91,8 @@ async function initWebGPU() {
   const device = renderer.backend.device;
 
   device.lost.then((info) => {
-    console.error('Device lost:', info.message);
-    if (info.reason === 'unknown') {
+    console.error("Device lost:", info.message);
+    if (info.reason === "unknown") {
       // Dispose current renderer
       renderer.dispose();
       // Reinitialize
@@ -131,9 +133,9 @@ function saveState() {
   appState.cameraPosition = {
     x: camera.position.x,
     y: camera.position.y,
-    z: camera.position.z
+    z: camera.position.z,
   };
-  localStorage.setItem('appState', JSON.stringify(appState));
+  localStorage.setItem("appState", JSON.stringify(appState));
 }
 
 // Restore on recovery
@@ -141,7 +143,7 @@ async function initWebGPU() {
   renderer = new THREE.WebGPURenderer();
   await renderer.init();
 
-  const savedState = localStorage.getItem('appState');
+  const savedState = localStorage.getItem("appState");
   if (savedState) {
     appState = JSON.parse(savedState);
   }
@@ -152,11 +154,11 @@ async function initWebGPU() {
   camera.position.set(
     appState.cameraPosition.x,
     appState.cameraPosition.y,
-    appState.cameraPosition.z
+    appState.cameraPosition.z,
   );
 
   renderer.backend.device.lost.then((info) => {
-    if (info.reason === 'unknown') {
+    if (info.reason === "unknown") {
       saveState();
       renderer.dispose();
       initWebGPU();
@@ -176,9 +178,9 @@ async function initWebGPU() {
   if (!adapter) {
     // Check if this is initial failure or post-loss failure
     if (hadPreviousDevice) {
-      showMessage('GPU access lost. Please restart your browser.');
+      showMessage("GPU access lost. Please restart your browser.");
     } else {
-      showMessage('WebGPU is not supported on this device.');
+      showMessage("WebGPU is not supported on this device.");
     }
     return;
   }
@@ -203,7 +205,7 @@ function simulateDeviceLoss() {
 
 // In your device.lost handler:
 device.lost.then((info) => {
-  if (info.reason === 'unknown' || simulatedLoss) {
+  if (info.reason === "unknown" || simulatedLoss) {
     simulatedLoss = false;
     // Treat as unexpected loss for testing
     handleDeviceLoss();
@@ -211,14 +213,15 @@ device.lost.then((info) => {
 });
 
 // Add debug keybinding
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'L' && e.ctrlKey && e.shiftKey) {
+window.addEventListener("keydown", (e) => {
+  if (e.key === "L" && e.ctrlKey && e.shiftKey) {
     simulateDeviceLoss();
   }
 });
 ```
 
 **Limitations of destroy():**
+
 - Unmaps buffers immediately (real loss doesn't)
 - Always allows device recovery (real loss may not)
 
@@ -228,12 +231,12 @@ Navigate to `about:gpucrash` in a **separate tab** to crash the GPU process.
 
 Chrome enforces escalating restrictions:
 
-| Crash | Effect |
-|-------|--------|
-| 1st | New adapters allowed |
-| 2nd within 2 min | Adapter requests fail (resets on page refresh) |
+| Crash            | Effect                                                   |
+| ---------------- | -------------------------------------------------------- |
+| 1st              | New adapters allowed                                     |
+| 2nd within 2 min | Adapter requests fail (resets on page refresh)           |
 | 3rd within 2 min | All pages blocked (reset after 2 min or browser restart) |
-| 3-6 within 5 min | GPU process stops restarting; browser restart required |
+| 3-6 within 5 min | GPU process stops restarting; browser restart required   |
 
 ### Chrome Testing Flags
 
@@ -255,8 +258,8 @@ google-chrome --disable-domain-blocking-for-3d-apis --disable-gpu-process-crash-
 ## Complete Example
 
 ```javascript
-import * as THREE from 'three/webgpu';
-import { color, time, oscSine } from 'three/tsl';
+import * as THREE from "three/webgpu";
+import { color, time, oscSine } from "three/tsl";
 
 let renderer, scene, camera, mesh;
 let hadPreviousDevice = false;
@@ -264,7 +267,7 @@ let hadPreviousDevice = false;
 async function init() {
   // Check WebGPU support
   if (!navigator.gpu) {
-    showError('WebGPU not supported');
+    showError("WebGPU not supported");
     return;
   }
 
@@ -275,9 +278,9 @@ async function init() {
     await renderer.init();
   } catch (e) {
     if (hadPreviousDevice) {
-      showError('GPU recovery failed. Please restart browser.');
+      showError("GPU recovery failed. Please restart browser.");
     } else {
-      showError('Failed to initialize WebGPU.');
+      showError("Failed to initialize WebGPU.");
     }
     return;
   }
@@ -312,9 +315,9 @@ async function init() {
 }
 
 function handleDeviceLoss(info) {
-  console.error('Device lost:', info.reason, info.message);
+  console.error("Device lost:", info.reason, info.message);
 
-  if (info.reason === 'unknown') {
+  if (info.reason === "unknown") {
     // Cleanup
     if (renderer) {
       renderer.domElement.remove();
@@ -338,9 +341,10 @@ function animate() {
 }
 
 function showError(message) {
-  const div = document.createElement('div');
+  const div = document.createElement("div");
   div.textContent = message;
-  div.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:20px;background:#f44;color:#fff;border-radius:8px;';
+  div.style.cssText =
+    "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:20px;background:#f44;color:#fff;border-radius:8px;";
   document.body.appendChild(div);
 }
 

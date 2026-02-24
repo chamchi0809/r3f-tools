@@ -1,296 +1,814 @@
-import React, { useMemo, useRef, useState } from 'react'
-import { Canvas, extend } from '@react-three/fiber'
-import { OrbitControls, PerspectiveCamera, TransformControls } from '@react-three/drei'
-import { WorldProvider, useQuery, useTrait } from 'koota/react'
-import type { Entity as KootaEntity } from 'koota'
+import { OrbitControls, TransformControls } from "@react-three/drei";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import React, { useCallback, useEffect, useState } from "react";
+import * as THREE from "three/webgpu";
 import {
-  addChild,
-  engineWorld,
-  selectionActions,
-  spawnEntityBlueprint,
-  updateEntityBlueprint,
-  EntityBlueprintTrait,
-  SelectionStateTrait,
-  TraitDescriptorTrait,
-} from './store'
-import type { EntityId, EntityBlueprint, TraitDescriptor } from './store/ecs'
-import * as THREE from 'three/webgpu'
+  makeObject,
+  sceneActions,
+  useSceneStore,
+  type ObjectKind,
+  type SceneNode,
+  type SerializedObject,
+} from "./store/sceneStore";
 
-extend(THREE as any)
+type TransformMode = "translate" | "rotate" | "scale";
 
-interface PrefabEntityNode {
-  id: EntityId
-  name: string
-  value: EntityBlueprint
+const OBJECT_KINDS: { kind: ObjectKind; label: string }[] = [
+  { kind: "mesh", label: "Mesh" },
+  { kind: "group", label: "Group" },
+  { kind: "ambientLight", label: "Ambient Light" },
+  { kind: "directionalLight", label: "Directional Light" },
+  { kind: "pointLight", label: "Point Light" },
+  { kind: "perspectiveCamera", label: "Camera" },
+];
+
+function makeDeserializedObject(node: SerializedObject): THREE.Object3D {
+  const obj = makeObject(node.kind);
+  obj.name = node.name;
+  obj.position.set(...node.position);
+  obj.rotation.set(...node.rotation);
+  obj.scale.set(...node.scale);
+  if (node.material && obj instanceof THREE.Mesh) {
+    const mat =
+      node.material.type === "MeshStandardMaterial"
+        ? new THREE.MeshStandardMaterial()
+        : new THREE.MeshBasicMaterial();
+    mat.color.set(node.material.color);
+    if (mat instanceof THREE.MeshStandardMaterial) {
+      if (node.material.roughness !== undefined)
+        mat.roughness = node.material.roughness;
+      if (node.material.metalness !== undefined)
+        mat.metalness = node.material.metalness;
+    }
+    obj.material = mat;
+  }
+  return obj;
 }
 
-export default function App(): React.JSX.Element {
+function addDeserializedSubtree(
+  scene: THREE.Scene,
+  serialized: SerializedObject,
+  parentObj: THREE.Object3D | THREE.Scene,
+  parentUUID: string | null,
+): void {
+  const obj = makeDeserializedObject(serialized);
+  parentObj.add(obj);
+  useSceneStore.getState().registerObject(obj, serialized.kind, parentUUID);
+  for (const child of serialized.children) {
+    addDeserializedSubtree(scene, child, obj, obj.uuid);
+  }
+}
+
+function SceneContent({
+  onTransformDrag,
+  transformMode,
+}: {
+  onTransformDrag: (dragging: boolean) => void;
+  transformMode: TransformMode;
+}) {
+  const { scene } = useThree();
+  const pendingAdd = useSceneStore((s) => s.pendingAdd);
+  const pendingRemove = useSceneStore((s) => s.pendingRemove);
+  const pendingDeserialize = useSceneStore((s) => s.pendingDeserialize);
+  const selectedUUID = useSceneStore((s) => s.selectedUUID);
+
+  useFrame(() => {});
+  useFrame(() => {});
+
+  useEffect(() => {
+    if (!pendingAdd) return;
+    useSceneStore.getState().clearPendingAdd();
+    const { kind, parentUUID } = pendingAdd;
+    const obj = makeObject(kind);
+    const parent = parentUUID
+      ? (useSceneStore.getState().objects.get(parentUUID) ?? scene)
+      : scene;
+    parent.add(obj);
+    useSceneStore.getState().registerObject(obj, kind, parentUUID);
+  }, [pendingAdd, scene]);
+
+  useEffect(() => {
+    if (!pendingRemove) return;
+    useSceneStore.getState().clearPendingRemove();
+
+    const removeRecursive = (uuid: string) => {
+      const state = useSceneStore.getState();
+      const node = state.nodes.get(uuid);
+      const obj = state.objects.get(uuid);
+      if (node) {
+        for (const childUUID of [...node.childUUIDs]) {
+          removeRecursive(childUUID);
+        }
+      }
+      if (obj) {
+        obj.parent?.remove(obj);
+      }
+      state.unregisterObject(uuid);
+    };
+
+    removeRecursive(pendingRemove);
+  }, [pendingRemove]);
+
+  useEffect(() => {
+    if (!pendingDeserialize) return;
+    useSceneStore.getState().clearPendingDeserialize();
+
+    const state = useSceneStore.getState();
+    for (const uuid of [...state.rootUUIDs]) {
+      const obj = state.objects.get(uuid);
+      if (obj) scene.remove(obj);
+    }
+    useSceneStore.setState({
+      rootUUIDs: [],
+      nodes: new Map(),
+      objects: new Map(),
+      selectedUUID: null,
+    });
+
+    for (const serialized of pendingDeserialize) {
+      addDeserializedSubtree(scene, serialized, scene, null);
+    }
+  }, [pendingDeserialize, scene]);
+
+  const selectedObj = selectedUUID
+    ? (useSceneStore.getState().objects.get(selectedUUID) ?? null)
+    : null;
+
   return (
-    <WorldProvider world={engineWorld}>
-      <EngineApp />
-    </WorldProvider>
-  )
+    <>
+      {selectedObj && (
+        <TransformControls
+          object={selectedObj}
+          mode={transformMode}
+          onMouseDown={() => onTransformDrag(true)}
+          onMouseUp={() => {
+            onTransformDrag(false);
+            useSceneStore.getState().invalidate();
+          }}
+        />
+      )}
+    </>
+  );
 }
 
-function EngineApp(): React.JSX.Element {
-  const selectionState = useTrait(engineWorld, SelectionStateTrait)
-  const selectedId = selectionState?.selectedId ?? null
-  const entityBlueprints = useQuery(EntityBlueprintTrait)
-  const traitDescriptors = useQuery(TraitDescriptorTrait)
-  const [statusMessage, setStatusMessage] = useState<string>('')
-  const [isTransforming, setIsTransforming] = useState(false)
-  const meshRefs = useRef<Record<string, THREE.Object3D | null>>({})
-
-  React.useEffect(() => {
-    if (entityBlueprints.length === 0) {
-      const rootEntity = spawnEntityBlueprint({
-        name: 'Root Prefab',
-        type: 'group',
-        traitIds: [],
-        children: [],
-      })
-    }
-  }, [entityBlueprints.length])
-
-  const selectedEntity = selectedId ? entityBlueprints.find((entity) => entity.id() === selectedId) : undefined
-  const selectedValue = selectedEntity?.get(EntityBlueprintTrait)
-  const selectedTraits = selectedValue
-    ? selectedValue.traitIds
-        .map((traitId) => traitDescriptors.find((trait) => trait.get(TraitDescriptorTrait)?.id === traitId))
-        .map((entity) => entity?.get(TraitDescriptorTrait))
-        .filter((trait): trait is TraitDescriptor => Boolean(trait))
-    : []
-
-  const handleSelectEntity = (id: EntityId) => {
-    selectionActions.setSelectedId(id)
+function getIconForKind(kind: ObjectKind): string {
+  switch (kind) {
+    case "mesh":
+      return "⬛";
+    case "group":
+      return "📁";
+    case "ambientLight":
+      return "☀";
+    case "directionalLight":
+      return "🔆";
+    case "pointLight":
+      return "💡";
+    case "perspectiveCamera":
+      return "📷";
   }
+}
 
-  const handleAddChild = () => {
-    const parentId = selectedId ?? entityBlueprints[0]?.id() ?? 0
-    const name = prompt('Enter child name:')
-    if (!name || name.trim() === '') return
-    const childEntity = spawnEntityBlueprint({
-      name,
-      type: 'mesh',
-      traitIds: [],
-      children: [],
-    })
+function HierarchyNode({
+  node,
+  depth,
+  selectedUUID,
+  nodes,
+}: {
+  node: SceneNode;
+  depth: number;
+  selectedUUID: string | null;
+  nodes: Map<string, SceneNode>;
+}) {
+  const isSelected = node.uuid === selectedUUID;
+  const [expanded, setExpanded] = useState(true);
+  const hasChildren = node.childUUIDs.length > 0;
+  const icon = getIconForKind(node.kind);
 
-    const parentEntity = entityBlueprints.find((entity) => entity.id() === parentId)
-    if (parentEntity) {
-      addChild(parentEntity, childEntity)
-    }
-
-    selectionActions.setSelectedId(childEntity.id())
-    setStatusMessage(`Child "${name}" added`)
-    setTimeout(() => setStatusMessage(''), 2000)
-  }
-
-  const handleRemoveEntity = () => {
-    if (!selectedId) return
-    const entity = entityBlueprints.find((item) => item.id() === selectedId)
-    if (!entity) return
-    entity.destroy()
-    const newSelected = entityBlueprints.find((item) => item.id() !== selectedId)
-    selectionActions.setSelectedId(newSelected?.id() ?? null)
-  }
-
-  const handleEntityTypeChange = (type: EntityBlueprint['type']) => {
-    if (!selectedId) return
-    if (!selectedEntity) return
-    if (type === 'group') {
-      updateEntityBlueprint(selectedEntity, {
-        type: 'group',
-        children: selectedValue?.type === 'group' ? selectedValue.children : [],
-      })
-      return
-    }
-    updateEntityBlueprint(selectedEntity, {
-      type: 'mesh',
-      children: [],
-    })
-  }
-
-  const handleTraitAdd = () => {
-    if (!selectedId) return
-    const traitName = prompt('Trait name?')
-    if (!traitName || traitName.trim() === '') return
-    if (!selectedEntity || !selectedValue) return
-    const traitEntity = engineWorld.spawn(TraitDescriptorTrait({
-      id: createTraitId(),
-      kind: 'custom',
-      name: traitName,
-      value: {},
-    }))
-    updateEntityBlueprint(selectedEntity, {
-      traitIds: [...selectedValue.traitIds, traitEntity.get(TraitDescriptorTrait)!.id],
-    })
-  }
-
-  const handleTraitRemove = (traitId: string) => {
-    if (!selectedId) return
-    if (!selectedEntity || !selectedValue) return
-    const traitEntity = traitDescriptors.find((entity) => entity.get(TraitDescriptorTrait)?.id === traitId)
-    if (traitEntity) traitEntity.destroy()
-    updateEntityBlueprint(selectedEntity, {
-      traitIds: selectedValue.traitIds.filter(id => id !== traitId),
-    })
-  }
-
-  const handleTraitValueChange = (traitId: string, value: string) => {
-    const traitEntity = traitDescriptors.find((entity) => entity.get(TraitDescriptorTrait)?.id === traitId)
-    if (!traitEntity) return
-    const trait = traitEntity.get(TraitDescriptorTrait)
-    if (!trait) return
-    traitEntity.set(TraitDescriptorTrait, {
-      ...trait,
-      value,
-    })
-  }
-
-  const renderHierarchy = (entity: KootaEntity, depth = 0): React.JSX.Element | null => {
-    const node = entity.get(EntityBlueprintTrait)
-    if (!node) return null
-    const paddingLeft = 8 + depth * 10
-    const children = node.type === 'group' ? node.children : []
-
-    return (
-      <div key={node.id}>
-        <div
-          onClick={() => handleSelectEntity(node.id)}
+  return (
+    <div>
+      <div
+        onClick={() => sceneActions.select(isSelected ? null : node.uuid)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          paddingLeft: 8 + depth * 14,
+          paddingTop: 4,
+          paddingBottom: 4,
+          paddingRight: 8,
+          cursor: "pointer",
+          background: isSelected ? "#2d5fa6" : "transparent",
+          color: isSelected ? "#fff" : "#ccc",
+          borderRadius: 3,
+          fontSize: 12,
+          userSelect: "none",
+        }}
+      >
+        {hasChildren && (
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded((v) => !v);
+            }}
+            style={{ opacity: 0.5, fontSize: 10, width: 10 }}
+          >
+            {expanded ? "▾" : "▸"}
+          </span>
+        )}
+        {!hasChildren && <span style={{ width: 10 }} />}
+        <span style={{ opacity: 0.6, marginRight: 2 }}>{icon}</span>
+        <span
           style={{
-            padding: `6px 8px 6px ${paddingLeft}px`,
-            cursor: 'pointer',
-            background: selectedId === node.id ? '#4a90e2' : 'transparent',
-            color: selectedId === node.id ? '#fff' : '#333',
-            borderRadius: '4px',
-            marginBottom: '2px',
-            fontSize: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            border: selectedId === node.id ? 'none' : '1px solid transparent'
+            flex: 1,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
-          {node.name} <span style={{ opacity: 0.4, marginLeft: 'auto', fontSize: '10px' }}>{node.id.toString().slice(0, 4)}</span>
-        </div>
-        {children.map((childId: EntityId) => {
-          const childEntity = entityBlueprints.find((item) => item.id() === childId)
-          if (!childEntity) return null
-          return renderHierarchy(childEntity, depth + 1)
-        })}
+          {node.name || node.kind}
+        </span>
       </div>
-    )
-  }
+      {expanded &&
+        node.childUUIDs.map((childUUID) => {
+          const childNode = nodes.get(childUUID);
+          return childNode ? (
+            <HierarchyNode
+              key={childUUID}
+              node={childNode}
+              depth={depth + 1}
+              selectedUUID={selectedUUID}
+              nodes={nodes}
+            />
+          ) : null;
+        })}
+    </div>
+  );
+}
 
-  const renderEntityNode = (entity: KootaEntity): React.JSX.Element | null => {
-    const value = entity.get(EntityBlueprintTrait)
-    if (!value) return null
-    const isSelected = selectedId === value.id
-    const refHandler = (ref: THREE.Object3D | null) => {
-      meshRefs.current[value.id] = ref
-    }
+function HierarchyPane() {
+  const rootUUIDs = useSceneStore((s) => s.rootUUIDs);
+  const nodes = useSceneStore((s) => s.nodes);
+  const selectedUUID = useSceneStore((s) => s.selectedUUID);
+  const [showAddMenu, setShowAddMenu] = useState(false);
 
-    if (value.type === 'group') {
-      return (
-        <group key={value.id} ref={refHandler} onClick={() => handleSelectEntity(value.id)}>
-          {value.children.map((childId: EntityId) => {
-            const childEntity = entityBlueprints.find((item) => item.id() === childId)
-            if (!childEntity) return null
-            return renderEntityNode(childEntity)
-          })}
-        </group>
-      )
-    }
+  const handleAdd = (kind: ObjectKind) => {
+    sceneActions.addObject(kind, selectedUUID);
+    setShowAddMenu(false);
+  };
 
-    return (
-      <mesh
-        key={value.id}
-        ref={refHandler}
-        onClick={() => handleSelectEntity(value.id)}
-        scale={isSelected ? 1.05 : 1}
-      >
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color={isSelected ? '#4a90e2' : '#cccccc'} />
-      </mesh>
-    )
-  }
+  const handleDelete = () => {
+    if (selectedUUID) sceneActions.removeObject(selectedUUID);
+  };
 
   return (
-    <div style={{ display: 'flex', width: '100vw', height: '100vh' }}>
-      <div style={{ width: '280px', padding: '20px', borderRight: '1px solid #ccc' }}>
-        <div style={{ marginBottom: '16px' }}>
-          <button onClick={handleAddChild}>Add Child</button>
-          <button onClick={handleRemoveEntity} disabled={!selectedId || selectedId === entityBlueprints[0]?.id()}>Delete Entity</button>
-        </div>
-
-        <div style={{ fontWeight: 'bold' }}>Hierarchy</div>
-        <div>{entityBlueprints[0] ? renderHierarchy(entityBlueprints[0]) : null}</div>
-      </div>
-
-      <div style={{ width: '360px', padding: '20px', borderRight: '1px solid #ccc' }}>
-        {statusMessage && <div>{statusMessage}</div>}
-        {selectedEntity && selectedValue ? (
-          <div>
-            <h2>Inspector: {selectedValue.id}</h2>
-            <div>
-              <label>Type:</label>
-              <select
-                value={selectedValue.type}
-                onChange={(e) => handleEntityTypeChange(e.target.value as EntityBlueprint['type'])}
-              >
-                <option value="group">Group</option>
-                <option value="mesh">Mesh</option>
-              </select>
-            </div>
-
-            <div>
-              <h3>Traits</h3>
-              <button onClick={handleTraitAdd}>Add Trait</button>
-              {selectedTraits.map(trait => (
-                <div key={trait.id} style={{ marginTop: '8px' }}>
-                  <div>{trait.name ?? trait.id}</div>
-                  <input
-                    type="text"
-                    value={String(trait.value ?? '')}
-                    onChange={(e) => handleTraitValueChange(trait.id, e.target.value)}
-                  />
-                  <button onClick={() => handleTraitRemove(trait.id)}>Remove</button>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <div
+        style={{
+          padding: "10px 12px 8px",
+          borderBottom: "1px solid #333",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: "#aaa",
+            flex: 1,
+            textTransform: "uppercase",
+            letterSpacing: 1,
+          }}
+        >
+          Hierarchy
+        </span>
+        <div style={{ position: "relative" }}>
+          <button onClick={() => setShowAddMenu((v) => !v)} style={btnStyle}>
+            +
+          </button>
+          {showAddMenu && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                background: "#252525",
+                border: "1px solid #444",
+                borderRadius: 4,
+                zIndex: 100,
+                minWidth: 140,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+              }}
+            >
+              {OBJECT_KINDS.map(({ kind, label }) => (
+                <div
+                  key={kind}
+                  onClick={() => handleAdd(kind)}
+                  style={{
+                    padding: "7px 12px",
+                    fontSize: 12,
+                    cursor: "pointer",
+                    color: "#ddd",
+                  }}
+                  onMouseEnter={(e) =>
+                    ((e.target as HTMLElement).style.background = "#333")
+                  }
+                  onMouseLeave={(e) =>
+                    ((e.target as HTMLElement).style.background = "transparent")
+                  }
+                >
+                  {label}
                 </div>
               ))}
             </div>
+          )}
+        </div>
+        <button
+          onClick={handleDelete}
+          disabled={!selectedUUID}
+          style={{ ...btnStyle, opacity: selectedUUID ? 1 : 0.3 }}
+        >
+          🗑
+        </button>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "4px 4px" }}>
+        {rootUUIDs.map((uuid) => {
+          const node = nodes.get(uuid);
+          return node ? (
+            <HierarchyNode
+              key={uuid}
+              node={node}
+              depth={0}
+              selectedUUID={selectedUUID}
+              nodes={nodes}
+            />
+          ) : null;
+        })}
+        {rootUUIDs.length === 0 && (
+          <div
+            style={{
+              padding: "16px 12px",
+              fontSize: 12,
+              color: "#555",
+              textAlign: "center",
+            }}
+          >
+            Empty scene. Click + to add.
           </div>
-        ) : (
-          <div>Select an entity to inspect.</div>
         )}
       </div>
+    </div>
+  );
+}
 
-      <div style={{ flex: 1, position: 'relative' }}>
-        <Canvas
-          gl={async (props) => {
-            const renderer = new THREE.WebGPURenderer(props as any)
-            await renderer.init()
-            return renderer
-          }}
-        >
-          <PerspectiveCamera makeDefault position={[0, 0, 5]} />
-          <ambientLight intensity={0.6} />
-          <directionalLight position={[5, 5, 5]} intensity={1} />
-          {entityBlueprints[0] ? renderEntityNode(entityBlueprints[0]) : null}
-          {selectedId !== null && meshRefs.current[selectedId] && (
-            <TransformControls
-              object={meshRefs.current[selectedId] as THREE.Object3D}
-              mode={selectedValue?.type === 'group' ? 'translate' : 'translate'}
-              onMouseDown={() => setIsTransforming(true)}
-              onMouseUp={() => setIsTransforming(false)}
+function Vec3Field({
+  label,
+  value,
+  onChange,
+  step = 0.01,
+}: {
+  label: string;
+  value: [number, number, number];
+  onChange: (v: [number, number, number]) => void;
+  step?: number;
+}) {
+  const axes = ["X", "Y", "Z"] as const;
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div
+        style={{
+          fontSize: 11,
+          color: "#888",
+          marginBottom: 4,
+          textTransform: "uppercase",
+          letterSpacing: 0.5,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ display: "flex", gap: 4 }}>
+        {axes.map((axis, i) => (
+          <label
+            key={axis}
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+            }}
+          >
+            <span style={{ fontSize: 9, color: "#666", textAlign: "center" }}>
+              {axis}
+            </span>
+            <input
+              type="number"
+              value={parseFloat(value[i].toFixed(4))}
+              step={step}
+              onChange={(e) => {
+                const next = [...value] as [number, number, number];
+                next[i] = parseFloat(e.target.value) || 0;
+                onChange(next);
+              }}
+              style={numInputStyle}
             />
-          )}
-          <OrbitControls makeDefault enabled={!isTransforming} />
-        </Canvas>
+          </label>
+        ))}
       </div>
     </div>
-  )
+  );
 }
 
-function createTraitId(): string {
-  return `trait_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+function InspectorPane() {
+  const objects = useSceneStore((s) => s.objects);
+  const selectedUUID = useSceneStore((s) => s.selectedUUID);
+  const version = useSceneStore((s) => s.version);
+
+  const obj = selectedUUID ? (objects.get(selectedUUID) ?? null) : null;
+
+  const pos: [number, number, number] = obj
+    ? [obj.position.x, obj.position.y, obj.position.z]
+    : [0, 0, 0];
+  const rot: [number, number, number] = obj
+    ? [
+        parseFloat(THREE.MathUtils.radToDeg(obj.rotation.x).toFixed(4)),
+        parseFloat(THREE.MathUtils.radToDeg(obj.rotation.y).toFixed(4)),
+        parseFloat(THREE.MathUtils.radToDeg(obj.rotation.z).toFixed(4)),
+      ]
+    : [0, 0, 0];
+  const scl: [number, number, number] = obj
+    ? [obj.scale.x, obj.scale.y, obj.scale.z]
+    : [1, 1, 1];
+
+  const handleTransform = useCallback(
+    (
+      position: [number, number, number],
+      rotDeg: [number, number, number],
+      scale: [number, number, number],
+    ) => {
+      if (!selectedUUID) return;
+      const rotRad: [number, number, number] = [
+        THREE.MathUtils.degToRad(rotDeg[0]),
+        THREE.MathUtils.degToRad(rotDeg[1]),
+        THREE.MathUtils.degToRad(rotDeg[2]),
+      ];
+      sceneActions.setTransform(selectedUUID, position, rotRad, scale);
+    },
+    [selectedUUID],
+  );
+
+  const meshColor = (() => {
+    if (!(obj instanceof THREE.Mesh)) return "#888888";
+    const mat = obj.material as
+      | THREE.MeshStandardMaterial
+      | THREE.MeshBasicMaterial;
+    return `#${mat.color.getHexString()}`;
+  })();
+
+  if (!obj) {
+    return (
+      <div
+        style={{
+          padding: 16,
+          fontSize: 12,
+          color: "#555",
+          textAlign: "center",
+        }}
+      >
+        Select an object to inspect
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{ padding: "12px", overflowY: "auto", height: "100%" }}
+      key={`${selectedUUID}-${version}`}
+    >
+      <div style={{ marginBottom: 14 }}>
+        <div
+          style={{
+            fontSize: 11,
+            color: "#888",
+            textTransform: "uppercase",
+            letterSpacing: 1,
+            marginBottom: 4,
+          }}
+        >
+          Name
+        </div>
+        <input
+          value={obj.name}
+          onChange={(e) => {
+            obj.name = e.target.value;
+            const state = useSceneStore.getState();
+            const node = state.nodes.get(obj.uuid);
+            if (node) {
+              const nodes = new Map(state.nodes);
+              nodes.set(obj.uuid, { ...node, name: e.target.value });
+              useSceneStore.setState({ nodes, version: state.version + 1 });
+            } else {
+              state.invalidate();
+            }
+          }}
+          style={{ ...textInputStyle, width: "100%" }}
+        />
+      </div>
+
+      <div
+        style={{
+          fontSize: 11,
+          color: "#888",
+          textTransform: "uppercase",
+          letterSpacing: 1,
+          marginBottom: 8,
+        }}
+      >
+        Transform
+      </div>
+
+      <Vec3Field
+        label="Position"
+        value={pos}
+        onChange={(v) => handleTransform(v, rot, scl)}
+      />
+      <Vec3Field
+        label="Rotation"
+        value={rot}
+        step={1}
+        onChange={(v) => handleTransform(pos, v, scl)}
+      />
+      <Vec3Field
+        label="Scale"
+        value={scl}
+        onChange={(v) => handleTransform(pos, rot, v)}
+      />
+
+      {obj instanceof THREE.Mesh && (
+        <div style={{ marginTop: 14 }}>
+          <div
+            style={{
+              fontSize: 11,
+              color: "#888",
+              textTransform: "uppercase",
+              letterSpacing: 1,
+              marginBottom: 8,
+            }}
+          >
+            Material
+          </div>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 12,
+              color: "#ccc",
+            }}
+          >
+            Color
+            <input
+              type="color"
+              value={meshColor}
+              onChange={(e) =>
+                sceneActions.setMaterialColor(selectedUUID!, e.target.value)
+              }
+              style={{
+                width: 32,
+                height: 24,
+                border: "none",
+                cursor: "pointer",
+                background: "none",
+                padding: 0,
+              }}
+            />
+            <span style={{ fontSize: 11, color: "#666" }}>{meshColor}</span>
+          </label>
+        </div>
+      )}
+    </div>
+  );
 }
+
+function TransformModeBar({
+  mode,
+  setMode,
+}: {
+  mode: TransformMode;
+  setMode: (m: TransformMode) => void;
+}) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 8,
+        left: "50%",
+        transform: "translateX(-50%)",
+        background: "#1e1e1ecc",
+        border: "1px solid #444",
+        borderRadius: 6,
+        display: "flex",
+        gap: 2,
+        padding: 3,
+        backdropFilter: "blur(4px)",
+      }}
+    >
+      {(["translate", "rotate", "scale"] as TransformMode[]).map((m) => (
+        <button
+          key={m}
+          onClick={() => setMode(m)}
+          style={{
+            ...btnStyle,
+            background: mode === m ? "#2d5fa6" : "transparent",
+            color: mode === m ? "#fff" : "#888",
+            fontSize: 11,
+            padding: "3px 10px",
+          }}
+        >
+          {m[0].toUpperCase() + m.slice(1)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Toolbar() {
+  const handleSave = () => {
+    const nodes = sceneActions.serialize();
+    const json = JSON.stringify(nodes, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "scene-prefab.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleLoad = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const nodes = JSON.parse(
+            e.target?.result as string,
+          ) as SerializedObject[];
+          sceneActions.deserialize(nodes);
+        } catch {}
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  return (
+    <div
+      style={{
+        height: 40,
+        background: "#1a1a1a",
+        borderBottom: "1px solid #333",
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "0 12px",
+      }}
+    >
+      <span
+        style={{ fontSize: 13, fontWeight: 600, color: "#aaa", marginRight: 8 }}
+      >
+        r3e
+      </span>
+      <button onClick={handleSave} style={btnStyle}>
+        Save Prefab
+      </button>
+      <button onClick={handleLoad} style={btnStyle}>
+        Load Prefab
+      </button>
+    </div>
+  );
+}
+
+export default function App(): React.JSX.Element {
+  const [transformDragging, setTransformDragging] = useState(false);
+  const [transformMode, setTransformMode] =
+    useState<TransformMode>("translate");
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        width: "100vw",
+        height: "100vh",
+        background: "#1e1e1e",
+        color: "#ccc",
+        fontFamily: "system-ui, sans-serif",
+      }}
+    >
+      <Toolbar />
+      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+        <div
+          style={{
+            width: 220,
+            borderRight: "1px solid #333",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          }}
+        >
+          <HierarchyPane />
+        </div>
+
+        <div style={{ flex: 1, position: "relative" }}>
+          <Canvas
+            gl={async (props) => {
+              const renderer = new THREE.WebGPURenderer(props as any);
+              await renderer.init();
+              return renderer;
+            }}
+            camera={{ position: [0, 2, 8], fov: 60 }}
+            style={{ background: "#1a1a1a" }}
+            onPointerMissed={() => sceneActions.select(null)}
+          >
+            <ambientLight intensity={0.4} />
+            <directionalLight position={[5, 8, 5]} intensity={1} />
+            <gridHelper args={[20, 20, "#333", "#2a2a2a"]} />
+            <SceneContent
+              onTransformDrag={setTransformDragging}
+              transformMode={transformMode}
+            />
+            <OrbitControls makeDefault enabled={!transformDragging} />
+          </Canvas>
+          <TransformModeBar mode={transformMode} setMode={setTransformMode} />
+        </div>
+
+        <div
+          style={{
+            width: 240,
+            borderLeft: "1px solid #333",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{ padding: "10px 12px 8px", borderBottom: "1px solid #333" }}
+          >
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "#aaa",
+                textTransform: "uppercase",
+                letterSpacing: 1,
+              }}
+            >
+              Inspector
+            </span>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            <InspectorPane />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const btnStyle: React.CSSProperties = {
+  background: "#2a2a2a",
+  color: "#ccc",
+  border: "1px solid #444",
+  borderRadius: 4,
+  padding: "4px 10px",
+  fontSize: 12,
+  cursor: "pointer",
+  lineHeight: 1.4,
+};
+
+const numInputStyle: React.CSSProperties = {
+  width: "100%",
+  background: "#2a2a2a",
+  border: "1px solid #3a3a3a",
+  borderRadius: 3,
+  color: "#ddd",
+  fontSize: 11,
+  padding: "3px 5px",
+  textAlign: "right",
+  boxSizing: "border-box",
+};
+
+const textInputStyle: React.CSSProperties = {
+  background: "#2a2a2a",
+  border: "1px solid #3a3a3a",
+  borderRadius: 3,
+  color: "#ddd",
+  fontSize: 12,
+  padding: "4px 8px",
+  boxSizing: "border-box",
+};

@@ -16,16 +16,16 @@ Systems query the world and update entities. Always take `world: World` as first
 **`core/systems/update-movement.ts`:**
 
 ```typescript
-import type { World } from 'koota'
-import { Position, Velocity, Time } from '../traits'
+import type { World } from "koota";
+import { Position, Velocity, Time } from "../traits";
 
 export function updateMovement(world: World) {
-  const { delta } = world.get(Time)!
+  const { delta } = world.get(Time)!;
 
   world.query(Position, Velocity).updateEach(([pos, vel]) => {
-    pos.x += vel.x * delta
-    pos.y += vel.y * delta
-  })
+    pos.x += vel.x * delta;
+    pos.y += vel.y * delta;
+  });
 }
 ```
 
@@ -42,8 +42,8 @@ export function updateMovement(world: World) {
 
 ```typescript
 // Good actions: direct mutations
-createEnemy: (pos) => world.spawn(Position(pos), IsEnemy)
-applyDamage: (entity, amount) => entity.set(Health, { hp: entity.get(Health).hp - amount })
+createEnemy: (pos) => world.spawn(Position(pos), IsEnemy);
+applyDamage: (entity, amount) => entity.set(Health, { hp: entity.get(Health).hp - amount });
 ```
 
 **Systems** are reactive orchestrators. They observe state changes (`createAdded`, `createChanged`) in the frame loop and coordinate work, including async workflows. They may call actions for mutations, or mutate directly — whichever is clearer.
@@ -52,8 +52,8 @@ applyDamage: (entity, amount) => entity.set(Health, { hp: entity.get(Health).hp 
 // Good system: reacts to state, orchestrates behavior
 export function applyPoison(world: World) {
   world.query(Changed(Poisoned)).readEach(([poison], entity) => {
-    entity.set(Health, { hp: entity.get(Health).hp - poison.dps * delta })
-  })
+    entity.set(Health, { hp: entity.get(Health).hp - poison.dps * delta });
+  });
 }
 ```
 
@@ -65,21 +65,21 @@ export function applyPoison(world: World) {
 // Query and update each
 export function updatePhysics(world: World) {
   world.query(Position, Velocity).updateEach(([pos, vel]) => {
-    pos.x += vel.x
-  })
+    pos.x += vel.x;
+  });
 }
 
 // Manual iteration (when you need the entity)
 export function cleanupDead(world: World) {
   for (const entity of world.query(IsDead)) {
-    entity.destroy()
+    entity.destroy();
   }
 }
 
 // Read singleton traits
 export function updateAI(world: World) {
-  const { delta } = world.get(Time)!
-  const pointer = world.get(Pointer)!
+  const { delta } = world.get(Time)!;
+  const pointer = world.get(Pointer)!;
   // ... use delta and pointer
 }
 ```
@@ -91,45 +91,45 @@ Run systems continuously via requestAnimationFrame.
 **`app/frameloop.ts`:**
 
 ```typescript
-import { useWorld } from 'koota/react'
-import { useAnimationFrame } from './utils/use-animation-frame'
-import { updateTime } from '../core/systems/update-time'
-import { updateMovement } from '../core/systems/update-movement'
-import { updateCollisions } from '../core/systems/update-collisions'
+import { useWorld } from "koota/react";
+import { useAnimationFrame } from "./utils/use-animation-frame";
+import { updateTime } from "../core/systems/update-time";
+import { updateMovement } from "../core/systems/update-movement";
+import { updateCollisions } from "../core/systems/update-collisions";
 
 export function Frameloop() {
-  const world = useWorld()
+  const world = useWorld();
 
   useAnimationFrame(() => {
-    updateTime(world)
-    updateMovement(world)
-    updateCollisions(world)
-  })
+    updateTime(world);
+    updateMovement(world);
+    updateCollisions(world);
+  });
 
-  return null
+  return null;
 }
 ```
 
 **`app/utils/use-animation-frame.ts`:**
 
 ```typescript
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef } from "react";
 
 export function useAnimationFrame(callback: () => void) {
-  const callbackRef = useRef(callback)
-  callbackRef.current = callback
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
 
   useEffect(() => {
-    let rafId: number
+    let rafId: number;
 
     const loop = () => {
-      callbackRef.current?.()
-      rafId = requestAnimationFrame(loop)
-    }
+      callbackRef.current?.();
+      rafId = requestAnimationFrame(loop);
+    };
 
-    rafId = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(rafId)
-  }, [])
+    rafId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
 }
 ```
 
@@ -142,11 +142,11 @@ Two strategies for handling events:
 ```typescript
 useEffect(() => {
   const handler = (e: PointerEvent) => {
-    world.set(Pointer, { x: e.clientX, y: e.clientY })
-  }
-  window.addEventListener('pointermove', handler)
-  return () => window.removeEventListener('pointermove', handler)
-}, [world])
+    world.set(Pointer, { x: e.clientX, y: e.clientY });
+  };
+  window.addEventListener("pointermove", handler);
+  return () => window.removeEventListener("pointermove", handler);
+}, [world]);
 ```
 
 **2. Run on transition:** Execute system logic immediately when an event fires. Use for discrete events (state machine transitions, network messages, entity lifecycle).
@@ -155,15 +155,15 @@ useEffect(() => {
 // XState transition
 useEffect(() => {
   const sub = actor.subscribe((snapshot) => {
-    handleStateTransition(world, snapshot)
-  })
-  return () => sub.unsubscribe()
-}, [world, actor])
+    handleStateTransition(world, snapshot);
+  });
+  return () => sub.unsubscribe();
+}, [world, actor]);
 
 // System runs on transition
 function handleStateTransition(world: World, snapshot: StateSnapshot) {
-  if (snapshot.matches('playing')) world.add(IsPlaying)
-  else world.remove(IsPlaying)
+  if (snapshot.matches("playing")) world.add(IsPlaying);
+  else world.remove(IsPlaying);
 }
 ```
 
@@ -173,8 +173,8 @@ function handleStateTransition(world: World, snapshot: StateSnapshot) {
 useEffect(() => {
   return world.onAdd(Position, (entity) => {
     // Runs immediately when entity gains Position
-  })
-}, [world])
+  });
+}, [world]);
 ```
 
 ## Time management
@@ -184,20 +184,20 @@ Track delta time using a Time trait and updateTime system. Run first in frameloo
 **`core/traits/index.ts`:**
 
 ```typescript
-export const Time = trait({ last: 0, delta: 0 })
+export const Time = trait({ last: 0, delta: 0 });
 ```
 
 **`core/systems/update-time.ts`:**
 
 ```typescript
-import type { World } from 'koota'
-import { Time } from '../traits'
+import type { World } from "koota";
+import { Time } from "../traits";
 
 export function updateTime(world: World) {
-  const now = performance.now()
-  const time = world.get(Time)!
-  const delta = Math.min((now - time.last) / 1000, 0.1)
-  world.set(Time, { last: now, delta })
+  const now = performance.now();
+  const time = world.get(Time)!;
+  const delta = Math.min((now - time.last) / 1000, 0.1);
+  world.set(Time, { last: now, delta });
 }
 ```
 
@@ -212,11 +212,11 @@ export function updateTime(world: World) {
 
 ```typescript
 export function updateMovement(world: World) {
-  const { delta } = world.get(Time)!
+  const { delta } = world.get(Time)!;
 
   world.query(Position, Velocity).updateEach(([pos, vel]) => {
-    pos.x += vel.x * delta
-    pos.y += vel.y * delta
-  })
+    pos.x += vel.x * delta;
+    pos.y += vel.y * delta;
+  });
 }
 ```

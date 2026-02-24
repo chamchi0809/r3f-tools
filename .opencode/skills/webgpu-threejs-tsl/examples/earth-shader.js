@@ -12,7 +12,7 @@
  * https://github.com/mrdoob/three.js
  */
 
-import * as THREE from 'three/webgpu';
+import * as THREE from "three/webgpu";
 import {
   Fn,
   float,
@@ -30,9 +30,9 @@ import {
   positionWorld,
   normalWorld,
   cameraPosition,
-  bumpMap
-} from 'three/tsl';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  bumpMap,
+} from "three/tsl";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 let camera, scene, renderer, controls;
 let earth, clouds, atmosphere;
@@ -57,10 +57,10 @@ async function init() {
   const loader = new THREE.TextureLoader();
 
   // Note: Replace with actual texture paths
-  const earthDayTexture = loader.load('textures/earth_day.jpg');
-  const earthNightTexture = loader.load('textures/earth_night.jpg');
-  const earthCloudsTexture = loader.load('textures/earth_clouds.jpg');
-  const earthBumpTexture = loader.load('textures/earth_bump.jpg');
+  const earthDayTexture = loader.load("textures/earth_day.jpg");
+  const earthNightTexture = loader.load("textures/earth_night.jpg");
+  const earthCloudsTexture = loader.load("textures/earth_clouds.jpg");
+  const earthBumpTexture = loader.load("textures/earth_bump.jpg");
 
   // Set texture properties
   [earthDayTexture, earthNightTexture, earthCloudsTexture, earthBumpTexture].forEach((tex) => {
@@ -98,7 +98,7 @@ async function init() {
   controls.maxDistance = 10;
 
   // Events
-  window.addEventListener('resize', onWindowResize);
+  window.addEventListener("resize", onWindowResize);
 
   renderer.setAnimationLoop(animate);
 }
@@ -121,9 +121,7 @@ function createEarth(dayTex, nightTex, bumpTex) {
     const dayNight = smoothstep(0.4, 0.6, orientation);
 
     // Add city lights on night side
-    const cityLights = nightColor.mul(cityLightIntensity).mul(
-      float(1.0).sub(dayNight)
-    );
+    const cityLights = nightColor.mul(cityLightIntensity).mul(float(1.0).sub(dayNight));
 
     const baseColor = mix(nightColor, dayColor, dayNight);
     return baseColor.add(cityLights.mul(float(1.0).sub(orientation).pow(2.0)));
@@ -247,8 +245,8 @@ function createStars() {
     colors[i * 3 + 2] = brightness + Math.random() * 0.2;
   }
 
-  starsGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  starsGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  starsGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  starsGeometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 
   const starsMaterial = new THREE.PointsNodeMaterial();
   starsMaterial.colorNode = Fn(() => {
@@ -283,4 +281,10 @@ function animate() {
 init();
 
 // Export for external control
-export { sunDirection, atmosphereDayColor, atmosphereTwilightColor, cloudSpeed, cityLightIntensity };
+export {
+  sunDirection,
+  atmosphereDayColor,
+  atmosphereTwilightColor,
+  cloudSpeed,
+  cityLightIntensity,
+};

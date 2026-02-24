@@ -44,24 +44,24 @@ Spawn initial entities on mount. Clean up in `useEffect` return.
 **`app/startup.ts`:**
 
 ```typescript
-import { useActions } from 'koota/react'
-import { useEffect } from 'react'
-import { actions } from '../core/actions'
+import { useActions } from "koota/react";
+import { useEffect } from "react";
+import { actions } from "../core/actions";
 
 export function Startup() {
-  const { spawnPlayer, spawnEnemies } = useActions(actions)
+  const { spawnPlayer, spawnEnemies } = useActions(actions);
 
   useEffect(() => {
-    const player = spawnPlayer()
-    const enemies = spawnEnemies(5)
+    const player = spawnPlayer();
+    const enemies = spawnEnemies(5);
 
     return () => {
-      player.destroy()
-      enemies.forEach((e) => e.destroy())
-    }
-  }, [spawnPlayer, spawnEnemies])
+      player.destroy();
+      enemies.forEach((e) => e.destroy());
+    };
+  }, [spawnPlayer, spawnEnemies]);
 
-  return null
+  return null;
 }
 ```
 
@@ -73,11 +73,11 @@ Entities can be destroyed outside React at any time. React does not own the sour
 
 ```typescript
 // ❌ Entity may be destroyed while ref holds stale reference
-const entityRef = useRef<Entity | null>(null)
-entityRef.current = world.spawn(Foo)
+const entityRef = useRef<Entity | null>(null);
+entityRef.current = world.spawn(Foo);
 
 // ❌ Same problem with useState
-const [entity, setEntity] = useState<Entity | null>(null)
+const [entity, setEntity] = useState<Entity | null>(null);
 ```
 
 **Spawn in effects with cleanup, or in Startup:**
@@ -85,9 +85,9 @@ const [entity, setEntity] = useState<Entity | null>(null)
 ```typescript
 // ✅ Effect with cleanup
 useEffect(() => {
-  const entity = world.spawn(Foo)
-  return () => entity.destroy()
-}, [world])
+  const entity = world.spawn(Foo);
+  return () => entity.destroy();
+}, [world]);
 
 // ✅ Startup component (see above)
 ```
@@ -107,19 +107,19 @@ function PlayerView({ entity }: { entity: Entity }) { ... }
 Run systems in requestAnimationFrame loop. See [runtime.md](runtime.md) for details.
 
 ```typescript
-import { useWorld } from 'koota/react'
-import { useAnimationFrame } from './utils/use-animation-frame'
+import { useWorld } from "koota/react";
+import { useAnimationFrame } from "./utils/use-animation-frame";
 
 export function Frameloop() {
-  const world = useWorld()
+  const world = useWorld();
 
   useAnimationFrame(() => {
-    updateTime(world)
-    updateMovement(world)
-    syncToDOM(world)
-  })
+    updateTime(world);
+    updateMovement(world);
+    syncToDOM(world);
+  });
 
-  return null
+  return null;
 }
 ```
 
@@ -171,10 +171,10 @@ React controls when a view element connects to an entity. Systems only query and
 
 ```typescript
 // For DOM
-export const Ref = trait(() => null! as HTMLDivElement)
+export const Ref = trait(() => null! as HTMLDivElement);
 
 // For React Three Fiber
-export const Ref = trait(() => null! as THREE.Object3D)
+export const Ref = trait(() => null! as THREE.Object3D);
 ```
 
 ### handleInit pattern
@@ -205,10 +205,10 @@ function CardView({ entity }: { entity: Entity }) {
 ```typescript
 export function syncToDOM(world: World) {
   world.query(Position, Ref, ZIndex).updateEach(([pos, ref, zIndex]) => {
-    if (!ref) return
-    ref.style.transform = `translate(${pos.x}px, ${pos.y}px)`
-    ref.style.zIndex = zIndex.value.toString()
-  })
+    if (!ref) return;
+    ref.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
+    ref.style.zIndex = zIndex.value.toString();
+  });
 }
 ```
 
@@ -265,26 +265,26 @@ const Transform = trait({
   position: () => new Vector3(),
   rotation: () => new Euler(),
   quaternion: () => new Quaternion(),
-})
+});
 
 const handleInit = useCallback(
   (group: THREE.Group | null) => {
-    if (!group || !entity.isAlive()) return
+    if (!group || !entity.isAlive()) return;
 
     entity.set(Transform, (prev) => ({
       position: group.position.copy(prev.position),
       rotation: group.rotation.copy(prev.rotation),
       quaternion: group.quaternion.copy(prev.quaternion),
       scale: group.scale.copy(prev.scale),
-    }))
+    }));
   },
-  [entity]
-)
+  [entity],
+);
 
 // Systems mutate trait directly - Three sees changes immediately
 world.query(Transform, Movement).updateEach(([transform, movement]) => {
-  transform.position.add(movement.velocity)
-})
+  transform.position.add(movement.velocity);
+});
 ```
 
 ### Trait-owned transforms (balanced)
@@ -294,15 +294,15 @@ Scalar traits for transforms; `Ref` holds `Object3D`. Systems mutate traits; a s
 **Important**: Only use if the user is not relying on third party Three libraries.
 
 ```typescript
-const Position = trait({ x: 0, y: 0, z: 0 })
-const Rotation = trait({ x: 0, y: 0, z: 0 })
-const Ref = trait(() => null! as THREE.Object3D)
+const Position = trait({ x: 0, y: 0, z: 0 });
+const Rotation = trait({ x: 0, y: 0, z: 0 });
+const Ref = trait(() => null! as THREE.Object3D);
 
 function syncToThree(world: World) {
   world.query(Position, Rotation, Ref).updateEach(([pos, rot, ref]) => {
-    ref.position.set(pos.x, pos.y, pos.z)
-    ref.rotation.set(rot.x, rot.y, rot.z)
-  })
+    ref.position.set(pos.x, pos.y, pos.z);
+    ref.rotation.set(rot.x, rot.y, rot.z);
+  });
 }
 ```
 
@@ -317,30 +317,30 @@ React components respond to user input by adding/removing traits. Systems proces
 ```typescript
 export const Dragging = trait({
   offset: () => ({ x: 0, y: 0 }),
-})
-export const Pointer = trait({ x: 0, y: 0 }) // Singleton
+});
+export const Pointer = trait({ x: 0, y: 0 }); // Singleton
 ```
 
 **System:**
 
 ```typescript
 export function updateDragging(world: World) {
-  const pointer = world.get(Pointer)
-  if (!pointer) return
+  const pointer = world.get(Pointer);
+  if (!pointer) return;
 
-  const { delta } = world.get(Time)!
+  const { delta } = world.get(Time)!;
 
   world.query(Position, Velocity, Dragging).updateEach(([pos, vel, dragging]) => {
-    const oldX = pos.x
-    const oldY = pos.y
+    const oldX = pos.x;
+    const oldY = pos.y;
 
-    pos.x = pointer.x - dragging.offset.x
-    pos.y = pointer.y - dragging.offset.y
+    pos.x = pointer.x - dragging.offset.x;
+    pos.y = pointer.y - dragging.offset.y;
 
-    const invDelta = delta > 0 ? 1 / delta : 0
-    vel.x = (pos.x - oldX) * invDelta
-    vel.y = (pos.y - oldY) * invDelta
-  })
+    const invDelta = delta > 0 ? 1 / delta : 0;
+    vel.x = (pos.x - oldX) * invDelta;
+    vel.y = (pos.y - oldY) * invDelta;
+  });
 }
 ```
 
@@ -413,31 +413,31 @@ Store input on the world for global scope, or on a scoped entity for element sco
 
 ```typescript
 // Traits
-export const IsCanvas = trait()
-export const IsHovering = trait()
-export const Pointer = trait({ x: 0, y: 0 })
+export const IsCanvas = trait();
+export const IsHovering = trait();
+export const Pointer = trait({ x: 0, y: 0 });
 
 // Spawn scoped entity
-const canvas = world.spawn(IsCanvas, Pointer)
+const canvas = world.spawn(IsCanvas, Pointer);
 
 // Capture scoped pointer
 const handlePointerMove = (e: React.PointerEvent) => {
-  const canvas = world.queryFirst(IsCanvas)
-  if (!canvas) return
-  canvas.set(Pointer, { x: e.clientX, y: e.clientY })
-  if (!canvas.has(IsHovering)) canvas.add(IsHovering)
-}
+  const canvas = world.queryFirst(IsCanvas);
+  if (!canvas) return;
+  canvas.set(Pointer, { x: e.clientX, y: e.clientY });
+  if (!canvas.has(IsHovering)) canvas.add(IsHovering);
+};
 
 const handlePointerLeave = () => {
-  const canvas = world.queryFirst(IsCanvas)
-  if (canvas) canvas.remove(IsHovering)
-}
+  const canvas = world.queryFirst(IsCanvas);
+  if (canvas) canvas.remove(IsHovering);
+};
 
 // Consume
 world.query(IsCanvas, IsHovering, Pointer).readEach(([pointer]) => {
   // Only runs when hovering canvas
-  pointer.x
-})
+  pointer.x;
+});
 ```
 
 **When to use:**

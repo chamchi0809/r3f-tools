@@ -97,25 +97,25 @@ For detailed patterns and monorepo structures, see [references/architecture.md](
 Relations build graphs between entities such as hierarchies, inventories, targeting.
 
 ```typescript
-import { relation } from 'koota'
+import { relation } from "koota";
 
-const ChildOf = relation({ autoDestroy: 'orphan' }) // Hierarchy
-const Contains = relation({ store: { amount: 0 } }) // With data
-const Targeting = relation({ exclusive: true }) // One target only
+const ChildOf = relation({ autoDestroy: "orphan" }); // Hierarchy
+const Contains = relation({ store: { amount: 0 } }); // With data
+const Targeting = relation({ exclusive: true }); // One target only
 
 // Build graph
-const parent = world.spawn()
-const child = world.spawn(ChildOf(parent))
+const parent = world.spawn();
+const child = world.spawn(ChildOf(parent));
 
 // Query children of parent
-const children = world.query(ChildOf(parent))
+const children = world.query(ChildOf(parent));
 
 // Query all entities with any ChildOf relation
-const allChildren = world.query(ChildOf('*'))
+const allChildren = world.query(ChildOf("*"));
 
 // Get targets from entity
-const items = entity.targetsFor(Contains) // Entity[]
-const target = entity.targetFor(Targeting) // Entity | undefined
+const items = entity.targetsFor(Contains); // Entity[]
+const target = entity.targetFor(Targeting); // Entity | undefined
 ```
 
 For detailed patterns, traversal, ordered relations, and anti-patterns, see [references/relations.md](references/relations.md).
@@ -123,22 +123,22 @@ For detailed patterns, traversal, ordered relations, and anti-patterns, see [ref
 ## Basic usage
 
 ```typescript
-import { trait, createWorld } from 'koota'
+import { trait, createWorld } from "koota";
 
 // 1. Define traits
-const Position = trait({ x: 0, y: 0 })
-const Velocity = trait({ x: 0, y: 0 })
-const IsPlayer = trait()
+const Position = trait({ x: 0, y: 0 });
+const Velocity = trait({ x: 0, y: 0 });
+const IsPlayer = trait();
 
 // 2. Create world and spawn entities
-const world = createWorld()
-const player = world.spawn(Position({ x: 100, y: 50 }), Velocity, IsPlayer)
+const world = createWorld();
+const player = world.spawn(Position({ x: 100, y: 50 }), Velocity, IsPlayer);
 
 // 3. Query and update
 world.query(Position, Velocity).updateEach(([pos, vel]) => {
-  pos.x += vel.x
-  pos.y += vel.y
-})
+  pos.x += vel.x;
+  pos.y += vel.y;
+});
 ```
 
 ## Entities
@@ -147,17 +147,17 @@ Entities are unique identifiers that compose traits. Spawned from a world.
 
 ```typescript
 // Spawn
-const entity = world.spawn(Position, Velocity)
+const entity = world.spawn(Position, Velocity);
 
 // Read/write traits
-entity.get(Position) // Read trait data
-entity.set(Position, { x: 10 }) // Write (triggers change events)
-entity.add(IsPlayer) // Add trait
-entity.remove(Velocity) // Remove trait
-entity.has(Position) // Check if has trait
+entity.get(Position); // Read trait data
+entity.set(Position, { x: 10 }); // Write (triggers change events)
+entity.add(IsPlayer); // Add trait
+entity.remove(Velocity); // Remove trait
+entity.has(Position); // Check if has trait
 
 // Destroy
-entity.destroy()
+entity.destroy();
 ```
 
 **Entity IDs**
@@ -165,8 +165,8 @@ entity.destroy()
 An entity is internally a number packed with entity ID, generation ID (for recycling), and world ID. Safe to store directly for persistence or networking.
 
 ```typescript
-entity.id() // Just the entity ID (reused after destroy)
-entity // Full packed number (unique forever)
+entity.id(); // Just the entity ID (reused after destroy)
+entity; // Full packed number (unique forever)
 ```
 
 **Typing**
@@ -174,7 +174,7 @@ entity // Full packed number (unique forever)
 Use `TraitRecord` to get the type that `entity.get()` returns
 
 ```typescript
-type PositionRecord = TraitRecord<typeof Position>
+type PositionRecord = TraitRecord<typeof Position>;
 ```
 
 ## Queries
@@ -184,22 +184,22 @@ Queries fetch entities matching an archetype and are the primary way to batch up
 ```typescript
 // Query and update
 world.query(Position, Velocity).updateEach(([pos, vel]) => {
-  pos.x += vel.x
-  pos.y += vel.y
-})
+  pos.x += vel.x;
+  pos.y += vel.y;
+});
 
 // Read-only iteration (no write-back)
-const data: Array<{ x: number; y: number }> = []
+const data: Array<{ x: number; y: number }> = [];
 world.query(Position, Velocity).readEach(([pos, vel]) => {
-  data.push({ x: pos.x, y: pos.y })
-})
+  data.push({ x: pos.x, y: pos.y });
+});
 
 // Get first match
-const player = world.queryFirst(IsPlayer, Position)
+const player = world.queryFirst(IsPlayer, Position);
 
 // Filter with modifiers
-world.query(Position, Not(Velocity)) // Has Position but not Velocity
-world.query(Or(IsPlayer, IsEnemy)) // Has either trait
+world.query(Position, Not(Velocity)); // Has Position but not Velocity
+world.query(Or(IsPlayer, IsEnemy)); // Has either trait
 ```
 
 **Note:** `updateEach`/`readEach` only return data-bearing traits (SoA/AoS). Tags, `Not()`, and relation filters are **excluded**:
@@ -207,7 +207,7 @@ world.query(Or(IsPlayer, IsEnemy)) // Has either trait
 ```typescript
 world.query(IsPlayer, Position, Velocity).updateEach(([pos, vel]) => {
   // Array has 2 elements - IsPlayer (tag) excluded
-})
+});
 ```
 
 For tracking changes, caching queries, and advanced patterns, see [references/queries.md](references/queries.md).

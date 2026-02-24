@@ -11,6 +11,7 @@ pnpm dev
 ```
 
 Then navigate to:
+
 - http://localhost:5174/ - Home page
 - http://localhost:5174/editor - Editor UI
 
@@ -24,7 +25,7 @@ pnpm build
 
 - Uses `react-three-engine` workspace package
 - Vite development server with HMR
- Minimal client-side routing (no router library)
+  Minimal client-side routing (no router library)
 - TypeScript support
 - WebGPU-enabled via react-three-engine Vite plugin
 

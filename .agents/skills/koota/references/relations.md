@@ -31,19 +31,19 @@ The child expresses the relationship, not the parent. This enables efficient bat
 ## Basic Syntax
 
 ```typescript
-import { relation } from 'koota'
+import { relation } from "koota";
 
 // Basic relation (no data)
-const ChildOf = relation()
+const ChildOf = relation();
 
 // Relation with data
-const Contains = relation({ store: { amount: 0 } })
+const Contains = relation({ store: { amount: 0 } });
 
 // Auto cleanup when target destroyed
-const ChildOf = relation({ autoDestroy: 'orphan' })
+const ChildOf = relation({ autoDestroy: "orphan" });
 
 // Only one target allowed per entity
-const Targeting = relation({ exclusive: true })
+const Targeting = relation({ exclusive: true });
 ```
 
 ## Building Graphs
@@ -51,59 +51,59 @@ const Targeting = relation({ exclusive: true })
 ### Hierarchies (parent-child)
 
 ```typescript
-const ChildOf = relation({ autoDestroy: 'orphan' })
+const ChildOf = relation({ autoDestroy: "orphan" });
 
-const parent = world.spawn()
-const child = world.spawn(ChildOf(parent))
-const grandchild = world.spawn(ChildOf(child))
+const parent = world.spawn();
+const child = world.spawn(ChildOf(parent));
+const grandchild = world.spawn(ChildOf(child));
 
 // Destroying parent destroys entire subtree
-parent.destroy() // child and grandchild also destroyed
+parent.destroy(); // child and grandchild also destroyed
 ```
 
 ### Inventories (contains)
 
 ```typescript
-const Contains = relation({ store: { amount: 0 } })
+const Contains = relation({ store: { amount: 0 } });
 
-const inventory = world.spawn()
-const gold = world.spawn()
-const sword = world.spawn()
+const inventory = world.spawn();
+const gold = world.spawn();
+const sword = world.spawn();
 
-inventory.add(Contains(gold, { amount: 100 }))
-inventory.add(Contains(sword, { amount: 1 }))
+inventory.add(Contains(gold, { amount: 100 }));
+inventory.add(Contains(sword, { amount: 1 }));
 
 // Update amount
-inventory.set(Contains(gold), { amount: 50 })
+inventory.set(Contains(gold), { amount: 50 });
 
 // Read amount
-const data = inventory.get(Contains(gold)) // { amount: 50 }
+const data = inventory.get(Contains(gold)); // { amount: 50 }
 ```
 
 ### Targeting/Following
 
 ```typescript
-const Targeting = relation({ exclusive: true })
+const Targeting = relation({ exclusive: true });
 
-const enemy = world.spawn()
-const player = world.spawn()
-const otherPlayer = world.spawn()
+const enemy = world.spawn();
+const player = world.spawn();
+const otherPlayer = world.spawn();
 
-enemy.add(Targeting(player))
-enemy.add(Targeting(otherPlayer)) // Replaces previous target
+enemy.add(Targeting(player));
+enemy.add(Targeting(otherPlayer)); // Replaces previous target
 
-enemy.has(Targeting(player)) // false
-enemy.has(Targeting(otherPlayer)) // true
+enemy.has(Targeting(player)); // false
+enemy.has(Targeting(otherPlayer)); // true
 ```
 
 ### Neighbor Networks
 
 ```typescript
-const NeighborOf = relation()
+const NeighborOf = relation();
 
 // Build bidirectional connections
-entityA.add(NeighborOf(entityB))
-entityB.add(NeighborOf(entityA))
+entityA.add(NeighborOf(entityB));
+entityB.add(NeighborOf(entityA));
 ```
 
 ## Querying Relations
@@ -111,7 +111,7 @@ entityB.add(NeighborOf(entityA))
 ### Query children of specific parent
 
 ```typescript
-const children = world.query(ChildOf(parent))
+const children = world.query(ChildOf(parent));
 
 for (const child of children) {
   // Process each child
@@ -122,30 +122,30 @@ for (const child of children) {
 
 ```typescript
 // All entities that are children of something
-const allChildren = world.query(ChildOf('*'))
+const allChildren = world.query(ChildOf("*"));
 
 // All entities that contain something
-const allContainers = world.query(Contains('*'))
+const allContainers = world.query(Contains("*"));
 ```
 
 ### Get targets from an entity
 
 ```typescript
 // Get all targets
-const items = entity.targetsFor(Contains) // Entity[]
+const items = entity.targetsFor(Contains); // Entity[]
 
 // Get first target
-const target = entity.targetFor(Targeting) // Entity | undefined
+const target = entity.targetFor(Targeting); // Entity | undefined
 ```
 
 ### Combined queries
 
 ```typescript
 // Enemies targeting the player
-const threats = world.query(IsEnemy, Targeting(player))
+const threats = world.query(IsEnemy, Targeting(player));
 
 // Children of parent that also have Position
-const positionedChildren = world.query(ChildOf(parent), Position)
+const positionedChildren = world.query(ChildOf(parent), Position);
 ```
 
 ## Traversing Graphs
@@ -154,47 +154,47 @@ const positionedChildren = world.query(ChildOf(parent), Position)
 
 ```typescript
 function traverseFromNode(world: World, node: Entity, depth = 0) {
-  console.log('  '.repeat(depth) + `Node ${node.id()}`)
+  console.log("  ".repeat(depth) + `Node ${node.id()}`);
 
-  const children = world.query(ChildOf(node))
+  const children = world.query(ChildOf(node));
   for (const child of children) {
-    traverseFromNode(world, child, depth + 1)
+    traverseFromNode(world, child, depth + 1);
   }
 }
 
 // Start from root
-traverseFromNode(world, root)
+traverseFromNode(world, root);
 ```
 
 ### Building a tree
 
 ```typescript
 function buildTree(world: World, parent: Entity, depth: number, maxDepth: number) {
-  if (depth >= maxDepth) return
+  if (depth >= maxDepth) return;
 
   for (let i = 0; i < 3; i++) {
-    const child = world.spawn(ChildOf(parent))
-    buildTree(world, child, depth + 1, maxDepth)
+    const child = world.spawn(ChildOf(parent));
+    buildTree(world, child, depth + 1, maxDepth);
   }
 }
 
-const root = world.spawn()
-buildTree(world, root, 0, 4)
+const root = world.spawn();
+buildTree(world, root, 0, 4);
 ```
 
 ### Finding ancestors
 
 ```typescript
 function getAncestors(entity: Entity): Entity[] {
-  const ancestors: Entity[] = []
-  let current = entity.targetFor(ChildOf)
+  const ancestors: Entity[] = [];
+  let current = entity.targetFor(ChildOf);
 
   while (current) {
-    ancestors.push(current)
-    current = current.targetFor(ChildOf)
+    ancestors.push(current);
+    current = current.targetFor(ChildOf);
   }
 
-  return ancestors
+  return ancestors;
 }
 ```
 
@@ -207,7 +207,7 @@ Ordered relations maintain a list of related entities with bidirectional sync. U
 A regular query returns a flat unordered list:
 
 ```typescript
-const children = world.query(ChildOf(parent)) // Order not guaranteed
+const children = world.query(ChildOf(parent)); // Order not guaranteed
 ```
 
 Without ordered relations, you'd need to store an order field and sort every time you query. Ordered relations solve this by caching the order on the target.
@@ -215,21 +215,21 @@ Without ordered relations, you'd need to store an order field and sort every tim
 ### Basic usage
 
 ```typescript
-import { relation, ordered } from 'koota'
+import { relation, ordered } from "koota";
 
-const ChildOf = relation()
-const OrderedChildren = ordered(ChildOf)
+const ChildOf = relation();
+const OrderedChildren = ordered(ChildOf);
 
-const parent = world.spawn(OrderedChildren)
-const children = parent.get(OrderedChildren)
+const parent = world.spawn(OrderedChildren);
+const children = parent.get(OrderedChildren);
 
 // Array-like interface
-children.push(child1) // Adds ChildOf(parent) to child1
-children.unshift(child2) // Adds to front
-children.splice(0, 1) // Removes first child
+children.push(child1); // Adds ChildOf(parent) to child1
+children.unshift(child2); // Adds to front
+children.splice(0, 1); // Removes first child
 
 // Bidirectional sync
-child3.add(ChildOf(parent)) // child3 automatically added to list
+child3.add(ChildOf(parent)); // child3 automatically added to list
 ```
 
 ### Supported methods
@@ -250,45 +250,45 @@ child3.add(ChildOf(parent)) // child3 automatically added to list
 ### Example: UI layer ordering
 
 ```typescript
-const ChildOf = relation({ autoDestroy: 'orphan' })
-const OrderedChildren = ordered(ChildOf)
+const ChildOf = relation({ autoDestroy: "orphan" });
+const OrderedChildren = ordered(ChildOf);
 
-const scene = world.spawn(OrderedChildren)
-const layers = scene.get(OrderedChildren)
+const scene = world.spawn(OrderedChildren);
+const layers = scene.get(OrderedChildren);
 
-const background = world.spawn(ChildOf(scene))
-const gameplay = world.spawn(ChildOf(scene))
-const ui = world.spawn(ChildOf(scene))
+const background = world.spawn(ChildOf(scene));
+const gameplay = world.spawn(ChildOf(scene));
+const ui = world.spawn(ChildOf(scene));
 
 // Render in order (background first, UI last)
 function render(world: World) {
   for (const layer of layers) {
-    renderLayer(layer)
+    renderLayer(layer);
   }
 }
 
 // Reorder dynamically
-layers.moveTo(ui, 0) // Move UI to back
+layers.moveTo(ui, 0); // Move UI to back
 ```
 
 ### Example: Execution order
 
 ```typescript
-const ChildOf = relation()
-const OrderedSystems = ordered(ChildOf)
+const ChildOf = relation();
+const OrderedSystems = ordered(ChildOf);
 
-const pipeline = world.spawn(OrderedSystems)
-const systems = pipeline.get(OrderedSystems)
+const pipeline = world.spawn(OrderedSystems);
+const systems = pipeline.get(OrderedSystems);
 
 // Define system execution order
-systems.push(inputSystem)
-systems.push(physicsSystem)
-systems.push(renderSystem)
+systems.push(inputSystem);
+systems.push(physicsSystem);
+systems.push(renderSystem);
 
 // Run in order
 function tick(world: World) {
   for (const system of systems) {
-    executeSystem(system)
+    executeSystem(system);
   }
 }
 ```
@@ -319,25 +319,25 @@ Ordered relations add bookkeeping overhead:
 ### Remove specific relation
 
 ```typescript
-entity.add(Likes(apple))
-entity.add(Likes(banana))
+entity.add(Likes(apple));
+entity.add(Likes(banana));
 
-entity.remove(Likes(apple))
+entity.remove(Likes(apple));
 
-entity.has(Likes(apple)) // false
-entity.has(Likes(banana)) // true
+entity.has(Likes(apple)); // false
+entity.has(Likes(banana)); // true
 ```
 
 ### Remove all relations of a kind (wildcard)
 
 ```typescript
-entity.add(Likes(apple))
-entity.add(Likes(banana))
+entity.add(Likes(apple));
+entity.add(Likes(banana));
 
-entity.remove(Likes('*'))
+entity.remove(Likes("*"));
 
-entity.has(Likes(apple)) // false
-entity.has(Likes(banana)) // false
+entity.has(Likes(apple)); // false
+entity.has(Likes(banana)); // false
 ```
 
 ## Relation Options
@@ -352,13 +352,13 @@ entity.has(Likes(banana)) // false
 ## React Hooks
 
 ```typescript
-import { useTarget, useTargets } from 'koota/react'
+import { useTarget, useTargets } from "koota/react";
 
 // Get first target (reactive)
-const parent = useTarget(entity, ChildOf)
+const parent = useTarget(entity, ChildOf);
 
 // Get all targets (reactive)
-const items = useTargets(inventory, Contains)
+const items = useTargets(inventory, Contains);
 ```
 
 ## Anti-Patterns
@@ -371,14 +371,14 @@ const Transform = trait({
   x: 0,
   y: 0,
   parent: null as Entity | null, // ❌ Bad
-})
+});
 ```
 
 ```typescript
 // Do this instead
-const ChildOf = relation()
-const child = world.spawn(Transform, ChildOf(parent))
-const parent = child.targetFor(ChildOf) // ✅ Good
+const ChildOf = relation();
+const child = world.spawn(Transform, ChildOf(parent));
+const parent = child.targetFor(ChildOf); // ✅ Good
 ```
 
 ### ❌ Using arrays to track children on the parent
@@ -387,51 +387,51 @@ const parent = child.targetFor(ChildOf) // ✅ Good
 // Don't do this - manual bookkeeping, error-prone
 const Parent = trait({
   children: () => [] as Entity[], // ❌ Bad
-})
+});
 ```
 
 ```typescript
 // Do this instead - query for children
-const ChildOf = relation()
-const children = world.query(ChildOf(parent)) // ✅ Good
+const ChildOf = relation();
+const children = world.query(ChildOf(parent)); // ✅ Good
 ```
 
 ### ❌ Forgetting autoDestroy for hierarchies
 
 ```typescript
 // Dangerous - orphans left behind when parent destroyed
-const ChildOf = relation() // ❌ Missing autoDestroy
+const ChildOf = relation(); // ❌ Missing autoDestroy
 ```
 
 ```typescript
 // Safe - children cleaned up automatically
-const ChildOf = relation({ autoDestroy: 'orphan' }) // ✅ Good
+const ChildOf = relation({ autoDestroy: "orphan" }); // ✅ Good
 ```
 
 ### ❌ Multiple relations when exclusive is needed
 
 ```typescript
 // Bug-prone - entity can target multiple
-const Targeting = relation()
-enemy.add(Targeting(playerA))
-enemy.add(Targeting(playerB)) // Now targeting both! ❌
+const Targeting = relation();
+enemy.add(Targeting(playerA));
+enemy.add(Targeting(playerB)); // Now targeting both! ❌
 ```
 
 ```typescript
 // Correct - only one target allowed
-const Targeting = relation({ exclusive: true })
-enemy.add(Targeting(playerA))
-enemy.add(Targeting(playerB)) // Replaces playerA ✅
+const Targeting = relation({ exclusive: true });
+enemy.add(Targeting(playerA));
+enemy.add(Targeting(playerB)); // Replaces playerA ✅
 ```
 
 ### ❌ Querying without wildcard when you want all
 
 ```typescript
 // This finds nothing - no specific target provided
-const allChildren = world.query(ChildOf) // ❌ Wrong
+const allChildren = world.query(ChildOf); // ❌ Wrong
 ```
 
 ```typescript
 // Use wildcard to query all entities with any target
-const allChildren = world.query(ChildOf('*')) // ✅ Correct
+const allChildren = world.query(ChildOf("*")); // ✅ Correct
 ```

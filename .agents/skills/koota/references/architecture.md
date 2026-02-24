@@ -41,17 +41,17 @@ Organize `core/` by role (traits, systems, actions), not by feature slice. Trait
 
 ```typescript
 // ❌ Singleton with array — harder to query, compose, and extend
-const Inventory = trait(() => ({ items: [] as { id: string; count: number }[] }))
-const inventory = world.spawn(Inventory)
+const Inventory = trait(() => ({ items: [] as { id: string; count: number }[] }));
+const inventory = world.spawn(Inventory);
 
 // ✅ Multiple entities — queryable, composable, per-item traits
-const Item = trait({ id: '', count: 0 })
-const IsInInventory = trait()
-world.spawn(Item({ id: 'sword', count: 1 }), IsInInventory)
-world.spawn(Item({ id: 'potion', count: 5 }), IsInInventory)
+const Item = trait({ id: "", count: 0 });
+const IsInInventory = trait();
+world.spawn(Item({ id: "sword", count: 1 }), IsInInventory);
+world.spawn(Item({ id: "potion", count: 5 }), IsInInventory);
 
 // Query all items
-world.query(Item, IsInInventory)
+world.query(Item, IsInInventory);
 ```
 
 **Why multiple entities:**

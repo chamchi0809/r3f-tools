@@ -1,73 +1,55 @@
-import type { Plugin } from 'vite'
+import type { Plugin } from "vite";
 
 export interface ReactThreeEnginePluginOptions {
   /**
    * Enable WebGPU renderer support
    * @default true
    */
-  webgpu?: boolean
-
+  webgpu?: boolean;
   /**
    * Pathname to host the editor UI
    * @default "/editor"
    */
-  pathname?: string
-
-  /**
-   * Custom trait factories available to the runtime.
-   * Keys are trait names, values are modules exporting a default factory.
-   */
-  traits?: Record<string, string>
-
+  pathname?: string;
   /**
    * Additional plugin options (reserved for future use)
    */
-  [key: string]: unknown
+  [key: string]: unknown;
 }
 
 /**
  * Vite plugin for React Three Fiber engine with WebGPU support
- * 
+ *
  * @param options - Plugin configuration options
  * @returns Vite plugin object
- * 
+ *
  * @example
  * ```ts
  * // vite.config.ts
  * import { reactThreeEnginePlugin } from 'react-three-engine/vite'
- * 
+ *
  * export default defineConfig({
  *   plugins: [reactThreeEnginePlugin({ webgpu: true })]
  * })
  * ```
  */
-export function reactThreeEnginePlugin(
-  options: ReactThreeEnginePluginOptions = {}
-): Plugin {
-  const { webgpu = true, pathname = '/editor', traits = {}, ..._rest } = options
-  const virtualEditorId = 'virtual:react-three-engine/editor'
-  const resolvedVirtualEditorId = `\0${virtualEditorId}`
-  const virtualTraitsId = 'virtual:react-three-engine/traits'
-  const resolvedVirtualTraitsId = `\0${virtualTraitsId}`
+export function reactThreeEnginePlugin(options: ReactThreeEnginePluginOptions = {}): Plugin {
+  const { webgpu = true, pathname = "/editor", ..._rest } = options;
+  const virtualEditorId = "virtual:react-three-engine/editor";
+  const resolvedVirtualEditorId = `\0${virtualEditorId}`;
 
   return {
-    name: 'react-three-engine',
-    
-    enforce: 'pre',
+    name: "react-three-engine",
+
+    enforce: "pre",
 
     config() {
       return {
         // Future: Add optimizations, aliases, etc.
         optimizeDeps: {
-          include: [
-            'react',
-            'react-dom',
-            '@react-three/fiber',
-            '@react-three/drei',
-            'three',
-          ],
+          include: ["react", "react-dom", "@react-three/fiber", "@react-three/drei", "three"],
         },
-      }
+      };
     },
 
     configResolved(_config) {
@@ -80,12 +62,9 @@ export function reactThreeEnginePlugin(
 
     resolveId(id) {
       if (id === virtualEditorId) {
-        return resolvedVirtualEditorId
+        return resolvedVirtualEditorId;
       }
-      if (id === virtualTraitsId) {
-        return resolvedVirtualTraitsId
-      }
-      return null
+      return null;
     },
 
     load(id) {
@@ -93,41 +72,25 @@ export function reactThreeEnginePlugin(
         return `import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { App as EditorApp } from 'react-three-engine'
-import { setCustomTraitFactories } from 'react-three-engine'
-import { customTraits } from 'virtual:react-three-engine/traits'
-
-setCustomTraitFactories(customTraits)
-
 const root = document.getElementById('root')
 if (root) {
   ReactDOM.createRoot(root).render(
     React.createElement(React.StrictMode, null, React.createElement(EditorApp))
   )
 }
-`
+`;
       }
-      if (id === resolvedVirtualTraitsId) {
-        const entries = Object.entries(traits)
-        const imports = entries.map(([key], index) => `import trait_${index} from ${JSON.stringify(traits[key])}`)
-        const mapping = entries.map(([key], index) => `  ${JSON.stringify(key)}: trait_${index}`)
-        return `${imports.join('\n')}
-
-export const customTraits = {
-${mapping.join(',\n')}
-}
-`
-      }
-      return null
+      return null;
     },
 
     configureServer(server) {
-      const editorPath = resolveEditorPath(server.config.base, pathname)
-      const editorModuleUrl = resolveWithBase(server.config.base, `/@id/${virtualEditorId}`)
+      const editorPath = resolveEditorPath(server.config.base, pathname);
+      const editorModuleUrl = resolveWithBase(server.config.base, `/@id/${virtualEditorId}`);
 
       server.middlewares.use(editorPath, async (req, res, next) => {
-        if (req.method !== 'GET' && req.method !== 'HEAD') {
-          next()
-          return
+        if (req.method !== "GET" && req.method !== "HEAD") {
+          next();
+          return;
         }
 
         const html = `<!DOCTYPE html>
@@ -141,63 +104,63 @@ ${mapping.join(',\n')}
     <div id="root"></div>
     <script type="module" src="${editorModuleUrl}"></script>
   </body>
-</html>`
+</html>`;
 
         try {
-          const transformed = await server.transformIndexHtml(editorPath, html)
-          res.statusCode = 200
-          res.setHeader('Content-Type', 'text/html')
-          res.end(transformed)
+          const transformed = await server.transformIndexHtml(editorPath, html);
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "text/html");
+          res.end(transformed);
         } catch (error) {
-          next(error)
+          next(error);
         }
-      })
+      });
     },
 
     transformIndexHtml() {
       // Future: Inject WebGPU polyfills or initialization scripts
-      return []
+      return [];
     },
 
     transform(_code, _id) {
       // Future: Transform code for WebGPU compatibility
-      return null
+      return null;
     },
-  }
+  };
 }
 
 function normalizePathname(pathname: string): string {
-  const trimmed = pathname.trim()
-  if (trimmed === '' || trimmed === '/') {
-    return '/editor'
+  const trimmed = pathname.trim();
+  if (trimmed === "" || trimmed === "/") {
+    return "/editor";
   }
-  const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
-  if (withLeadingSlash.length > 1 && withLeadingSlash.endsWith('/')) {
-    return withLeadingSlash.slice(0, -1)
+  const withLeadingSlash = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  if (withLeadingSlash.length > 1 && withLeadingSlash.endsWith("/")) {
+    return withLeadingSlash.slice(0, -1);
   }
-  return withLeadingSlash
+  return withLeadingSlash;
 }
 
 function resolveEditorPath(base: string | undefined, pathname: string): string {
-  const resolvedBase = normalizeBase(base)
-  const normalizedPathname = normalizePathname(pathname)
-  const merged = `${resolvedBase}${normalizedPathname.replace(/^\//, '')}`
-  return merged.replace(/\/+/g, '/').replace(/\/$/, '') || '/'
+  const resolvedBase = normalizeBase(base);
+  const normalizedPathname = normalizePathname(pathname);
+  const merged = `${resolvedBase}${normalizedPathname.replace(/^\//, "")}`;
+  return merged.replace(/\/+/g, "/").replace(/\/$/, "") || "/";
 }
 
 function resolveWithBase(base: string | undefined, urlPath: string): string {
-  const resolvedBase = normalizeBase(base)
-  const sanitizedPath = urlPath.startsWith('/') ? urlPath.slice(1) : urlPath
-  return `${resolvedBase}${sanitizedPath}`.replace(/\/+/g, '/')
+  const resolvedBase = normalizeBase(base);
+  const sanitizedPath = urlPath.startsWith("/") ? urlPath.slice(1) : urlPath;
+  return `${resolvedBase}${sanitizedPath}`.replace(/\/+/g, "/");
 }
 
 function normalizeBase(base: string | undefined): string {
-  if (!base || base === './') {
-    return '/'
+  if (!base || base === "./") {
+    return "/";
   }
-  const withLeading = base.startsWith('/') ? base : `/${base}`
-  return withLeading.endsWith('/') ? withLeading : `${withLeading}/`
+  const withLeading = base.startsWith("/") ? base : `/${base}`;
+  return withLeading.endsWith("/") ? withLeading : `${withLeading}/`;
 }
 
 // Default export for convenience
-export default reactThreeEnginePlugin
+export default reactThreeEnginePlugin;

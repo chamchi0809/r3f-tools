@@ -14,7 +14,7 @@
  * 3. Replace placeholder content with your scene
  */
 
-import * as THREE from 'three/webgpu';
+import * as THREE from "three/webgpu";
 import {
   // Types
   float,
@@ -34,10 +34,10 @@ import {
   mix,
 
   // Functions
-  Fn
-} from 'three/tsl';
+  Fn,
+} from "three/tsl";
 
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 // ============================================
 // CONFIGURATION
@@ -59,7 +59,7 @@ const CONFIG = {
 
   // Controls
   enableDamping: true,
-  dampingFactor: 0.05
+  dampingFactor: 0.05,
 };
 
 // ============================================
@@ -91,7 +91,7 @@ async function init() {
     CONFIG.fov,
     window.innerWidth / window.innerHeight,
     CONFIG.near,
-    CONFIG.far
+    CONFIG.far,
   );
   camera.position.copy(CONFIG.position);
 
@@ -117,7 +117,7 @@ async function init() {
   // setupPostProcessing();
 
   // Events
-  window.addEventListener('resize', onWindowResize);
+  window.addEventListener("resize", onWindowResize);
 
   // Start animation loop
   renderer.setAnimationLoop(animate);
@@ -155,7 +155,7 @@ function setupScene() {
   // Example: Add a floor
   const floorGeometry = new THREE.PlaneGeometry(10, 10);
   const floorMaterial = new THREE.MeshStandardNodeMaterial({
-    color: 0x333333
+    color: 0x333333,
   });
   const floor = new THREE.Mesh(floorGeometry, floorMaterial);
   floor.rotation.x = -Math.PI / 2;
@@ -198,7 +198,6 @@ let _postProcessing = undefined;
 
 function _setupPostProcessing() {
   // Uncomment and customize as needed
-
   // postProcessing = new THREE.PostProcessing(renderer);
   // const scenePass = pass(scene, camera);
   // const sceneColor = scenePass.getTextureNode('output');
@@ -220,7 +219,7 @@ function animate() {
   // ========================================
 
   // Example: Rotate mesh
-  const mesh = scene.children.find((child) => child.type === 'Mesh');
+  const mesh = scene.children.find((child) => child.type === "Mesh");
   if (mesh) {
     mesh.rotation.y += _delta * 0.5;
   }

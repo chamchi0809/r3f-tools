@@ -11,7 +11,7 @@
  * https://github.com/mrdoob/three.js
  */
 
-import * as THREE from 'three/webgpu';
+import * as THREE from "three/webgpu";
 import {
   Fn,
   float,
@@ -22,10 +22,10 @@ import {
   screenSize,
   time,
   oscSine,
-  saturation
-} from 'three/tsl';
-import { bloom } from 'three/addons/tsl/display/BloomNode.js';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  saturation,
+} from "three/tsl";
+import { bloom } from "three/addons/tsl/display/BloomNode.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 let camera, scene, renderer, controls;
 let postProcessing;
@@ -65,7 +65,7 @@ async function init() {
   controls.target.set(0, 1, 0);
 
   // Events
-  window.addEventListener('resize', onWindowResize);
+  window.addEventListener("resize", onWindowResize);
 
   renderer.setAnimationLoop(animate);
 }
@@ -74,7 +74,7 @@ function createScene() {
   // Floor
   const floorGeometry = new THREE.PlaneGeometry(20, 20);
   const floorMaterial = new THREE.MeshStandardNodeMaterial({
-    color: 0x222222
+    color: 0x222222,
   });
   const floor = new THREE.Mesh(floorGeometry, floorMaterial);
   floor.rotation.x = -Math.PI / 2;
@@ -93,7 +93,9 @@ function createScene() {
 
     // Animated emissive
     material.emissiveNode = Fn(() => {
-      const pulse = oscSine(time.mul(1.0 + i * 0.2)).mul(0.5).add(0.5);
+      const pulse = oscSine(time.mul(1.0 + i * 0.2))
+        .mul(0.5)
+        .add(0.5);
       return color(colors[i]).mul(pulse.mul(2.0).add(0.5));
     })();
 
@@ -104,7 +106,7 @@ function createScene() {
     sphere.position.set(
       Math.cos((i / 5) * Math.PI * 2) * 3,
       1 + Math.sin(i) * 0.5,
-      Math.sin((i / 5) * Math.PI * 2) * 3
+      Math.sin((i / 5) * Math.PI * 2) * 3,
     );
     scene.add(sphere);
   }
@@ -134,7 +136,7 @@ function setupPostProcessing() {
 
   // Create scene pass
   const scenePass = pass(scene, camera);
-  const sceneColor = scenePass.getTextureNode('output');
+  const sceneColor = scenePass.getTextureNode("output");
 
   // --- Effect Chain ---
 

@@ -5,12 +5,12 @@ Compute shaders run on the GPU for parallel processing of data. TSL makes them a
 ## Basic Setup
 
 ```javascript
-import * as THREE from 'three/webgpu';
-import { Fn, instancedArray, instanceIndex, vec3 } from 'three/tsl';
+import * as THREE from "three/webgpu";
+import { Fn, instancedArray, instanceIndex, vec3 } from "three/tsl";
 
 // Create storage buffer
 const count = 100000;
-const positions = instancedArray(count, 'vec3');
+const positions = instancedArray(count, "vec3");
 
 // Create compute shader
 const computeShader = Fn(() => {
@@ -27,14 +27,14 @@ renderer.compute(computeShader);
 ### Instanced Arrays
 
 ```javascript
-import { instancedArray } from 'three/tsl';
+import { instancedArray } from "three/tsl";
 
 // Create typed storage buffers
-const positions = instancedArray(count, 'vec3');
-const velocities = instancedArray(count, 'vec3');
-const colors = instancedArray(count, 'vec4');
-const indices = instancedArray(count, 'uint');
-const values = instancedArray(count, 'float');
+const positions = instancedArray(count, "vec3");
+const velocities = instancedArray(count, "vec3");
+const colors = instancedArray(count, "vec4");
+const indices = instancedArray(count, "uint");
+const values = instancedArray(count, "float");
 ```
 
 ### Accessing Elements
@@ -218,7 +218,7 @@ const computeShader = Fn(() => {
 ### Barriers
 
 ```javascript
-import { workgroupBarrier, storageBarrier, textureBarrier } from 'three/tsl';
+import { workgroupBarrier, storageBarrier, textureBarrier } from "three/tsl";
 
 const computeShader = Fn(() => {
   // Write data
@@ -237,9 +237,17 @@ const computeShader = Fn(() => {
 For thread-safe read-modify-write operations:
 
 ```javascript
-import { atomicAdd, atomicSub, atomicMax, atomicMin, atomicAnd, atomicOr, atomicXor } from 'three/tsl';
+import {
+  atomicAdd,
+  atomicSub,
+  atomicMax,
+  atomicMin,
+  atomicAnd,
+  atomicOr,
+  atomicXor,
+} from "three/tsl";
 
-const counter = instancedArray(1, 'uint');
+const counter = instancedArray(1, "uint");
 
 const computeShader = Fn(() => {
   // Atomically increment counter
@@ -273,7 +281,7 @@ scene.add(mesh);
 
 ```javascript
 const geometry = new THREE.BufferGeometry();
-geometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(count * 3), 3));
+geometry.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(count * 3), 3));
 
 const material = new THREE.PointsNodeMaterial();
 material.positionNode = positions.element(instanceIndex);
@@ -306,27 +314,20 @@ renderer.compute(computeCollisions);
 const readBuffer = new Float32Array(count * 3);
 
 // Read data back from GPU
-await renderer.readRenderTargetPixelsAsync(
-  computeTexture,
-  0, 0, width, height,
-  readBuffer
-);
+await renderer.readRenderTargetPixelsAsync(computeTexture, 0, 0, width, height, readBuffer);
 ```
 
 ## Complete Example: Particle System
 
 ```javascript
-import * as THREE from 'three/webgpu';
-import {
-  Fn, If, instancedArray, instanceIndex, uniform,
-  vec3, float, hash, time
-} from 'three/tsl';
+import * as THREE from "three/webgpu";
+import { Fn, If, instancedArray, instanceIndex, uniform, vec3, float, hash, time } from "three/tsl";
 
 // Setup
 const count = 50000;
-const positions = instancedArray(count, 'vec3');
-const velocities = instancedArray(count, 'vec3');
-const lifetimes = instancedArray(count, 'float');
+const positions = instancedArray(count, "vec3");
+const velocities = instancedArray(count, "vec3");
+const lifetimes = instancedArray(count, "float");
 
 // Uniforms
 const emitterPos = uniform(new THREE.Vector3(0, 0, 0));
@@ -371,11 +372,17 @@ const computeUpdate = Fn(() => {
   If(life.lessThan(0), () => {
     pos.assign(emitterPos);
     const angle = hash(instanceIndex.add(time.mul(1000))).mul(Math.PI * 2);
-    const speed = hash(instanceIndex.add(time.mul(1000)).add(1)).mul(2).add(1);
+    const speed = hash(instanceIndex.add(time.mul(1000)).add(1))
+      .mul(2)
+      .add(1);
     vel.x.assign(angle.cos().mul(speed).mul(0.3));
     vel.y.assign(speed);
     vel.z.assign(angle.sin().mul(speed).mul(0.3));
-    life.assign(hash(instanceIndex.add(time.mul(1000)).add(2)).mul(2).add(1));
+    life.assign(
+      hash(instanceIndex.add(time.mul(1000)).add(2))
+        .mul(2)
+        .add(1),
+    );
   });
 })().compute(count);
 
@@ -387,7 +394,7 @@ material.colorNode = vec3(1, 0.5, 0.2);
 
 // Geometry (dummy positions)
 const geometry = new THREE.BufferGeometry();
-geometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(count * 3), 3));
+geometry.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(count * 3), 3));
 
 const points = new THREE.Points(geometry, material);
 scene.add(points);

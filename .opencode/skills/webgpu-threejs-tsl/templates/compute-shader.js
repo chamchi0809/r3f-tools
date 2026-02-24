@@ -13,7 +13,7 @@
  * 4. Customize visualization
  */
 
-import * as THREE from 'three/webgpu';
+import * as THREE from "three/webgpu";
 import {
   Fn,
   If,
@@ -24,10 +24,10 @@ import {
   instancedArray,
   instanceIndex,
   hash,
-  mix
-} from 'three/tsl';
+  mix,
+} from "three/tsl";
 
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 // ============================================
 // CONFIGURATION
@@ -42,8 +42,8 @@ const PARTICLE_COUNT = 50000;
 // Define your storage buffers here
 // Available types: 'float', 'vec2', 'vec3', 'vec4', 'int', 'uint'
 
-const positions = instancedArray(PARTICLE_COUNT, 'vec3');
-const velocities = instancedArray(PARTICLE_COUNT, 'vec3');
+const positions = instancedArray(PARTICLE_COUNT, "vec3");
+const velocities = instancedArray(PARTICLE_COUNT, "vec3");
 // Add more buffers as needed:
 // const colors = instancedArray(PARTICLE_COUNT, 'vec3');
 // const lifetimes = instancedArray(PARTICLE_COUNT, 'float');
@@ -151,8 +151,8 @@ function createVisualization(scene) {
 function _createPointsVisualization(scene) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute(new Float32Array(PARTICLE_COUNT * 3), 3)
+    "position",
+    new THREE.Float32BufferAttribute(new Float32Array(PARTICLE_COUNT * 3), 3),
   );
 
   const material = new THREE.PointsNodeMaterial();
@@ -234,7 +234,7 @@ async function init() {
   // Optional: Ground plane
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(20, 20),
-    new THREE.MeshStandardNodeMaterial({ color: 0x333333 })
+    new THREE.MeshStandardNodeMaterial({ color: 0x333333 }),
   );
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
@@ -258,7 +258,7 @@ async function init() {
   controls.target.set(0, 2, 0);
 
   // Events
-  window.addEventListener('resize', onWindowResize);
+  window.addEventListener("resize", onWindowResize);
 
   // Start
   renderer.setAnimationLoop(animate);
@@ -290,11 +290,4 @@ function animate() {
 init().catch(console.error);
 
 // Export for external control
-export {
-  positions,
-  velocities,
-  dt,
-  computeInit,
-  computeUpdate,
-  computeInteraction
-};
+export { positions, velocities, dt, computeInit, computeUpdate, computeInteraction };

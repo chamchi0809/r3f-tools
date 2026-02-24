@@ -3,11 +3,13 @@
 ## TL;DR
 
 > **Overview**: Development of a R3F (React Three Fiber) based visual scene editor
+>
 > - Entity-Trait architecture (GroupEntity, MeshEntity + traits)
 > - Primitive shapes, glTF model import, transform/camera controls, lighting editing
 > - Export to JSX (gltfjsx style), Save/Load
 
 > **Key Deliverables**:
+>
 > - **react-three-engine** package (Tasks 1-19): components, Vite plugin, types
 > - **react-three-engine-demo** package (Task 20): Vite dev server on port 5174
 
@@ -18,11 +20,13 @@
 ## Context
 
 ### Original Request
+
 - Use Vite plugin
 - Display web UI at a specific local URL
 - Save as JSX
 
 ### Architecture
+
 - Entity-Trait based (similar to Unity component system)
 - Implement as custom components using R3F extend() function
 - GroupEntity, MeshEntity (registered with extend)
@@ -30,6 +34,7 @@
 - State management: Zustand
 
 ### Key Decisions (Metis Review)
+
 - Entity-Trait → JSX mapping: type + props object method
 - glTF import: drei's useGLTF (animations excluded)
 - JSX export format: gltfjsx output style
@@ -39,6 +44,7 @@
 ## Work Objectives
 
 ### Must Have
+
 - R3F v9 with WebGPU Renderer
 - Entity-Trait type definitions
 - Primitive shapes (Box, Sphere, Plane)
@@ -52,11 +58,13 @@
 - Prefab key management
 
 ### Must NOT Have
+
 - Animation editor, Physics engine, Post-processing
 - Multiple cameras, Custom shader editor
 - WebGL (WebGPU only)
 
 ### Definition of Done
+
 - [ ] Editor loads at http://localhost:5174/editor
 - [ ] Primitive shapes can be added/deleted
 - [ ] glTF models can be imported
@@ -75,12 +83,14 @@
 ## Execution Strategy
 
 ### Package Structure
-| Package | Path | Purpose |
-|---------|------|---------|
-| react-three-engine | `react-three-engine/` | Core library: components, Vite plugin, types |
-| react-three-engine-demo | `react-three-engine-demo/` | Dev server: Vite on port 5174 |
+
+| Package                 | Path                       | Purpose                                      |
+| ----------------------- | -------------------------- | -------------------------------------------- |
+| react-three-engine      | `react-three-engine/`      | Core library: components, Vite plugin, types |
+| react-three-engine-demo | `react-three-engine-demo/` | Dev server: Vite on port 5174                |
 
 ### Package Dependency
+
 ```
 react-three-engine-demo → react-three-engine
 ```
@@ -88,15 +98,18 @@ react-three-engine-demo → react-three-engine
 ### Tasks by Package
 
 **react-three-engine (Tasks 1-19):**
+
 - Wave 1: Task 1, 2, 3, 5 (Infrastructure)
 - Wave 2: Tasks 6-12 (Core features)
 - Wave 3: Tasks 13-17 (Import/Export)
 - Wave 4: Task 19 (Cleanup)
 
 **react-three-engine-demo (Task 20):**
+
 - Wave 4: Task 20 (Demo app)
 
 ### Key Dependency Paths
+
 - react-three-engine: Tasks 1-5 → 6-12 → 13-17,19
 - react-three-engine-demo: Task 20 depends on Task 19
 
@@ -434,12 +447,12 @@ react-three-engine-demo → react-three-engine
 > After all implementations, 3 verification agents run in parallel.
 
 - [ ] F1. **Plan Compliance Audit** — `oracle`
-  Verify all "Must Have" items from the plan are implemented
-  Output: `Must Have [N/N] | VERDICT: APPROVE/REJECT`
+      Verify all "Must Have" items from the plan are implemented
+      Output: `Must Have [N/N] | VERDICT: APPROVE/REJECT`
 
 - [ ] F2. **Code Quality Review** — `unspecified-high`
-  Verify TypeScript build and lint pass
-  Output: `Build [PASS/FAIL] | Lint [PASS/FAIL] | VERDICT`
+      Verify TypeScript build and lint pass
+      Output: `Build [PASS/FAIL] | Lint [PASS/FAIL] | VERDICT`
 
 ---
 
@@ -454,6 +467,7 @@ react-three-engine-demo → react-three-engine
 ## Success Criteria
 
 ### Verification Commands
+
 ```bash
 # Run Demo app
 cd react-three-engine-demo && pnpm dev
@@ -463,8 +477,7 @@ cd react-three-engine-demo && pnpm dev
 ```
 
 ### Final Checklist
+
 - [ ] All Must Have items implemented
 - [ ] Must NOT Have items not implemented
 - [ ] TypeScript build passes
-
-

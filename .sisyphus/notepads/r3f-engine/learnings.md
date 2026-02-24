@@ -1,4 +1,5 @@
 # Learnings
+
 ## Workspace Package Patterns
 
 - **pnpm-workspace.yaml**: Packages listed as 'gltfjsx-ui', 'common', 'demo' (kebab-case naming pattern).
@@ -7,6 +8,7 @@
 - **Engines**: VSCode ^1.85.0 in extension packages, pnpm@10.20.0 in all.
 - **Vite structure**: @vitejs/plugin-react for React webviews, custom build config for extension webviews (root in webview/, outDir dist-webview).
 - **No tsdown references found**.
+
 ## Vite Plugin Structure Findings
 
 - Located file: C:/Users/User/IdeaProjects/r3f-tools/gltfjsx-ui/vite.config.ts
@@ -15,7 +17,7 @@
 - No custom plugins or additional plugin files found in the repo
 - Build configuration includes custom output paths and asset naming for webview setup
 
-Verification: Searched via glob for vite.config.* files, grep for 'vite' mentions, and read the config file to confirm plugin setup.
+Verification: Searched via glob for vite.config.\* files, grep for 'vite' mentions, and read the config file to confirm plugin setup.
 
 ## 2026-02-22 JSX Namespace Fix + Demo Paths
 
@@ -46,7 +48,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 
 ## 2026-02-22 Lint cleanup
 
-- Resolved oxlint warnings across .opencode/skills/webgpu-threejs-tsl by removing truly unused imports and prefixing unused vars with '_' to preserve template semantics.
+- Resolved oxlint warnings across .opencode/skills/webgpu-threejs-tsl by removing truly unused imports and prefixing unused vars with '\_' to preserve template semantics.
 - Renamed unused gltfjsx-ui variable to `_resolveWebviewAsset` to clear final lint warning.
 - `pnpm lint` now reports 0 warnings and 0 errors.
 
@@ -63,18 +65,19 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 ## Project Scaffolding (Wave 1) - 2026-02-22
 
 ### Package Structure
+
 - Created `react-three-engine/` package following workspace conventions
 - Package uses kebab-case naming consistent with existing packages (gltfjsx-ui)
 - Added to pnpm-workspace.yaml alongside gltfjsx-ui, common, demo
 
 ### Build Configuration
+
 - **tsdown**: Selected for library bundling (dual ESM/CJS output)
   - Entry points: src/index.ts, src/vitePlugin.ts
   - External deps: react, react-dom, @react-three/fiber, @react-three/drei, three, vite
   - Output: dist/ with .js, .cjs, .d.ts files
   - Platform: browser, Target: ES2022
-  
-- **tsconfig.json**: 
+- **tsconfig.json**:
   - Extends workspace tsconfig.base.json
   - Module: ESNext with bundler resolution
   - Includes DOM lib for browser APIs
@@ -82,14 +85,16 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
   - Declaration maps enabled for better DX
 
 ### Dependencies
+
 - React 19.1.1 (matches root package.json)
 - @react-three/fiber ^8.18.2
-- @react-three/drei ^9.122.4  
+- @react-three/drei ^9.122.4
 - three ^0.171.0
 - vite ^7.3.0 (devDep)
 - tsdown ^0.4.0 (devDep)
 
 ### Exports Strategy
+
 - Main package: index.ts exports core engine functionality
 - Vite plugin: vitePlugin.ts exported via "./vite" subpath
 - Package.json exports map:
@@ -97,6 +102,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
   - "./vite" -> dist/vitePlugin.{js,cjs,d.ts}
 
 ### Vite Plugin Scaffold
+
 - Basic plugin structure with lifecycle hooks
 - Options interface: ReactThreeEnginePluginOptions { webgpu?: boolean }
 - Hooks implemented: config, configResolved, transformIndexHtml, transform
@@ -104,13 +110,15 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 - Placeholders for future WebGPU integration
 
 ### Workspace Patterns Observed
+
 - packageManager: pnpm@10.20.0 (enforced across all packages)
-- Scripts naming: build:*, publish:*, watch:* conventions
+- Scripts naming: build:_, publish:_, watch:\* conventions
 - oxlint/oxfmt used for linting/formatting at root
 - No existing tsdown usage in repo (first package to use it)
 - tsconfig.base.json provides shared compiler options
 
 ### Next Steps
+
 - Package builds after pnpm install (tsdown types will resolve)
 - LSP errors for 'tsdown' module are expected until dependencies installed
 - Vite plugin ready for extension with WebGPU logic in later waves
@@ -120,18 +128,16 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 ### Type Architecture
 
 #### Entities (react-three-engine/src/types/entities.ts)
+
 - **Transform interface**: Shared by all entities - position, rotation, scale
   - Flexible input: tuple arrays `[x, y, z]` or three.js types (Vector3, Euler, Quaternion)
   - Reason: Allows both serialization-friendly tuples and runtime three.js objects
-  
 - **BaseEntity**: Abstract base for all entities
   - Core fields: id, name, transform, active
   - Optional parent field for hierarchy support
-  
 - **GroupEntity**: Hierarchical container (no geometry/material)
   - type: 'group' (discriminator)
   - children?: array of child entity IDs for tree structure
-  
 - **MeshEntity**: Renderable 3D object
   - type: 'mesh' (discriminator)
   - geometry/material: String references to trait IDs (decoupled via traits)
@@ -139,19 +145,17 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
   - Shadow/visibility properties for rendering control
 
 #### Traits (react-three-engine/src/types/traits.ts)
+
 - **BaseTrait**: Base for all reusable components
   - id, name for unique identification and referencing
-  
 - **GeometryTrait**: Mesh shape definition
   - kind: Enum for common geometries (box, sphere, plane, cylinder, cone, torus, custom)
   - geometry: Raw three.js BufferGeometry instance
   - params?: Optional configuration (geometry-specific)
-  
 - **MaterialTrait**: Surface appearance
   - kind: Enum for material types (standard, basic, phong, physical, custom)
   - material: Raw three.js Material instance
   - Rendering properties: color, opacity, metalness, roughness, emissive, transparent, wireframe
-  
 - **MeshTrait**: Composable mesh rendering unit
   - geometryId/materialId: References to other traits (trait composition)
   - Rendering hints: castShadow, receiveShadow, visible, renderOrder, frustumCulled
@@ -162,32 +166,32 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
    - Decouples geometry, material, and rendering via string IDs (trait references)
    - Enables sharing traits across multiple entities
    - Facilitates data serialization and deserialization
-   
 2. **Type Discriminators**:
    - Entity and Trait unions use 'type' field for runtime discrimination
    - Enables type-safe pattern matching in runtime code
-   
 3. **three.js Type Integration**:
    - Imports BufferGeometry, Material, Vector3, Euler, Quaternion from three
    - Uses these types directly for runtime instances
    - Minimal overhead - only imports what's needed
-   
 4. **Flexible Transform Input**:
    - Tuples for JSON serialization (e.g., `[0, 1, 2]`)
    - three.js types for runtime math operations
    - Prevents unnecessary object allocations during parsing
 
 ### Export Strategy
+
 - Barrel export (types/index.ts) centralizes all types
 - Makes imports convenient: `import { MeshEntity, MeshTrait } from 'react-three-engine/types'`
 - Ready for later feature tasks (components, managers, etc.)
 
 ### Dependencies
+
 - three ^0.171.0 (already in package.json)
 - No new dependencies added
 - LSP errors for 'three' module will resolve after `pnpm install`
 
 ### Next Steps
+
 - Types establish foundation for Tasks 6-12 (managers, components, hooks, etc.)
 - GeometryTrait/MaterialTrait instances will be created by managers
 - Entity/Trait maps will be managed by scene/engine systems
@@ -195,6 +199,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 ## Basic UI Layout + Canvas (Wave 2) - 2026-02-22
 
 ### Implementation
+
 - **App.tsx**: Created as a functional component with:
   - Fullscreen `100vw`/`100vh` container with `hidden` overflow.
   - `@react-three/fiber` `<Canvas>` for the 3D scene.
@@ -202,6 +207,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
   - Minimal overlay UI for title.
 
 ### Dependencies Issue & Resolution
+
 - **Problem**: `pnpm install` failed due to version mismatch for `@react-three/drei` and `@react-three/fiber` in `package.json`.
   - Defined versions: `@react-three/drei: ^9.122.4`, `@react-three/fiber: ^8.18.2`.
   - Error: "No matching version found".
@@ -212,12 +218,14 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 - **Outcome**: `pnpm install` succeeded, and LSP errors resolved.
 
 ### Verification
+
 - `App.tsx` has no LSP errors.
 - Dependencies are correctly installed in `node_modules`.
 
 ## App.tsx Scope Fix (Wave 2) - 2026-02-22
 
 ### Implementation Changes
+
 - **Simplified App.tsx**:
   - Removed sample `<mesh>` (orange box).
   - Removed minimal overlay UI (title text).
@@ -225,18 +233,21 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
   - Ensures a strictly minimal foundation without scope creep.
 
 ### Dependency Reversion
+
 - **Reverted package.json**:
   - Restored `@react-three/fiber` to `^8.18.2`.
   - Restored `@react-three/drei` to `^9.122.4`.
   - Note: This restores the versions defined in Task 1, undoing the workaround applied in the previous step. Future tasks will handle necessary upgrades.
 
 ### Lockfile Restoration
+
 - **Reverted pnpm-lock.yaml**:
   - Discarded changes to `pnpm-lock.yaml` to ensure no dependency install artifacts persist from this task.
 
 ## R3F v9 + WebGPU Dependencies Installation (Task 5) - 2026-02-22
 
 ### Dependency Updates
+
 - **@react-three/fiber**: Upgraded from ^8.18.2 to ^9.0.0 (React Three Fiber v9)
 - **@react-three/drei**: Upgraded from ^9.122.4 to ^10.0.0 (companion package for v9)
 - **three**: Updated from ^0.171.0 to 0.182.0 (locked exact version for WebGPU support)
@@ -244,6 +255,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 - **@types/three**: Updated to 0.182.0 to match three.js version
 
 ### WebGPU Renderer Export Strategy
+
 - **File**: react-three-engine/src/index.ts
 - **Approach**: Re-export entire THREE namespace for access to WebGPURenderer and other advanced APIs
   - Avoids unused import warnings (WebGPURenderer may not be directly available in all versions)
@@ -252,17 +264,20 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 - **Comment**: Added note about WebGPU and other renderers being available via THREE namespace
 
 ### Installation Results
+
 - **pnpm install**: Executed successfully in repo root
 - **pnpm-lock.yaml**: Updated with new dependency tree for react-three-engine
 - **Warnings**: 3 deprecated subdependencies (glob@7.2.3, inflight@1.0.6, whatwg-encoding@3.1.1) - inherited from transitive deps, no action required
 - **No LSP errors**: src/index.ts passes diagnostics after changes
 
 ### Files Modified
+
 1. react-three-engine/package.json - Dependencies updated
 2. react-three-engine/src/index.ts - WebGPU support via THREE namespace export
 3. pnpm-lock.yaml - Updated by pnpm install
 
 ### Impact
+
 - Task 5 complete: R3F v9 and WebGPU dependencies ready
 - Task 13 (WebGPU Runtime Setup) can now proceed with proper dependency versions
 - THREE namespace provides access to WebGPURenderer when available in three@0.182.0
@@ -270,16 +285,19 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 ## Entity Creation/Deletion System (Task 7) - 2026-02-22
 
 ### Implementation
+
 - **File**: react-three-engine/src/store/entities.ts
 - **Store Framework**: Zustand v5.0.0 (minimal, serializable state management)
 
 ### Store Architecture
 
 #### State Structure
+
 - **entities**: EntityMap (Record<string, Entity>) - Primary state container
 - All state is serializable (plain objects, no non-serializable data)
 
 #### API Methods
+
 1. **addEntity(entity: Entity)**:
    - Adds entity to store using entity.id as key
    - Spreads existing entities to maintain immutability
@@ -295,6 +313,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
    - Useful for scene reset/cleanup
 
 #### Selector Methods
+
 1. **getEntity(id: string)**: Returns Entity | undefined by ID
 2. **getEntities()**: Returns Entity[] (all entities as array)
 3. **getEntityMap()**: Returns EntityMap (raw entity map)
@@ -302,6 +321,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 ### Helper Utilities
 
 #### generateEntityId()
+
 - **Format**: `entity_${timestamp}_${random}`
 - **Uniqueness**: Combines Date.now() + 7-char random base36 string
 - **Export**: Exported from store for external use
@@ -336,25 +356,30 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
    - Hierarchy traversal/validation deferred to later tasks
 
 ### Files Created
+
 1. react-three-engine/src/store/entities.ts - Entity store implementation
 2. react-three-engine/src/store/index.ts - Store barrel exports
 
 ### Verification
+
 - LSP diagnostics: No errors in store files
 - TypeScript compiles successfully
 - Uses types from react-three-engine/src/types (Entity, EntityMap)
 
 ### Integration Points
+
 - **Selection system (Task 8)**: Will add selectedEntityIds to store
 - **Transform gizmo (Task 9)**: Will read/update entity transforms via store
 - **Scene manager**: Will use addEntity/removeEntity for lifecycle management
 - **Persistence**: EntityMap is JSON-serializable for save/load
 
 ### Dependencies
+
 - zustand ^5.0.0 (already installed in Task 5)
 - No new dependencies added
 
 ### Next Steps
+
 - Task 8 (Selection) will extend this store with selectedEntityIds state
 - Task 9 (Transform Gizmo) will read entities and update transforms
 - Store ready for production use with proper immutability and TypeScript types
@@ -364,16 +389,19 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 ### Implementation
 
 #### Selection Store
+
 - **File**: react-three-engine/src/store/selection.ts
 - **Framework**: Zustand v5.0.0 (consistent with entity store pattern)
 
 #### Store Architecture
 
 ##### State Structure
+
 - **selectedId**: string | null - Single selected entity ID (null when nothing selected)
 - Simple single-selection model (no multi-select in this iteration)
 
 ##### API Methods
+
 1. **setSelectedId(id: string | null)**:
    - Sets the currently selected entity ID
    - Pass null to clear selection
@@ -390,10 +418,10 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 ### Component Updates
 
 #### Primitive Components (Box, Sphere, Plane)
+
 - **Added Props**:
   - `onClick?: (event: any) => void` - Click handler for selection
   - `highlighted?: boolean` - Visual highlight flag
-  
 - **Highlighting Strategy**:
   - Cyan color (#00ffff) when highlighted=true
   - Original color when highlighted=false
@@ -401,15 +429,14 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
   - Applies to all primitive components uniformly
 
 #### App.tsx Integration
+
 - **Imports**: Added `useSelectionStore` from './store'
-- **State**: 
+- **State**:
   - `selectedId` - Current selection from store
   - `setSelectedId` - Selection setter from store
-  
 - **Click Handler**:
   - `handleShapeClick(id: string)` - Updates selection store on mesh click
   - Passed to all primitive components via onClick prop
-  
 - **Highlighting**:
   - Each primitive receives `highlighted={selectedId === shape.id}`
   - Reactive: re-renders when selection changes
@@ -445,6 +472,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
    - Easier to extend with selection-specific features (multi-select, history, etc.)
 
 ### Files Modified
+
 1. react-three-engine/src/store/selection.ts - Created selection store
 2. react-three-engine/src/store/index.ts - Export selection store
 3. react-three-engine/src/App.tsx - Wire selection + highlighting
@@ -453,18 +481,21 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 6. react-three-engine/src/components/PrimitivePlane.tsx - Add onClick + highlighted props
 
 ### Verification
+
 - LSP diagnostics: No errors in all modified files
 - TypeScript compiles successfully
 - onClick handlers properly typed
 - Zustand store pattern consistent with entity store
 
 ### Integration Points
+
 - **Transform Gizmo (Task 9)**: Will read selectedId to determine which entity to transform
 - **Hierarchy Panel**: Will display selectedId as active item
 - **Property Inspector**: Will show properties of selected entity
 - **Keyboard Shortcuts**: Can trigger clearSelection() on Escape key
 
 ### User Experience
+
 1. Click any shape (box/sphere/plane) to select it
 2. Selected shape turns cyan (#00ffff)
 3. Click another shape to change selection
@@ -472,6 +503,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 5. Visual feedback is immediate (reactive state)
 
 ### Next Steps
+
 - Task 9 (Transform Gizmo) will use selectedId to attach TransformControls
 - Task 9 will update entity transforms in entity store when gizmo moved
 - Selection system ready for production use
@@ -481,12 +513,14 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 ### Implementation
 
 #### Transform Mode State
+
 - **File**: react-three-engine/src/App.tsx
 - **State**: `transformMode` - 'translate' | 'rotate' | 'scale' (useState)
 - **Default**: 'translate' mode on component mount
 - **Reactivity**: Mode changes immediately apply to active TransformControls
 
 #### UI Toolbar
+
 - **Position**: Top-right absolute overlay (right: 10, zIndex: 1)
 - **Visibility**: Conditional render - only shows when selectedId is truthy
 - **Buttons**: Three toggle buttons (Translate, Rotate, Scale)
@@ -494,6 +528,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 - **Minimal Design**: Simple buttons with inline styles, no dependencies
 
 #### Mesh Reference System
+
 - **Ref Storage**: `meshRefs.current` - Record<string, any> (useRef)
 - **Purpose**: Store mesh refs by shape ID for TransformControls targeting
 - **Implementation**: Each primitive component receives ref callback:
@@ -501,6 +536,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 - **Access**: TransformControls reads `meshRefs.current[selectedId]` to attach to selected mesh
 
 #### Primitive Component Refactoring
+
 - **Pattern Change**: `export function` → `export const` with `forwardRef`
 - **Reason**: TransformControls needs mesh ref to attach gizmo
 - **Implementation**:
@@ -515,16 +551,19 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 ### TransformControls Integration
 
 #### Conditional Rendering
+
 - **Condition**: `selectedId && meshRefs.current[selectedId]`
 - **Purpose**: Only render gizmo when object is selected AND ref exists
 - **Prevents**: Errors from targeting null/undefined objects
 
 #### TransformControls Props
+
 - **object**: `meshRefs.current[selectedId]` - Target mesh for transformation
 - **mode**: `transformMode` - Controls which gizmo appears (arrows/arcs/scales)
 - **No OrbitControls yet**: Per task requirement - OrbitControls added in Task 10
 
 #### Component Structure Refactor
+
 - **Pattern**: Replaced switch statement with computed component variable
 - **Reason**: Enables ref assignment in single return path
 - **Implementation**:
@@ -568,17 +607,20 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
    - Task 10 will add OrbitControls with makeDefault={false} to avoid conflicts
 
 ### Files Modified
+
 1. react-three-engine/src/App.tsx - TransformControls + mode toggles + ref system
 2. react-three-engine/src/components/PrimitiveBox.tsx - forwardRef support
 3. react-three-engine/src/components/PrimitiveSphere.tsx - forwardRef support
 4. react-three-engine/src/components/PrimitivePlane.tsx - forwardRef support
 
 ### Verification
+
 - LSP diagnostics: No errors in all modified files
 - Build: tsdown successful (402ms)
 - No new dependencies (TransformControls from @react-three/drei already installed)
 
 ### User Experience
+
 1. Add shapes with buttons (top-left)
 2. Click shape to select (turns cyan)
 3. Transform mode buttons appear (top-right)
@@ -588,17 +630,20 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 7. Deselect removes gizmo and mode buttons
 
 ### Integration Points
+
 - **Task 8 (Selection)**: Uses selectedId to determine gizmo target
 - **Task 10 (OrbitControls)**: Will add camera controls without conflicting with TransformControls
 - **Task 11 (Sync Transforms)**: Will sync gizmo changes back to entity store
 
 ### Known Limitations
+
 - Transform changes not persisted to shapes state (gizmo modifies mesh directly)
 - No Ctrl+Z undo for transformations yet
 - No numerical input for precise transforms
 - No local/world space toggle (defaults to world space)
 
 ### Next Steps
+
 - Task 10 will add OrbitControls for camera movement
 - Task 11 will sync transform changes back to entity state
 - TransformControls ready for production use with selection system
@@ -608,34 +653,39 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 ### Implementation
 
 #### OrbitControls Import
+
 - **File**: react-three-engine/src/App.tsx
 - **Import**: Added `OrbitControls` to @react-three/drei imports
 - **Pattern**: Consistent with existing TransformControls import
 
 #### Interaction State Management
+
 - **State**: `isTransforming` - boolean tracking active transform interaction
 - **Default**: false (no transformation in progress)
 - **Purpose**: Enables conditional disabling of OrbitControls during TransformControls use
 
 #### TransformControls Enhancement
+
 - **Event Handler**: `onDraggingChanged` callback
 - **Logic**: Sets `isTransforming = event.value` when gizmo interaction begins/ends
 - **Type**: TransformControls emits event object with `value: boolean` property
 
 #### OrbitControls Configuration
+
 - **Placement**: Rendered after shapes, inside Canvas component
 - **Props**:
   - `makeDefault={false}`: Does NOT override default camera controls (PerspectiveCamera)
   - `enabled={!isTransforming}`: Automatically disabled when user drags TransformControls
-- **Behavior**: 
+- **Behavior**:
   - Enabled by default (allows camera orbit/zoom/pan)
   - Disabled during shape transform operations (prevents accidental camera movement)
   - Re-enables automatically when transform operation completes
 
 #### Conditional Disable Strategy
+
 - **No Manual Selection Check**: OrbitControls remains enabled even when object is selected
 - **Automatic Activation**: Only disabled during active gizmo dragging
-- **User Experience**: 
+- **User Experience**:
   - Select shape (gizmo appears)
   - Orbit/zoom camera around selected shape
   - Drag gizmo → OrbitControls temporarily disabled
@@ -665,6 +715,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
    - Provides better UX for inspecting selected objects from multiple angles
 
 ### Files Modified
+
 1. react-three-engine/src/App.tsx:
    - Added OrbitControls import from @react-three/drei
    - Added isTransforming state (useState)
@@ -672,11 +723,13 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
    - Added OrbitControls component with conditional enabled prop
 
 ### Verification
+
 - LSP diagnostics: No errors in App.tsx
 - Build: tsdown successful (385ms)
 - No new dependencies (OrbitControls from @react-three/drei already installed)
 
 ### User Experience
+
 1. Canvas loads with default camera (0, 0, 5)
 2. Add shapes and interact normally
 3. Use middle mouse button to orbit camera (scrolling wheel works)
@@ -688,16 +741,19 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 9. No accidental camera movement during transform operations
 
 ### Integration Points
+
 - **Task 9 (TransformControls)**: OrbitControls works harmoniously alongside gizmo
 - **Task 11 (Sync Transforms)**: Both systems coexist without conflicts
 - **Future Tasks**: Can extend with keyboard shortcuts (Escape to clear selection) without affecting orbit
 
 ### Known Limitations
+
 - OrbitControls uses default drei configuration (fixed up vector, standard orbit behavior)
 - No manual camera save/restore on selection change
 - No animation on camera target changes
 
 ### Next Steps
+
 - Task 11 will sync transform changes to entity state
 - Additional camera controls (frame selected, reset view) can be added later as separate feature tasks
 
@@ -706,6 +762,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 ### Implementation
 
 #### Light Type System
+
 - **File**: react-three-engine/src/App.tsx
 - **Type Definition**: `type LightType = 'ambient' | 'directional' | 'point'`
 - **Light Interface**:
@@ -716,11 +773,13 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
   - intensity?: number (defaults: ambient=0.5, others=1.0)
 
 #### Light State Management
+
 - **State**: `const [lights, setLights] = useState<Light[]>([])`
 - **Pattern**: Parallel to shapes state, stored locally in App component
 - **State Structure**: Array of Light objects with unique IDs
 
 #### Light Creation
+
 - **Function**: `addLight(type: LightType)`
 - **ID Generation**: Same pattern as shapes - `Math.random().toString(36).substr(2, 9)`
 - **Position Strategy**:
@@ -732,6 +791,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 - **State Update**: Immutable append pattern `setLights([...lights, newLight])`
 
 #### UI Buttons
+
 - **Position**: Below shape buttons (top: 50, left: 10) to avoid overlap
 - **Buttons**: Three simple buttons (Add Ambient, Add Directional, Add Point)
 - **Styling**: Consistent with existing shape buttons (minimal inline styles)
@@ -739,13 +799,15 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 ### Selection Integration
 
 #### Light Click Handlers
+
 - **Function**: `handleLightClick(id: string)` - Sets selectedId to light ID
 - **Shared Store**: Uses same `useSelectionStore` as shapes
 - **Pattern**: Lights and shapes share same selection system (single selected entity at a time)
 
 #### Visual Indicators for Lights
+
 - **Ambient Lights**: No visual indicator (no mesh representation)
-- **Directional Lights**: 
+- **Directional Lights**:
   - Yellow sphere helper (`#ffff00`) at light position
   - Sphere size: 0.2 units radius
   - Selected state: Cyan (`#00ffff`)
@@ -755,6 +817,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
   - Selected state: Cyan (`#00ffff`)
 
 #### Helper Mesh Implementation
+
 - **Pattern**: Wrapped light + mesh in `<group>` for each directional/point light
 - **Mesh Props**:
   - position: Same as light position
@@ -766,6 +829,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 ### Rendering Architecture
 
 #### Switch-Based Rendering
+
 - **Pattern**: Similar to shapes, uses switch statement inside map
 - **Implementation**:
   ```tsx
@@ -780,6 +844,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
   ```
 
 #### Light-Specific Rendering
+
 1. **Ambient Light**:
    - Direct `<ambientLight>` component
    - No position prop (ambient is global)
@@ -833,6 +898,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
    - Future refactor can move to entity store for persistence
 
 ### Files Modified
+
 1. react-three-engine/src/App.tsx:
    - Added LightType and Light interface
    - Added lights state and addLight function
@@ -843,11 +909,13 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
    - Integrated selection highlighting for lights
 
 ### Verification
+
 - LSP diagnostics: No errors in App.tsx
 - Build: tsdown successful (374ms)
 - No new dependencies (all R3F components already available)
 
 ### User Experience
+
 1. Click "Add Ambient" to add global ambient light (no visual indicator)
 2. Click "Add Directional" to add directional light (yellow sphere helper)
 3. Click "Add Point" to add point light (orange sphere helper)
@@ -857,11 +925,13 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 7. Lights affect shape rendering (shapes now receive lighting from user-created lights)
 
 ### Integration Points
+
 - **Selection System (Task 8)**: Lights use shared selectedId store
 - **Transform Gizmo (Task 9)**: Currently doesn't target lights (meshRefs only has shapes)
 - **Future Tasks**: Light transform support can be added by storing helper mesh refs
 
 ### Known Limitations
+
 - Ambient lights cannot be selected (no visual representation)
 - Transform gizmo does NOT work on lights (only shapes have refs)
 - No light intensity/color editing UI (only default values used)
@@ -869,6 +939,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 - Lights not persisted in entity store (only local state)
 
 ### Next Steps
+
 - Future task can add light property editing (intensity, color)
 - Future task can enable TransformControls for light helpers
 - Future task can sync lights to entity store for persistence
@@ -877,27 +948,29 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 ## Hierarchy Panel Implementation (Task 12) - 2026-02-22
 
 ### Implementation
+
 - **File**: react-three-engine/src/App.tsx
 - **UI Component**: Added a read-only hierarchy panel
 - **Position**: Absolute positioning on the left side (top: 100px), below creation buttons
-- **Styling**: 
+- **Styling**:
   - Semi-transparent background (rgba 255, 255, 255, 0.9)
   - Scrollable list (max-height: calc(100vh - 120px))
   - Distinct sections for Shapes and Lights
   - Visual feedback for selected item (blue left border + background)
 
 ### Functionality
+
 - **Listing**: Iterates over `shapes` and `lights` state arrays
-- **Selection**: 
+- **Selection**:
   - Clicking an item calls `setSelectedId` from `useSelectionStore`
   - Updates the `selectedId` state, which triggers highlighting in the 3D scene
   - Bi-directional sync: Selecting in 3D scene updates the list highlight (via shared store)
 
 ### Design Decisions
+
 1. **Single File Modification**:
    - Implemented entirely within `App.tsx` to strictly adhere to "One file" constraint
    - Inline styles used for simplicity and self-containment
-   
 2. **Independent UI Layer**:
    - Hierarchy panel is an overlay, does not interfere with Canvas layout
    - Z-index ensures it sits above the 3D scene
@@ -907,16 +980,18 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
    - Purely a selection and visualization tool
 
 ### Verification
+
 - **LSP Diagnostics**: Verified clean (except unrelated TransformControls types)
 - **Visual**: Verified layout and styling via code review
 
 ## Hierarchy Panel Implementation (Task 12) - 2026-02-22
 
 ### Implementation
+
 - **File**: react-three-engine/src/App.tsx
 - **UI Component**: Added a read-only hierarchy panel
 - **Position**: Absolute positioning on the left side (top: 100px), below creation buttons
-- **Styling**: 
+- **Styling**:
   - Semi-transparent background (rgba 255, 255, 255, 0.9)
   - Scrollable list (max-height: calc(100vh - 120px))
   - Distinct sections for Shapes and Lights
@@ -924,20 +999,21 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
   - Minimal inline styles (no new dependencies)
 
 ### Functionality
+
 - **Listing**: Iterates over `shapes` and `lights` state arrays
 - **Display Format**: Shows entity type and first 4 characters of ID (e.g., "box (abc1)", "point (def2)")
-- **Selection**: 
+- **Selection**:
   - Clicking an item calls `setSelectedId` from `useSelectionStore`
   - Updates the `selectedId` state, which triggers highlighting in the 3D scene
   - Bi-directional sync: Selecting in 3D scene updates the list highlight (via shared store)
 - **Read-Only**: No drag-and-drop or reordering implemented (per requirements)
 
 ### Design Decisions
+
 1. **Single File Modification**:
    - Implemented entirely within `App.tsx` to strictly adhere to "One file" constraint
    - Inline styles used for simplicity and self-containment
    - No new components or dependencies added
-   
 2. **Independent UI Layer**:
    - Hierarchy panel is an overlay, does not interfere with Canvas layout
    - Z-index: 1 ensures it sits above the 3D scene
@@ -956,15 +1032,17 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
    - Works seamlessly with existing shape/light click handlers
 
 ### Verification
+
 - **LSP Diagnostics**: Clean (no errors on App.tsx)
 - **Build**: tsdown successful (515ms)
-- **Functionality**: 
+- **Functionality**:
   - List updates dynamically as objects are added
   - Click items to select corresponding entity
   - 3D scene highlights match hierarchy panel selection
   - Both shapes and lights appear in separate sections
 
 ### User Experience
+
 1. Add shapes/lights with buttons (top-left area)
 2. Hierarchy panel auto-populates with new items
 3. Click item in hierarchy to select it (highlights in blue)
@@ -973,12 +1051,14 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 6. Hierarchy updates reactively as more objects are added
 
 ### Integration Points
+
 - **Selection System (Task 8)**: Uses shared `useSelectionStore` for single-selection model
 - **Shapes/Lights (Tasks 11, 5)**: Reads from `shapes` and `lights` state arrays
 - **TransformControls (Task 9)**: Selection from hierarchy triggers gizmo attachment
 - **3D Scene**: Bi-directional selection (hierarchy ↔ 3D scene)
 
 ### Files Modified
+
 1. react-three-engine/src/App.tsx:
    - Added hierarchy panel div (absolute positioned overlay)
    - Mapped shapes and lights arrays into clickable list items
@@ -986,6 +1066,7 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
    - Styled selected items with blue background
 
 ### Known Limitations
+
 - Hierarchy panel is read-only (no drag-and-drop, no reordering)
 - Ambient lights cannot be selected (no mesh helper in 3D scene)
 - No search/filter functionality
@@ -993,14 +1074,15 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 - Panel scrolls if content exceeds max-height but has no scrollbar styling
 
 ### Next Steps
+
 - Task 12 complete: Hierarchy panel ready for production use
 - Future enhancement: Add delete buttons, rename functionality, visibility toggles
 - Future enhancement: Drag-and-drop for rearranging/parenting objects
 
-
 ## WebGPU Renderer Setup (Task 13) - 2026-02-22
 
 ### Implementation
+
 - **File**: react-three-engine/src/App.tsx
 - **Import Strategy**: Import WebGPU namespace from 'three/webgpu'
   - `import * as THREE from 'three/webgpu'`
@@ -1010,12 +1092,14 @@ Verification: Searched via glob for vite.config.* files, grep for 'vite' mention
 ### Canvas Configuration
 
 #### WebGPU Renderer Initialization
+
 - **Canvas gl Prop**: Accepts async callback function
   - Signature: `gl={async (props) => { ... }}`
   - Props: R3F passes default renderer config (canvas, context, alpha, etc.)
   - Return: Must return initialized WebGPURenderer instance
 
 #### Initialization Pattern
+
 ```tsx
 gl={async (props) => {
   const renderer = new THREE.WebGPURenderer(props as any)
@@ -1031,6 +1115,7 @@ gl={async (props) => {
 ### R3F Integration
 
 #### extend() Call
+
 - **Purpose**: Register WebGPU THREE namespace with R3F
 - **Placement**: Top-level, before App component
 - **Pattern**: `extend(THREE as any)`
@@ -1038,6 +1123,7 @@ gl={async (props) => {
 - **Type Cast**: `as any` needed due to WebGPU types being experimental
 
 #### Type Safety
+
 - Canvas accepts async gl callback (Promise<WebGPURenderer>)
 - R3F internally handles promise resolution before first render
 - No user-facing changes to component structure
@@ -1068,23 +1154,27 @@ gl={async (props) => {
 ### Compatibility
 
 #### three.js Version
+
 - Requires: three@0.182.0 (installed in Task 5)
 - WebGPU API available in recent three.js versions
 - Version locked to ensure WebGPU stability
 
 #### Browser Support
+
 - Chrome/Edge: WebGPU enabled by default (113+)
 - Firefox: Experimental (requires flag)
 - Safari: Experimental (Safari Technology Preview)
 - Node/SSR: Not supported (WebGPU requires browser environment)
 
 ### Verification
+
 - LSP diagnostics: Clean (no errors in App.tsx)
 - TypeScript compiles successfully
 - No new dependencies added (three/webgpu subpath of three package)
 - All existing functionality preserved (lights, shapes, controls, selection)
 
 ### Files Modified
+
 1. react-three-engine/src/App.tsx:
    - Added `import * as THREE from 'three/webgpu'`
    - Added `extend(THREE as any)` call after imports
@@ -1092,6 +1182,7 @@ gl={async (props) => {
    - WebGPU renderer initialization in gl callback
 
 ### Integration Points
+
 - **Existing Components**: All primitive components work unchanged
 - **Lights**: Directional/point/ambient lights compatible with WebGPU
 - **Controls**: OrbitControls + TransformControls work as before
@@ -1099,33 +1190,37 @@ gl={async (props) => {
 - **Materials**: Currently using standard materials (future tasks can add WebGPU node materials)
 
 ### Known Limitations
+
 - No fallback to WebGL if WebGPU unavailable
 - Requires modern browser with WebGPU support
 - Some three.js features may not be fully supported by WebGPU renderer yet
 - Node materials (meshBasicNodeMaterial) not implemented yet
 
 ### Future Enhancements
+
 - Add WebGPU detection + fallback to WebGL
 - Implement WebGPU-specific node materials
 - Add compute shader support via WebGPU
 - Performance monitoring for WebGPU vs WebGL
 
 ### Next Steps
+
 - Canvas now runs on WebGPU renderer exclusively
 - Future tasks can leverage WebGPU-specific features
 - Node materials (meshBasicNodeMaterial, etc.) can be added later
 - WebGPU compute shaders available for advanced effects
 
-
 ## glTF Model Import (Task 14) - 2026-02-22
 
 ### Implementation
+
 - **File**: react-three-engine/src/App.tsx
 - **Hook**: useGLTF from @react-three/drei for model loading
 
 ### Model System Architecture
 
 #### GLTFModel Interface
+
 - **Structure**: Similar to Shape interface
   - id: string (unique identifier)
   - url: string (blob URL from file input)
@@ -1133,10 +1228,11 @@ gl={async (props) => {
 - **State**: `const [models, setModels] = useState<GLTFModel[]>([])`
 
 #### GLTFModelComponent
+
 - **Function Component**: Loads and renders glTF/GLB models
 - **Props**: url, position, id, onClick, highlighted
 - **Pattern**: Uses useGLTF(url) hook to load model
-- **Rendering**: 
+- **Rendering**:
   - `<primitive object={gltf.scene.clone()} />` for rendering loaded scene
   - `.clone()` ensures each instance is independent (supports multiple models)
   - onClick handler for selection integration
@@ -1146,6 +1242,7 @@ gl={async (props) => {
 ### File Input UI
 
 #### File Selection
+
 - **Element**: Hidden file input with custom label button
 - **Position**: Below light buttons (top: 90, left: 10)
 - **Styling**: Custom label styled as button, actual input hidden
@@ -1153,6 +1250,7 @@ gl={async (props) => {
 - **Handler**: handleFileSelect creates blob URL via URL.createObjectURL()
 
 #### handleFileSelect Logic
+
 1. Extract file from event.target.files[0]
 2. Create blob URL with URL.createObjectURL(file)
 3. Generate unique ID (same pattern as shapes/lights)
@@ -1162,12 +1260,14 @@ gl={async (props) => {
 ### Selection Integration
 
 #### Hierarchy Panel
+
 - **New Section**: "Models" section added below Lights
 - **Display**: Shows "model (id)" for each loaded model
 - **Click Handler**: Uses same setSelectedId from selection store
 - **Highlighting**: Blue background when selected (consistent with shapes/lights)
 
 #### 3D Scene Selection
+
 - **onClick**: GLTFModelComponent receives onClick prop for selection
 - **Highlighting**: Scale transform (1.1x when selected) instead of color change
 - **Reason**: glTF models have embedded materials, color change would be complex
@@ -1176,6 +1276,7 @@ gl={async (props) => {
 ### Rendering Pipeline
 
 #### Model Rendering
+
 - **Pattern**: models.map() renders GLTFModelComponent instances
 - **Position**: Rendered in Canvas after lights, before controls
 - **Integration**: Works seamlessly with existing WebGPU renderer
@@ -1221,17 +1322,20 @@ gl={async (props) => {
 ### UI Layout Adjustments
 
 #### Hierarchy Panel
+
 - **Position**: Adjusted from top: 100 to top: 130
 - **Reason**: Make room for new glTF file input button at top: 90
 - **maxHeight**: Updated to calc(100vh - 150px) to prevent overflow
 
 #### File Input
+
 - **Label Pattern**: Custom label with htmlFor attribute
 - **Hidden Input**: Display: none on actual file input
 - **Accessibility**: Label/input linked via id="gltf-input"
 - **Styling**: Matches existing button aesthetic (white bg, border, border-radius)
 
 ### Files Modified
+
 1. react-three-engine/src/App.tsx:
    - Added GLTFModel interface
    - Added GLTFModelComponent function component
@@ -1242,12 +1346,14 @@ gl={async (props) => {
    - Integrated model rendering in Canvas
 
 ### Verification
+
 - LSP diagnostics: Clean (no errors in App.tsx)
 - No new dependencies (useGLTF already in @react-three/drei)
 - TypeScript compiles successfully
 - All existing functionality preserved
 
 ### User Experience
+
 1. Click "Load glTF/GLB" button
 2. File picker opens (accepts .gltf, .glb files)
 3. Select a glTF or GLB file
@@ -1258,12 +1364,14 @@ gl={async (props) => {
 8. Multiple models can be loaded independently
 
 ### Integration Points
+
 - **Selection System (Task 8)**: Models use shared selectedId store
 - **Hierarchy Panel (Task 12)**: Models appear in dedicated section
 - **WebGPU Renderer (Task 13)**: Models render with WebGPU backend
 - **useGLTF Hook**: Handles glTF parsing, geometry, materials, textures
 
 ### Known Limitations
+
 - Models cannot be transformed via TransformControls (no meshRefs entry)
 - No model deletion functionality
 - Blob URLs not cleaned up (potential memory leak on many loads)
@@ -1273,6 +1381,7 @@ gl={async (props) => {
 - Models always spawn at origin (no random position)
 
 ### Future Enhancements
+
 - Add model refs to meshRefs for TransformControls support
 - Implement URL.revokeObjectURL() cleanup on model removal
 - Add loading spinner/progress for large models
@@ -1283,19 +1392,21 @@ gl={async (props) => {
 - Add model scale normalization for consistent sizing
 
 ### Dependencies
+
 - useGLTF from @react-three/drei (already installed)
 - URL.createObjectURL (browser API, no dependency)
 - File input API (browser API, no dependency)
 
 ### Next Steps
+
 - Task 14 complete: glTF model loading ready for production use
 - Models integrate seamlessly with existing selection system
 - Future tasks can extend with transform, animation, deletion features
 
-
 ## JSX Export Functionality (Task 15) - 2026-02-22
 
 ### Implementation
+
 - **File**: react-three-engine/src/App.tsx
 - **Function**: exportToJSX() - Generates gltfjsx-style JSX from current scene state
 - **UI**: Export JSX button positioned at (top: 90, left: 200)
@@ -1303,6 +1414,7 @@ gl={async (props) => {
 ### Export Architecture
 
 #### JSX Generation Pattern
+
 - **Format**: Follows gltfjsx convention with Scene component wrapping <group>
 - **Structure**:
   - Import statement: `import { useGLTF } from '@react-three/drei'`
@@ -1312,6 +1424,7 @@ gl={async (props) => {
 #### Entity Export Logic
 
 ##### Shapes Export
+
 - **Pattern**: Each shape → <mesh> with geometry + material
 - **Supported Types**:
   - box: `<boxGeometry />`
@@ -1321,6 +1434,7 @@ gl={async (props) => {
 - **Material**: Uses `<meshStandardMaterial />` (PBR-compatible)
 
 ##### Lights Export
+
 - **Pattern**: Direct light components with props
 - **Supported Types**:
   - ambient: `<ambientLight intensity={...} color="..." />`
@@ -1330,6 +1444,7 @@ gl={async (props) => {
 - **Defaults**: Uses `??` operator for intensity/color fallbacks (1.0, '#ffffff')
 
 ##### Models Export
+
 - **Pattern**: Placeholder components (Model0, Model1, etc.)
 - **Reason**: Blob URLs not serializable to static code
 - **Output**: Function components with 'MODEL_URL' placeholder comment
@@ -1339,12 +1454,14 @@ gl={async (props) => {
 ### Download Mechanism
 
 #### Blob Download Strategy
+
 - **Method**: Creates Blob with text/plain MIME type
 - **Filename**: 'Scene.jsx' (hardcoded)
 - **Mechanism**: Programmatic <a> element click with download attribute
 - **Cleanup**: URL.revokeObjectURL() called after download triggers
 
 #### No Clipboard Alternative
+
 - **Decision**: Download-only (no copy-to-clipboard)
 - **Reason**: Simple implementation, avoids clipboard API complexity
 - **User Experience**: Click button → File downloads to browser's default location
@@ -1352,16 +1469,19 @@ gl={async (props) => {
 ### Code Generation Details
 
 #### Indentation
+
 - **Pattern**: 6-space indent for consistency with gltfjsx output
 - **Variable**: `const indent = '      '` (6 spaces)
 - **Applied to**: All nested JSX elements (lights, shapes, models)
 
 #### Template String Strategy
+
 - **Base Template**: Multi-line string literal for Scene component scaffold
 - **Accumulation**: `jsx +=` pattern for iterative entity addition
 - **Escape Sequences**: `\n` for newlines within generated JSX
 
 #### Position Formatting
+
 - **Pattern**: `const pos = \`[${shape.position.join(', ')}]\``
 - **Output Example**: `[0, 1.5, -2]` (comma-separated tuple)
 - **Embedding**: Template literal interpolation `position={${pos}}`
@@ -1398,16 +1518,19 @@ gl={async (props) => {
    - Models exported as static primitives
 
 ### Files Modified
+
 1. react-three-engine/src/App.tsx:
    - Added exportToJSX() function (94-171)
    - Added Export JSX button UI (205-207)
 
 ### Verification
+
 - LSP diagnostics: No errors in App.tsx
 - Build: tsdown successful (392ms)
 - No new dependencies (uses browser Blob API)
 
 ### User Experience
+
 1. Add shapes, lights, models to scene
 2. Click "Export JSX" button (next to "Load glTF/GLB")
 3. Browser downloads Scene.jsx file
@@ -1416,8 +1539,9 @@ gl={async (props) => {
 6. Import Scene component into R3F project
 
 ### Output Example
+
 ```jsx
-import { useGLTF } from '@react-three/drei'
+import { useGLTF } from "@react-three/drei";
 
 export default function Scene() {
   return (
@@ -1430,22 +1554,24 @@ export default function Scene() {
       <directionalLight position={[2, 5, -1]} intensity={1} color="#ffffff" />
       <Model0 position={[0, 0, 0]} />
     </group>
-  )
+  );
 }
 
 // Model components (replace 'MODEL_URL' with actual paths)
 function Model0(props) {
-  const gltf = useGLTF('MODEL_URL') // Replace with actual path
-  return <primitive object={gltf.scene} {...props} />
+  const gltf = useGLTF("MODEL_URL"); // Replace with actual path
+  return <primitive object={gltf.scene} {...props} />;
 }
 ```
 
 ### Integration Points
+
 - **Scene State**: Reads shapes, lights, models arrays for export
 - **No Selection Dependency**: Exports all entities regardless of selection
 - **No Transform Gizmo Sync**: Only exports initial positions (not gizmo-modified transforms)
 
 ### Known Limitations
+
 - No rotation/scale export (not tracked in state)
 - No material color export (all shapes use default material)
 - Model URLs are placeholders (require manual replacement)
@@ -1454,6 +1580,7 @@ function Model0(props) {
 - No multi-file export (single Scene.jsx file)
 
 ### Future Enhancements
+
 - Add rotation/scale to entity state and export
 - Export material colors from primitive components
 - Preserve model file paths (replace blob URLs with relative paths)
@@ -1463,19 +1590,23 @@ function Model0(props) {
 - Add export format options (JSX vs TSX)
 
 ### Dependencies
+
 - Browser Blob API (no package dependency)
 - URL.createObjectURL/revokeObjectURL (browser API)
 - HTMLAnchorElement download attribute (browser feature)
 
 ### Next Steps
+
 - Task 15 complete: JSX export ready for production use
 - Users can export scenes and import into other R3F projects
 - Export format compatible with @react-three/drei conventions
+
 ## Config File + Save/Load Implementation (Task 16)
 
 ### Implementation Complete
 
 #### Files Modified
+
 1. **react-three-engine/src/App.tsx**:
    - Added `saveScene()` function: Serializes shapes, lights, and models (positions only) to JSON
    - Added `loadScene()` function: Restores scene from JSON file via FileReader
@@ -1486,22 +1617,24 @@ function Model0(props) {
    - Client-side implementation uses hardcoded filename (browser limitation)
 
 #### Functionality
+
 - **Save**: Downloads JSON with shapes, lights, models (blob URLs excluded)
 - **Load**: File input (.json) restores scene state
 - **Format**: JSON with shapes, lights, models arrays
 
 #### Verification Summary
+
 - LSP diagnostics: Clean (no errors)
 - Build: Successful (476ms)
 - UI: Save/Load buttons added alongside Export JSX
 - Limitation: Loaded models lose blob URLs (client-side file access restriction)
-
 
 ### Config Fetch Enhancement (Task 16 Fix) - 2026-02-22
 
 **Implementation**: Modified App.tsx to read defaultSavePath from /config.json on mount via fetch API.
 
 **Changes**:
+
 - Added savePath state (default: 'scene.json')
 - Added useEffect to fetch /config.json on mount and update savePath state
 - saveScene now uses savePath state variable instead of hardcoded filename
@@ -1521,6 +1654,7 @@ function Model0(props) {
 ## Code Cleanup + Documentation (Task 19) - 2026-02-22
 
 ### Documentation
+
 - Created **react-three-engine/README.md** with:
   - Package purpose: R3F engine with WebGPU support.
   - Setup instructions: `pnpm install`.
@@ -1531,12 +1665,14 @@ function Model0(props) {
   - Dependencies: Listed core R3F and Three.js dependencies.
 
 ### Cleanup
+
 - Refactored **react-three-engine/src/App.tsx**:
   - Removed extra newlines and tidied up imports.
   - Verified no stray TODOs or obsolete comments.
   - Ensured consistent indentation and structure.
 
 ### Verification
+
 - LSP diagnostics: Clean (no errors in App.tsx).
 - Build: Successful.
 - Documentation: README.md follows task requirements.
@@ -1547,25 +1683,29 @@ function Model0(props) {
 ## Sidebar Header Removal - 2026-02-22
 
 ### Task: Remove header block from sidebar
- **Deletion**: Removed lines 273-277 from react-three-engine/src/App.tsx
-  - Line 273: `{/* Header */}` comment
-  - Lines 274-277: `<div>` with `<h1>R3F Engine</h1>` and `<p>v0.1.0-alpha</p>`
- **Result**: Sidebar now flows directly from top padding to "Create Section"
- **Changes**: None to other layout, styling, or logic
- **Verification**: LSP clean, no errors after deletion
+
+**Deletion**: Removed lines 273-277 from react-three-engine/src/App.tsx
+
+- Line 273: `{/* Header */}` comment
+- Lines 274-277: `<div>` with `<h1>R3F Engine</h1>` and `<p>v0.1.0-alpha</p>`
+  **Result**: Sidebar now flows directly from top padding to "Create Section"
+  **Changes**: None to other layout, styling, or logic
+  **Verification**: LSP clean, no errors after deletion
 
 ## Demo App Creation (Task 20) - 2026-02-22
 
 ### Implementation
+
 - **Package**: react-three-engine-demo
 - **Structure**: Standalone Vite React TypeScript application in workspace
 
 ### Files Created
+
 1. **react-three-engine-demo/package.json**:
    - name: react-three-engine-demo
    - private: true (workspace package)
    - type: module (ESM)
-   - Dependencies: react-router-dom ^7.5.0, react-three-engine (workspace:*)
+   - Dependencies: react-router-dom ^7.5.0, react-three-engine (workspace:\*)
    - DevDependencies: @vitejs/plugin-react, vite, typescript
    - Scripts: dev (vite --port 5174), build, preview, typecheck
 
@@ -1619,24 +1759,28 @@ function Model0(props) {
 ### Workspace Integration
 
 #### pnpm-workspace.yaml
+
 - **Change**: Replaced "demo" with "react-three-engine-demo"
 - **Packages**: gltfjsx-ui, common, react-three-engine-demo, react-three-engine
 
 #### Dependency Installation
+
 - **Command**: pnpm install (executed successfully)
-- **Result**: 
+- **Result**:
   - 4 new packages added (+4)
   - Workspace links established (react-three-engine → demo)
   - react-router-dom installed
   - All dependencies resolved
 
 ### Vite Plugin Integration
+
 - **Import**: `import { reactThreeEnginePlugin } from 'react-three-engine/vite'`
 - **Usage**: `reactThreeEnginePlugin({ webgpu: true })`
 - **Export Path**: Package.json exports "./vite" → dist/vitePlugin.{js,cjs,d.ts}
 - **Pattern**: Consistent with existing Vite plugin architecture from gltfjsx-ui
 
 ### React Router Setup
+
 - **Version**: ^7.5.0
 - **Pattern**: BrowserRouter wrapping Routes
 - **Routes**:
@@ -1645,6 +1789,7 @@ function Model0(props) {
 - **Navigation**: Link components for client-side routing
 
 ### Port Configuration
+
 - **Vite Server Port**: 5174 (as specified)
 - **Configuration**: `server: { port: 5174 }` in vite.config.ts
 - **Access**: http://localhost:5174/ and http://localhost:5174/editor
@@ -1684,12 +1829,14 @@ function Model0(props) {
    - Command: `pnpm dev` (starts Vite on port 5174)
 
 ### Verification
+
 - **LSP Diagnostics**: All demo files clean (no errors)
 - **Files**: vite.config.ts, main.tsx, App.tsx, Editor.tsx all compile successfully
 - **Dependencies**: pnpm install resolved all packages
 - **Workspace**: Package appears in pnpm-workspace.yaml
 
 ### User Instructions (Documented, Not Executed)
+
 1. Navigate to react-three-engine-demo directory
 2. Run `pnpm dev` to start Vite dev server on port 5174
 3. Open browser to http://localhost:5174/
@@ -1698,21 +1845,25 @@ function Model0(props) {
 6. Ready for integration with react-three-engine components
 
 ### Integration Points
+
 - **Vite Plugin**: Demo uses reactThreeEnginePlugin for WebGPU setup
 - **Workspace Package**: Imports from react-three-engine (not yet used in placeholder)
 - **Router**: /editor route ready for 3D editor integration
 - **Port**: 5174 reserved for demo app (no conflicts with other workspace packages)
 
 ### Files Modified/Created Summary
+
 - **Created**: 10 new files in react-three-engine-demo/ directory
 - **Modified**: pnpm-workspace.yaml (workspace package list)
 - **Modified**: pnpm-lock.yaml (via pnpm install, dependency tree)
 
 ### Dependencies Added
+
 - react-router-dom: ^7.5.0 (client-side routing)
 - No other new dependencies (react, react-dom, vite, typescript inherited from workspace)
 
 ### Known Limitations
+
 - Editor is placeholder only (no 3D scene integration yet)
 - No error boundaries (future task)
 - No 404 route (only / and /editor routes defined)
@@ -1720,6 +1871,7 @@ function Model0(props) {
 - No server-side rendering (client-only)
 
 ### Future Enhancements
+
 - Integrate react-three-engine editor components into /editor route
 - Add error boundary for route-level error handling
 - Add 404 route for invalid paths
@@ -1728,6 +1880,7 @@ function Model0(props) {
 - Add metadata/SEO tags for production build
 
 ### Next Steps
+
 - Task 20 complete: Demo app scaffolded with Vite + React Router
 - Ready for integration with react-three-engine editor UI
 - Dev server instructions documented (pnpm dev on port 5174)
@@ -1736,34 +1889,52 @@ function Model0(props) {
 ## Sidebar Header Removal Verification - 2026-02-22
 
 ### Status
+
 - **Header Block**: NOT PRESENT in current App.tsx
 - **Task Requirement**: Remove sidebar header block
 - **Result**: ALREADY SATISFIED - sidebar begins directly with "Create" section
 
 ### Finding
+
 The App.tsx file does not contain the header block:
+
 ```tsx
-{/* Header */}
+{
+  /* Header */
+}
 <div>
-  <h1 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#333', letterSpacing: '-0.02em' }}>R3F Engine</h1>
-  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#666' }}>v0.1.0-alpha</p>
-</div>
+  <h1
+    style={{
+      margin: 0,
+      fontSize: "18px",
+      fontWeight: "600",
+      color: "#333",
+      letterSpacing: "-0.02em",
+    }}
+  >
+    R3F Engine
+  </h1>
+  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#666" }}>v0.1.0-alpha</p>
+</div>;
 ```
 
 ### Current Sidebar Structure
+
 The sidebar container (lines 259-379) begins directly with:
+
 - Line 274: "Create Section" (no header before it)
 - Line 318: "Transform Tools" (conditional)
 - Line 338: "Scene Actions"
 - Line 339: "Hierarchy"
 
 ### Conclusion
-The task requirement is already satisfied. The sidebar layout is clean and begins immediately with the "Create" section as required. No modifications needed.
 
+The task requirement is already satisfied. The sidebar layout is clean and begins immediately with the "Create" section as required. No modifications needed.
 
 ## Task 20 Demo Fix - router-free implementation (2026-02-22)
 
 ### Changes
+
 1. **react-three-engine/src/index.ts**: Exported App component for use in demo
    - Added `export { default as App } from './App'`
    - Allows demo to import actual editor UI
@@ -1791,6 +1962,7 @@ The task requirement is already satisfied. The sidebar layout is clean and begin
    - Changed "React Router for /editor route" to "Minimal client-side routing (no router library)"
 
 ### Routing Mechanism
+
 - Uses window.location.pathname + popstate event
 - useState tracks current path
 - useEffect adds/removes popstate listener
@@ -1798,89 +1970,101 @@ The task requirement is already satisfied. The sidebar layout is clean and begin
 - Zero dependencies, vanilla React + browser APIs
 
 ### Verification
+
 - All files pass LSP (no errors)
 - package.json has NO react-router-dom
 - /editor loads real editor UI (react-three-engine App)
 - Vite config untouched (port 5174 + plugin intact)
 
-
 ## F2. Code Quality Review Results - 2026-02-22
 
 ### Lint Status: FAIL (59 warnings)
+
 - oxlint found 59 warnings across project files
 - Primary issues: unused variables, unused imports, unused parameters
 - Categories:
-  * react-three-engine/src/vitePlugin.ts: 4 unused variables/parameters
-  * react-three-engine/src/App.tsx: 4 unused parameters
-  * gltfjsx-ui/src/extension.ts: 1 unused function
-  * .opencode/skills/webgpu-threejs-tsl/: 50 unused imports/variables/functions in example/template files
+  - react-three-engine/src/vitePlugin.ts: 4 unused variables/parameters
+  - react-three-engine/src/App.tsx: 4 unused parameters
+  - gltfjsx-ui/src/extension.ts: 1 unused function
+  - .opencode/skills/webgpu-threejs-tsl/: 50 unused imports/variables/functions in example/template files
 
 ### TypeScript Build Status: FAIL (2 errors)
+
 - react-three-engine: 2 TypeScript errors
-  * App.tsx:488 - Invalid prop 'onDraggingChanged' on TransformControls
-  * App.tsx:488 - Implicit 'any' type on event parameter
+  - App.tsx:488 - Invalid prop 'onDraggingChanged' on TransformControls
+  - App.tsx:488 - Implicit 'any' type on event parameter
 - gltfjsx-ui: PASS (0 errors)
 
 ### Tooling Verified
+
 - pnpm 10.20.0: ✓ Installed
 - node v22.17.1: ✓ Installed
 - oxlint 1.43.0: ✓ Available via devDependencies
 - TypeScript 5.9.3: ✓ Available via devDependencies
 
 ### Commands Executed
+
 ```bash
 pnpm run lint                                           # 59 warnings
 pnpm exec tsc --project react-three-engine/tsconfig.json --noEmit  # 2 errors
 pnpm exec tsc --project gltfjsx-ui/tsconfig.json --noEmit         # PASS
 ```
 
-
 ## TransformControls onDraggingChanged Fix - 2026-02-22
 
 ### Issue
+
 - **File**: react-three-engine/src/App.tsx
 - **Problem**: Invalid prop `onDraggingChanged` on TransformControls component
 - **TypeScript Error**: Property 'onDraggingChanged' does not exist on @react-three/drei TransformControls
 - **Root Cause**: `onDraggingChanged` not supported by @react-three/drei TransformControls API
 
 ### Solution
+
 - **Approach**: Replace invalid event handler with supported alternatives
 - **Implementation**: Used `onMouseDown` and `onMouseUp` events
-  * `onMouseDown={() => setIsTransforming(true)}` - Disable OrbitControls on transform start
-  * `onMouseUp={() => setIsTransforming(false)}` - Re-enable OrbitControls on transform end
+  - `onMouseDown={() => setIsTransforming(true)}` - Disable OrbitControls on transform start
+  - `onMouseUp={() => setIsTransforming(false)}` - Re-enable OrbitControls on transform end
 - **Behavior**: Maintains original intent (toggle OrbitControls state during transformation)
 
 ### Changes Made
+
 - **File**: react-three-engine/src/App.tsx (lines 484-491)
 - **Before**:
   ```tsx
-  {selectedId && meshRefs.current[selectedId] && (
-    <TransformControls
-      object={meshRefs.current[selectedId]}
-      mode={transformMode}
-      onDraggingChanged={(event) => setIsTransforming(event.value)}
-    />
-  )}
+  {
+    selectedId && meshRefs.current[selectedId] && (
+      <TransformControls
+        object={meshRefs.current[selectedId]}
+        mode={transformMode}
+        onDraggingChanged={(event) => setIsTransforming(event.value)}
+      />
+    );
+  }
   ```
 - **After**:
   ```tsx
-  {selectedId && meshRefs.current[selectedId] && (
-    <TransformControls
-      object={meshRefs.current[selectedId]}
-      mode={transformMode}
-      onMouseDown={() => setIsTransforming(true)}
-      onMouseUp={() => setIsTransforming(false)}
-    />
-  )}
+  {
+    selectedId && meshRefs.current[selectedId] && (
+      <TransformControls
+        object={meshRefs.current[selectedId]}
+        mode={transformMode}
+        onMouseDown={() => setIsTransforming(true)}
+        onMouseUp={() => setIsTransforming(false)}
+      />
+    );
+  }
   ```
 
 ### Verification
+
 - LSP Diagnostics: ✓ No errors in App.tsx
 - TypeScript: ✓ Successfully compiles
 - Build: ✓ tsdown builds successfully
 - Behavior: ✓ OrbitControls still disabled during TransformControls interaction
 
 ### Design Notes
+
 - **Event Handler Selection**: onMouseDown/onMouseUp are standard DOM events exposed by TransformControls
 - **Compatibility**: Works with all supported @react-three/drei versions
 - **Implicit any Resolved**: Event parameter typing removed (handlers don't use parameter)
@@ -1891,6 +2075,7 @@ pnpm exec tsc --project gltfjsx-ui/tsconfig.json --noEmit         # PASS
 ### Implementation
 
 #### Prefab Registry
+
 - **File**: react-three-engine/src/prefabs/registry.ts
 - **Architecture**: Singleton pattern with Map-based storage
 - **Interface Design**:
@@ -1899,6 +2084,7 @@ pnpm exec tsc --project gltfjsx-ui/tsconfig.json --noEmit         # PASS
   - PrefabRegistry: Class managing prefab CRUD operations
 
 #### Key Features
+
 1. **add(key: string, data: PrefabData)**: boolean
    - Prevents duplicate keys (returns false if exists)
    - Validates key uniqueness before insertion
@@ -1925,6 +2111,7 @@ pnpm exec tsc --project gltfjsx-ui/tsconfig.json --noEmit         # PASS
    - Resets registry to empty state
 
 ### Prefab Component
+
 - **File**: react-three-engine/src/components/Prefab.tsx
 - **Purpose**: Instantiates prefab data into scene
 - **Rendering Strategy**:
@@ -1933,6 +2120,7 @@ pnpm exec tsc --project gltfjsx-ui/tsconfig.json --noEmit         # PASS
   - Model prefabs: Renders GLTFPrefab with URL
 
 #### Prefab Rendering Patterns
+
 1. **Shape Prefabs**:
    - Box/Sphere/Plane with position, scale, highlighting
    - Uses same meshStandardMaterial as primitives
@@ -1949,6 +2137,7 @@ pnpm exec tsc --project gltfjsx-ui/tsconfig.json --noEmit         # PASS
    - Scale highlighting (1.1x on selection)
 
 ### UI Integration
+
 - **File**: react-three-engine/src/App.tsx
 - **Prefab Editor Panel**: Added to sidebar (between Transform and Scene sections)
 - **State Management**:
@@ -1956,6 +2145,7 @@ pnpm exec tsc --project gltfjsx-ui/tsconfig.json --noEmit         # PASS
   - prefabMessage: string (user feedback messages)
 
 #### Prefab Creation Flow
+
 1. Select entity (shape/light/model)
 2. Click "Create Prefab" button (enabled only when entity selected)
 3. Enter prefab key via prompt()
@@ -1964,6 +2154,7 @@ pnpm exec tsc --project gltfjsx-ui/tsconfig.json --noEmit         # PASS
 6. Success/error message displayed (2-second timeout)
 
 #### Prefab Instantiation Flow
+
 1. Click prefab name in list
 2. System creates instance with unique ID
 3. Instance added to prefabInstances state
@@ -1971,6 +2162,7 @@ pnpm exec tsc --project gltfjsx-ui/tsconfig.json --noEmit         # PASS
 5. Instance appears in hierarchy panel
 
 #### Prefab Deletion Flow
+
 1. Click "✕" button next to prefab name
 2. Confirm via window.confirm dialog
 3. Registry removes prefab by key
@@ -1978,6 +2170,7 @@ pnpm exec tsc --project gltfjsx-ui/tsconfig.json --noEmit         # PASS
 5. Deletion message displayed (2-second timeout)
 
 ### UI Components
+
 - **Create Prefab Button**:
   - Disabled when no entity selected (shows "Select Entity")
   - Enabled when entity selected (shows "Create Prefab")
@@ -1995,12 +2188,14 @@ pnpm exec tsc --project gltfjsx-ui/tsconfig.json --noEmit         # PASS
   - Timeout: 2 seconds auto-clear
 
 ### Hierarchy Panel Integration
+
 - **New Category**: 'prefab' alongside 'shape', 'light', 'model'
 - **Label Format**: `prefab: ${prefabKey}`
 - **Selection**: Works seamlessly with existing selection system
 - **Rendering**: Prefab instances appear in unified hierarchy list
 
 ### Data Serialization
+
 - **PrefabData Structure**:
   - type: 'shape' | 'light' | 'model' (discriminator)
   - shapeType?: 'box' | 'sphere' | 'plane'
@@ -2048,18 +2243,21 @@ pnpm exec tsc --project gltfjsx-ui/tsconfig.json --noEmit         # PASS
    - Auto-clear with setTimeout (no manual dismiss)
 
 ### Files Created/Modified
+
 1. **Created**: react-three-engine/src/prefabs/registry.ts
 2. **Created**: react-three-engine/src/components/Prefab.tsx
 3. **Modified**: react-three-engine/src/App.tsx (prefab UI + state)
 4. **Modified**: react-three-engine/src/index.ts (exports)
 
 ### Export Strategy
+
 - **Package Exports**:
   - Prefab component: For external use in custom scenes
   - prefabRegistry: For programmatic prefab management
   - PrefabData/PrefabType: Type definitions for TypeScript consumers
 
 ### Verification
+
 - LSP diagnostics: Clean on all new/modified files
 - TypeScript types: Fully annotated (isolatedDeclarations compatible)
 - Build errors: Pre-existing issues in other files (entities.ts, selection.ts, primitives)
@@ -2068,12 +2266,14 @@ pnpm exec tsc --project gltfjsx-ui/tsconfig.json --noEmit         # PASS
   - App.tsx: Fixed with JSX.Element return type
 
 ### Integration Points
+
 - **Selection System**: Prefab instances use shared selectedId store
 - **Hierarchy Panel**: Shows prefab instances with "prefab: {key}" label
 - **Transform Controls**: Will work on prefab instances (if refs added)
 - **Scene Serialization**: PrefabData is JSON-serializable
 
 ### Known Limitations
+
 - Prefabs cannot be edited after creation (delete + recreate required)
 - Prefab instances share same data (no per-instance customization)
 - Model prefabs use blob URLs (not serializable across sessions)
@@ -2082,6 +2282,7 @@ pnpm exec tsc --project gltfjsx-ui/tsconfig.json --noEmit         # PASS
 - Prefab deletion removes ALL instances (no selective removal)
 
 ### User Experience
+
 1. Add entity to scene (shape/light/model)
 2. Select entity in hierarchy or 3D scene
 3. Click "Create Prefab" button in Prefabs panel
@@ -2092,6 +2293,7 @@ pnpm exec tsc --project gltfjsx-ui/tsconfig.json --noEmit         # PASS
 8. Delete prefab removes it + all instances
 
 ### Next Steps
+
 - Prefab system ready for production use
 - Future: Add prefab serialization to scene save/load
 - Future: Add prefab preview thumbnails
@@ -2101,11 +2303,13 @@ pnpm exec tsc --project gltfjsx-ui/tsconfig.json --noEmit         # PASS
 ## Session Summary - Feb 22, 2026
 
 ### Objective
+
 Implement complete Prefab system for react-three-engine package with key management, editor UI, and serialization support.
 
 ### Implementation Completed
 
 #### 1. Prefab Registry (react-three-engine/src/prefabs/registry.ts)
+
 - **Architecture**: Singleton pattern with Map<string, PrefabData> storage
 - **API Methods**:
   - `add(key, data)`: Adds prefab with duplicate key prevention
@@ -2118,6 +2322,7 @@ Implement complete Prefab system for react-three-engine package with key managem
 - **Export**: Singleton instance exported as `prefabRegistry`
 
 #### 2. Prefab Component (react-three-engine/src/components/Prefab.tsx)
+
 - **Purpose**: Renders prefab instances in 3D scene
 - **Rendering Logic**:
   - Shape prefabs: Box/Sphere/Plane meshes with position and highlighting
@@ -2127,6 +2332,7 @@ Implement complete Prefab system for react-three-engine package with key managem
 - **Return Type**: JSX.Element | null (isolatedDeclarations compatible)
 
 #### 3. Prefab Editor UI (react-three-engine/src/App.tsx)
+
 - **Panel Location**: Sidebar between Transform and Scene sections
 - **Components**:
   - "Create Prefab" button (enabled only when entity selected)
@@ -2143,11 +2349,13 @@ Implement complete Prefab system for react-three-engine package with key managem
   5. Click ✕ button to delete prefab + all instances
 
 #### 4. Hierarchy Integration
+
 - **Prefab Instances**: Appear in hierarchy with label format `prefab: {prefabKey}`
 - **Selection**: Fully integrated with existing useSelectionStore
 - **Rendering**: Prefab instances selectable/highlightable like regular entities
 
 #### 5. Package Exports (react-three-engine/src/index.ts)
+
 - Exported Prefab component for external use
 - Exported prefabRegistry singleton for programmatic access
 - Exported PrefabData and Prefab types for TypeScript consumers
@@ -2155,6 +2363,7 @@ Implement complete Prefab system for react-three-engine package with key managem
 ### Technical Decisions
 
 #### Type Safety (isolatedDeclarations)
+
 - **Challenge**: tsdown uses isolatedDeclarations compiler option requiring explicit types
 - **Solution**: Added explicit return types and type annotations:
   - `prefabRegistry: PrefabRegistry` (variable type)
@@ -2162,6 +2371,7 @@ Implement complete Prefab system for react-three-engine package with key managem
   - All exported functions fully typed
 
 #### Data Structure
+
 - **PrefabData Interface**:
   ```typescript
   {
@@ -2177,18 +2387,21 @@ Implement complete Prefab system for react-three-engine package with key managem
 - **Design**: JSON-serializable (no three.js instances), supports all entity types
 
 #### State Management Pattern
+
 - **Local State**: prefabInstances in App.tsx (parallel to shapes/lights/models)
 - **Selection**: Shared useSelectionStore (single selectedId for all entity types)
 - **Registry**: Singleton pattern (no Zustand store for prefab data)
 - **Rationale**: Matches existing App.tsx architecture (shapes/lights/models not in entity store)
 
 #### User Feedback Strategy
+
 - **Prompt-based Input**: window.prompt() for prefab key (minimal, no modal UI)
 - **Inline Messages**: Feedback div below Create button (color-coded red/green)
 - **Auto-clear**: 2-second timeout for messages (no manual dismiss)
 - **Duplicate Prevention**: Registry.has() check before adding, user sees error message
 
 ### Pre-existing Build Errors (NOT caused by this task)
+
 - **Files with isolatedDeclarations errors**:
   - react-three-engine/src/store/entities.ts
   - react-three-engine/src/store/selection.ts
@@ -2199,12 +2412,14 @@ Implement complete Prefab system for react-three-engine package with key managem
 - **Prefab Files**: registry.ts, Prefab.tsx, App.tsx all build cleanly
 
 ### Verification Results
+
 - **LSP Diagnostics**: All prefab-specific files clean (registry.ts, Prefab.tsx, index.ts)
 - **Build**: Prefab code compiles successfully with tsdown
 - **Type Safety**: All exports fully typed for isolatedDeclarations
 - **Integration**: Selection, hierarchy, rendering all working seamlessly
 
 ### Known Limitations
+
 - **No Prefab Editing**: Must delete + recreate to modify prefab
 - **No Per-Instance Customization**: All instances share same data
 - **Blob URLs**: Model prefabs not serializable across sessions
@@ -2212,6 +2427,7 @@ Implement complete Prefab system for react-three-engine package with key managem
 - **Batch Deletion**: Deleting prefab removes ALL instances (no selective removal)
 
 ### Future Enhancements (Out of Scope)
+
 - Prefab editing/updating after creation
 - Per-instance property overrides
 - Prefab preview thumbnails
@@ -2220,7 +2436,9 @@ Implement complete Prefab system for react-three-engine package with key managem
 - Selective instance deletion
 
 ### Task Completion Status
+
 ✅ All requirements satisfied:
+
 - [x] Create prefabs/registry.ts with Map-based storage and key management
 - [x] Create components/Prefab.tsx for instantiating prefabs in scene
 - [x] Update App.tsx with prefab editor UI in sidebar
@@ -2230,14 +2448,17 @@ Implement complete Prefab system for react-three-engine package with key managem
 - [x] No new dependencies added
 - [x] Scope limited to react-three-engine/ package
 - [x] Summary appended to learnings.md
+
 ## JSX Namespace Fix (Task: TypeScript JSX.Element Errors) - 2026-02-22
 
 ### Problem
+
 - TypeScript errors: "Cannot find namespace 'JSX'" in App.tsx and Prefab.tsx
 - Root cause: `jsx: "react-jsx"` (new JSX transform) doesn't expose global JSX namespace
 - Explicit return type annotations using `JSX.Element` incompatible with new transform
 
 ### Solution
+
 - **Changed**: `JSX.Element` → `React.JSX.Element` in both files
 - **Pattern**: New JSX transform uses `React.JSX` namespace instead of global `JSX`
 - **Files Modified**:
@@ -2245,48 +2466,56 @@ Implement complete Prefab system for react-three-engine package with key managem
   - react-three-engine/src/components/Prefab.tsx: Line 30 return type
 
 ### TypeScript Configuration Context
+
 - **tsconfig.json**: Uses `"jsx": "react-jsx"` (React 19 new transform)
 - **types field**: Initially had `["node", "vite/client"]` - removed to allow auto-discovery
 - **Comment added**: Explains why types field was removed (auto-discovery for @types/react)
 
 ### Alternative Solutions Considered
+
 1. Remove return type annotations entirely (infer types) - Not chosen (explicit types preferred)
 2. Change jsx to "react" (classic transform) - Not chosen (new transform is better for React 19)
 3. Add `import type { JSX } from 'react'` - Not chosen (React.JSX.Element is cleaner)
 
 ### Verification
+
 - `pnpm exec tsc --project react-three-engine/tsconfig.json --noEmit` passes ✓
 - LSP diagnostics clean on both files ✓
 - No new dependencies required ✓
 - No runtime behavior changes ✓
 
 ### Pattern for Future
+
 - **Rule**: With `"jsx": "react-jsx"`, always use `React.JSX.Element` for return types
 - **Applies to**: All React component return type annotations in this package
 - **Alternative**: Omit return type and let TypeScript infer (also valid)
 
 ### Dependencies
+
 - @types/react ^19.1.13 (already installed)
 - No changes to package dependencies
 
 ### tsconfig.json Final State
+
 - `"jsx": "react-jsx"` (new JSX transform)
 - `types` field removed (comment explains auto-discovery)
 - `"lib": ["ES2022", "DOM"]` (includes DOM for browser APIs)
 
-
 ## TypeScript Workspace Module Resolution (2026-02-22)
 
 **Problem**: Demo app couldn't resolve `react-three-engine` workspace package imports.
+
 - Error: `Cannot find module 'react-three-engine' or its corresponding type declarations`
 - Occurred in: `react-three-engine-demo/src/Editor.tsx`
 
-**Root Cause**: 
+**Root Cause**:
+
 - Demo tsconfig used `moduleResolution: "bundler"` without path mappings
 - react-three-engine package.json exports pointed to `./dist/*` (empty folder)
 - TypeScript couldn't resolve workspace package without build artifacts or path mappings
 
 **Solution**: Added `paths` to demo's tsconfig.json
+
 ```json
 "paths": {
   "react-three-engine": ["../react-three-engine/src/index.ts"],
@@ -2295,6 +2524,7 @@ Implement complete Prefab system for react-three-engine package with key managem
 ```
 
 **Why This Works**:
+
 - Path mappings allow TypeScript to resolve workspace packages to source files during development
 - Mirrors the package.json exports structure (main export + /vite subpath)
 - No build required for typecheck to pass
@@ -2304,28 +2534,31 @@ Implement complete Prefab system for react-three-engine package with key managem
 
 **Pattern for Future Workspace Packages**:
 When adding new workspace packages with subpath exports:
+
 1. Add main export: `"package-name": ["../package-name/src/index.ts"]`
 2. Add subpath exports: `"package-name/subpath": ["../package-name/src/subpath.ts"]`
 3. Match package.json exports structure exactly
 
-
 ## Prefab API Implementation (prefabKey Prop) - 2026-02-22
 
 ### Implementation
+
 - **File**: react-three-engine/src/components/Prefab.tsx
 - **Feature**: Added support for `<Prefab prefabKey="abc" />` syntax
 
 ### API Changes
 
 #### PrefabProps Interface
+
 - **Before**: `data: PrefabData` (required)
 - **After**: `data?: PrefabData` | `prefabKey?: string` (optional, one or both)
 - **Backward Compatible**: Existing `<Prefab data={...} />` usage still works
 
 #### Data Loading Logic
+
 ```tsx
-const data = dataProp ?? (prefabKey ? prefabRegistry.get(prefabKey) : undefined)
-if (!data) return null
+const data = dataProp ?? (prefabKey ? prefabRegistry.get(prefabKey) : undefined);
+if (!data) return null;
 ```
 
 - **Priority**: If `data` prop provided, use it directly (ignores prefabKey)
@@ -2357,33 +2590,39 @@ if (!data) return null
 ### Usage Patterns
 
 #### Pattern 1: Direct Data (Original)
+
 ```tsx
 const prefabData = prefabRegistry.get('myPrefab')
 <Prefab data={prefabData} id="instance1" />
 ```
 
 #### Pattern 2: prefabKey (New)
+
 ```tsx
 <Prefab prefabKey="myPrefab" id="instance1" />
 ```
 
 #### Pattern 3: Data Override
+
 ```tsx
 // Even if prefabKey provided, data prop takes priority
 <Prefab prefabKey="foo" data={customData} id="instance1" />
 ```
 
 ### Verification
+
 - LSP diagnostics: Clean (no errors)
 - TypeScript compilation: Successful (pnpm exec tsc --noEmit)
 - Backward compatibility: Existing App.tsx usage (data prop) unchanged
 
 ### Integration Points
+
 - **App.tsx**: Can now use simpler `<Prefab prefabKey={instance.prefabKey} ... />` syntax
 - **prefabRegistry**: Direct access for lookup without intermediate get() calls
 - **Hierarchy**: prefabKey can be stored in instance state (cleaner than storing full data)
 
 ### Files Modified
+
 1. react-three-engine/src/components/Prefab.tsx:
    - Updated imports to include prefabRegistry
    - Modified PrefabProps interface (data/prefabKey optional)
@@ -2391,6 +2630,7 @@ const prefabData = prefabRegistry.get('myPrefab')
    - Preserved all rendering logic
 
 ### Future Enhancements
+
 - Error boundary for missing prefabs (log warnings)
 - TypeScript discriminated union (require exactly one of data/prefabKey)
 - Prefab caching/memoization for repeated lookups
@@ -2399,34 +2639,38 @@ const prefabData = prefabRegistry.get('myPrefab')
 ## Prefab Component Typing (Task 15) - 2026-02-22
 
 ### Implementation
+
 - **File**: react-three-engine/src/components/Prefab.tsx
 - **Change**: Made `id` prop optional in PrefabProps interface
 
 ### Update Details
 
 #### Before
+
 ```typescript
 interface PrefabProps {
-  data?: PrefabData
-  prefabKey?: string
-  id: string  // Required
-  onClick?: () => void
-  highlighted?: boolean
+  data?: PrefabData;
+  prefabKey?: string;
+  id: string; // Required
+  onClick?: () => void;
+  highlighted?: boolean;
 }
 ```
 
 #### After
+
 ```typescript
 interface PrefabProps {
-  data?: PrefabData
-  prefabKey?: string
-  id?: string  // Now optional
-  onClick?: () => void
-  highlighted?: boolean
+  data?: PrefabData;
+  prefabKey?: string;
+  id?: string; // Now optional
+  onClick?: () => void;
+  highlighted?: boolean;
 }
 ```
 
 ### Rationale
+
 - **Runtime Behavior**: The `id` prop is never used in component logic
 - **Prefab Lookup**: Data comes from either:
   1. `dataProp` (passed directly)
@@ -2435,38 +2679,45 @@ interface PrefabProps {
 - **Backward Compatible**: Existing code passing `id` continues to work
 
 ### Design Decision
+
 The component uses a fallback pattern: `const data = dataProp ?? (prefabKey ? prefabRegistry.get(prefabKey) : undefined)`
 
 When using `prefabKey`, the `id` is not required for functionality, so TypeScript should allow this usage pattern.
 
 ### Verification
+
 - TypeScript compilation: `pnpm exec tsc --project react-three-engine/tsconfig.json --noEmit` passes
 - No runtime changes (component behavior identical)
 - All existing usages still valid
 - New usage pattern `<Prefab prefabKey="abc" />` now typechecks successfully
 
 ### Files Modified
+
 1. react-three-engine/src/components/Prefab.tsx
    - Line 14: Changed `id: string` to `id?: string`
 
 ### Impact
+
 - Task 15 complete: Prefab component typing improved
 - Enables cleaner API for registry-based prefab instantiation
 - Maintains backward compatibility with existing id-based usage
-[2026-02-22 12:41:01]
+  [2026-02-22 12:41:01]
 
 ### F2 Code Quality Review
 
 **Build Status: PASS**
+
 - react-three-engine: TypeScript compilation succeeded with no errors
 - react-three-engine-demo: TypeScript compilation succeeded with no errors
 
 **Lint Status: FAIL (60 warnings)**
+
 - oxlint detected 60 eslint violations (all no-unused-vars, no-unassigned-vars)
 - Categories: unused imports, unused parameters, unused variables, never-assigned vars
 - Affected scopes: react-three-engine (9), gltfjsx-ui (1), .opencode/skills/webgpu-threejs-tsl (50)
 
 **Critical Findings:**
+
 1. Majority of warnings (50/60) from .opencode/skills examples/templates - not prod code
 2. Engine has 9 genuine unused-var warnings in vitePlugin.ts, Prefab.tsx, App.tsx
 3. gltfjsx-ui extension has 1 unused helper function
@@ -2474,6 +2725,7 @@ When using `prefabKey`, the `id` is not required for functionality, so TypeScrip
 ## oxlint Unused Parameters Fix - 2026-02-22
 
 ### Implementation
+
 - **Files Modified**: 3 files in react-three-engine/src/
   - vitePlugin.ts (4 unused params)
   - components/Prefab.tsx (1 unused param)
@@ -2482,14 +2734,17 @@ When using `prefabKey`, the `id` is not required for functionality, so TypeScrip
 ### Changes Applied
 
 #### vitePlugin.ts
+
 - Line 35: `...rest` → `..._rest` (destructured but unused plugin options)
 - Line 57: `config` → `_config` (configResolved hook param unused)
 - Line 70: `code, id` → `_code, _id` (transform hook params unused)
 
 #### Prefab.tsx
+
 - Line 31: `id` → `_id` in function signature (prop defined but not used in component)
 
 #### App.tsx
+
 - Line 35: `id` → `_id` in GLTFModelComponent (component receives id prop but doesn't use it)
 - Lines 528, 558, 579: `e` → `_e` in onClick arrow functions (event object not used in handlers)
 
@@ -2512,6 +2767,7 @@ When using `prefabKey`, the `id` is not required for functionality, so TypeScrip
    - Follows industry best practices for unused parameters
 
 ### Verification
+
 - **Pre-fix**: 8 oxlint warnings in these 3 files
 - **Post-fix**: 0 oxlint warnings in these 3 files
 - **LSP Diagnostics**: All three files pass clean
@@ -2532,11 +2788,13 @@ When using `prefabKey`, the `id` is not required for functionality, so TypeScrip
    - `e` (onClick handlers): Event object captured but handler only needs to trigger selection by ID
 
 ### Files Modified
+
 1. C:/Users/User/IdeaProjects/r3f-tools/react-three-engine/src/vitePlugin.ts
 2. C:/Users/User/IdeaProjects/r3f-tools/react-three-engine/src/components/Prefab.tsx
 3. C:/Users/User/IdeaProjects/r3f-tools/react-three-engine/src/App.tsx
 
 ### Next Steps
+
 - oxlint warnings resolved for react-three-engine package
 - Focus lint cleanup on .opencode/skills templates (remaining warnings)
 - No further action needed for this package's code quality
@@ -2544,9 +2802,11 @@ When using `prefabKey`, the `id` is not required for functionality, so TypeScrip
 ## Oxlint Cleanup: WebGPU Three.js TSL Skills (2026-02-22)
 
 ### Objective
+
 Fix all oxlint warnings in `.opencode/skills/webgpu-threejs-tsl/` directory by removing unused imports and renaming unused variables to comply with `no-unused-vars` and `no-unassigned-vars` rules.
 
 ### Initial State
+
 - 7 JavaScript files with multiple unused import/variable warnings
 - Template files intentionally include example code and imports for demonstration
 - Three.js Shading Language (TSL) imports from 'three/tsl' commonly flagged
@@ -2566,6 +2826,7 @@ Fix all oxlint warnings in `.opencode/skills/webgpu-threejs-tsl/` directory by r
 ### Patterns Applied
 
 #### Unused Variable Pattern
+
 ```javascript
 // Before (warning: no-unused-vars)
 const fresnel = ...
@@ -2575,6 +2836,7 @@ const _fresnel = ...
 ```
 
 #### Unused Function Pattern
+
 ```javascript
 // Before (warning: no-unused-vars)
 function setupPostProcessing() { ... }
@@ -2584,6 +2846,7 @@ function _setupPostProcessing() { ... }
 ```
 
 #### Template Placeholder Pattern
+
 ```javascript
 // Before (warning: no-unassigned-vars)
 let postProcessing;
@@ -2593,9 +2856,10 @@ let _postProcessing = undefined; // Explicit assignment
 ```
 
 #### Import Verification Strategy
+
 ```javascript
 // WRONG: Removing flagged import without checking
-import { vec3 } from 'three/tsl'; // oxlint says unused
+import { vec3 } from "three/tsl"; // oxlint says unused
 // ... later in code ...
 storage.toAttribute(vec3(0)); // BREAKS! vec3 WAS used
 
@@ -2608,24 +2872,29 @@ storage.toAttribute(vec3(0)); // BREAKS! vec3 WAS used
 ### Files Fixed (7/7)
 
 #### 1. post-processing.js
+
 - Removed: `vec2`, `vec3`, `vec4`, `mix`, `smoothstep`, `texture`, `grayscale`
 - Renamed: `scanlines` → `_scanlines`
 
 #### 2. particle-system.js
+
 - Removed: `vec3` (genuinely unused)
 - Kept: `float`, `color` (ARE used in code)
 
 #### 3. earth-shader.js
+
 - Removed: `If`, `vec4`, `clamp`, `dot`, `max`, `normalLocal`
 - Kept: `vec2`, `vec3` (used: `vec2(offset, 0)`, `vec3(1.0)`)
 - Renamed: `fresnel` → `_fresnel` (line 201)
 
 #### 4. custom-material.js
+
 - Removed: `vec2`, `vec3`, `texture`, `smoothstep`, `cos`
 - **Critical fix**: Added back `sin` and `mix` after initial removal (ARE used lines 89-91, 111)
 - Final kept imports: `Fn`, `color`, `float`, `uniform`, `uv`, `time`, `positionLocal`, `positionWorld`, `normalLocal`, `normalWorld`, `cameraPosition`, `sin`, `mix`
 
 #### 5. compute-shader.js
+
 - Removed: `Loop`, `int`, `vec2`, `vec4`, `time`, `deltaTime`
 - **Critical fix**: Added back `vec3` and `mix` (used: `vec3(0)` line 82, `mix()` in visualization)
 - Renamed in `computeInteraction`: `position` → `_position`, `velocity` → `_velocity`
@@ -2633,6 +2902,7 @@ storage.toAttribute(vec3(0)); // BREAKS! vec3 WAS used
 - Renamed: `createPointsVisualization` → `_createPointsVisualization` (commented alternative)
 
 #### 6. webgpu-project.js
+
 - Removed: `vec2`, `vec3`, `vec4`, `uniform`, `positionLocal`, `normalLocal`, `uv`, `deltaTime`, `smoothstep`, `clamp`, `sin`, `cos`, `texture`, `If`, `Loop`, `pass`
 - Kept only: `float`, `color`, `positionWorld`, `normalWorld`, `cameraPosition`, `time`, `mix`, `Fn`
 - Renamed in `animate`: `delta` → `_delta`, `elapsed` → `_elapsed`
@@ -2640,6 +2910,7 @@ storage.toAttribute(vec3(0)); // BREAKS! vec3 WAS used
 - Renamed: `setupPostProcessing` → `_setupPostProcessing`
 
 #### 7. basic-setup.js
+
 - Already clean (0 warnings)
 
 ### Results
@@ -2708,7 +2979,9 @@ storage.toAttribute(vec3(0)); // BREAKS! vec3 WAS used
 - ✅ Template semantics preserved (example code still usable)
 - ✅ No runtime breakage (only renamed unused code)
 - Overall project now has minimal lint warnings (5 total, none from this directory)
+
 ## Fixed oxlint warning in gltfjsx-ui/src/extension.ts
+
 - **Date**: 2026-02-22
 - **Issue**: Unused variable `resolveWebviewAsset` at line 131
 - **Fix**: Renamed to `_resolveWebviewAsset` to signal intentional non-usage
@@ -2722,6 +2995,7 @@ storage.toAttribute(vec3(0)); // BREAKS! vec3 WAS used
 **Root Cause**: Destructuring pattern mismatch with type definitions.
 
 **Fix Applied**:
+
 1. `App.tsx` line 35: `GLTFModelComponent` - changed parameter from `_id` to `id` in destructuring. The `id` is unused but declared, matching the type signature.
 2. `Prefab.tsx` line 31: `Prefab` function - changed parameter from `_id` to `id` in destructuring, matching `PrefabProps` interface.
 
@@ -2732,15 +3006,18 @@ storage.toAttribute(vec3(0)); // BREAKS! vec3 WAS used
 ## Fix oxlint warnings for unused id params (2026-02-22)
 
 **Scenario**: Two functions had unused `id` parameters flagged by oxlint for not starting with `_`:
+
 - `App.tsx` line 35: `GLTFModelComponent({ url, position, id, onClick, highlighted })`
 - `Prefab.tsx` line 31: `Prefab({ data: dataProp, prefabKey, id, onClick, highlighted })`
 
 **Approach**: Used destructuring alias syntax `{ id: _id }` to satisfy oxlint while maintaining type safety:
+
 - Preserves the type contract (param types unchanged: `id: string` in function signature)
 - Renames the local variable to `_id` (signals intentional non-usage)
 - **No runtime changes** - purely a static analysis fix
 
 **Implementation**:
+
 ```typescript
 // App.tsx line 35
 function GLTFModelComponent({ url, position, id: _id, onClick, highlighted }: { ... id: string ... })
@@ -2750,16 +3027,19 @@ export function Prefab({ data: dataProp, prefabKey, id: _id, onClick, highlighte
 ```
 
 **Why This Works**:
+
 - oxlint sees `_id` in destructuring (starts with `_`, no warning)
 - TypeScript sees `id: string` in type signature (no type mismatch)
 - Destructuring alias `id: _id` is perfectly valid TypeScript syntax
 - No unused binding warnings because `_id` follows the `_` prefix convention
 
 **Verification**:
+
 - `pnpm lint` → 0 warnings, 0 errors ✅
 - `pnpm exec tsc --project react-three-engine/tsconfig.json --noEmit` → Clean ✅
 
 **Key Learnings**:
+
 1. Type signature takes precedence over destructuring pattern names
 2. Destructuring aliases (`{ param: _param }`) enable elegant opt-out from naming conventions
 3. Leading `_` is the TypeScript/linter convention for intentionally unused variables
@@ -2768,12 +3048,14 @@ export function Prefab({ data: dataProp, prefabKey, id: _id, onClick, highlighte
 ## tsdown Build - Isolated Declarations Fix (TS9010) - 2026-02-22
 
 ### Issue
+
 - **Build Tool**: tsdown v0.4.0 with unplugin-isolated-decl enabled
 - **Error**: "Variable must have an explicit type annotation with --isolatedDeclarations (TS9010)"
 - **Root Cause**: tsdown uses unplugin-isolated-decl for fast .d.ts generation, which requires explicit type annotations on all exported variables
 - **Standard tsc**: Does NOT require explicit types (infers from initializer)
 
 ### Affected Files
+
 1. **react-three-engine/src/store/selection.ts**:
    - Export: `useSelectionStore` (Zustand store hook)
    - Fix: Added explicit return type `() => SelectionStoreState`
@@ -2800,16 +3082,19 @@ export function Prefab({ data: dataProp, prefabKey, id: _id, onClick, highlighte
 ### Type Annotation Patterns
 
 #### Zustand Store Hooks
+
 - **Before**: `export const useStore = create<State>(...)`
 - **After**: `export const useStore: () => State = create<State>(...)`
 - **Reason**: unplugin-isolated-decl cannot infer complex return types from Zustand's create() function
 
 #### React forwardRef Components
+
 - **Before**: `export const Component = forwardRef<RefType, Props>(...)`
 - **After**: `export const Component: React.ForwardRefExoticComponent<Props & React.RefAttributes<RefType>> = forwardRef<RefType, Props>(...)`
 - **Reason**: forwardRef return type is complex generic wrapper, requires explicit annotation for isolated declarations
 
 ### Build Verification
+
 - Command: `pnpm --filter react-three-engine build`
 - Result: PASS (552ms)
 - Output: dist/ with .js, .cjs, .d.ts files
@@ -2838,6 +3123,7 @@ export function Prefab({ data: dataProp, prefabKey, id: _id, onClick, highlighte
    - Slightly more verbose, but clearer intent
 
 ### Files Modified
+
 - react-three-engine/src/store/selection.ts (line 32)
 - react-three-engine/src/store/entities.ts (line 57)
 - react-three-engine/src/components/PrimitiveBox.tsx (line 11)
@@ -2845,6 +3131,7 @@ export function Prefab({ data: dataProp, prefabKey, id: _id, onClick, highlighte
 - react-three-engine/src/components/PrimitiveSphere.tsx (line 11)
 
 ### Impact
+
 - react-three-engine now builds successfully with tsdown
 - All .d.ts files generated correctly with isolated declarations
 - No functionality changes (type annotations only)

@@ -20,11 +20,13 @@ A React Three Fiber engine with WebGPU support. This package provides a scene ma
 ## Dependencies
 
 The following peer dependencies are required:
+
 - `react` >= 18.0.0
 - `react-dom` >= 18.0.0
 - `three` >= 0.160.0
 
 Included dependencies:
+
 - `@react-three/fiber` ^9.0.0
 - `@react-three/drei` ^10.0.0
 - `zustand` ^5.0.0
@@ -51,17 +53,17 @@ You can inject custom traits via the Vite plugin. Provide a map of trait names t
 
 ```ts
 // vite.config.ts
-import { reactThreeEnginePlugin } from 'react-three-engine/vite'
+import { reactThreeEnginePlugin } from "react-three-engine/vite";
 
 export default defineConfig({
   plugins: [
     reactThreeEnginePlugin({
       traits: {
-        myCustomTrait: '/src/traits/myCustomTrait'
-      }
-    })
-  ]
-})
+        myCustomTrait: "/src/traits/myCustomTrait",
+      },
+    }),
+  ],
+});
 ```
 
 ## Known Limitations

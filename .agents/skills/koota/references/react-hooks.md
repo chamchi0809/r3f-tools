@@ -41,11 +41,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 **`sim/world.ts`:**
 
 ```typescript
-import { createWorld } from 'koota'
-import { Time, Pointer, Viewport } from './traits'
+import { createWorld } from "koota";
+import { Time, Pointer, Viewport } from "./traits";
 
 // Pass singleton traits to createWorld for global data
-export const world = createWorld(Time, Pointer, Viewport)
+export const world = createWorld(Time, Pointer, Viewport);
 ```
 
 ## useQuery
@@ -64,8 +64,8 @@ function RocketList() {
 Supports all query modifiers:
 
 ```typescript
-const staticEntities = useQuery(Position, Not(Velocity))
-const characters = useQuery(Or(IsPlayer, IsEnemy))
+const staticEntities = useQuery(Position, Not(Velocity));
+const characters = useQuery(Or(IsPlayer, IsEnemy));
 ```
 
 ## useQueryFirst
@@ -86,10 +86,10 @@ function PlayerHUD() {
 
 ```typescript
 // ✅ Single entity
-const player = useQueryFirst(IsPlayer)
+const player = useQueryFirst(IsPlayer);
 
 // ❌ Avoid
-const player = useQuery(IsPlayer)[0]
+const player = useQuery(IsPlayer)[0];
 ```
 
 ## useTrait
@@ -178,20 +178,20 @@ function InventoryDisplay({ entity }: { entity: Entity }) {
 Subscribe to trait changes without causing rerenders. Runs as an effect. Also accepts relation pairs.
 
 ```typescript
-import { useTraitEffect } from 'koota/react'
+import { useTraitEffect } from "koota/react";
 
 function SyncMesh({ entity, meshRef }: Props) {
   useTraitEffect(entity, Position, (position) => {
-    if (!position) return
-    meshRef.current.position.set(position.x, position.y, 0)
-  })
-  return null
+    if (!position) return;
+    meshRef.current.position.set(position.x, position.y, 0);
+  });
+  return null;
 }
 
 // Subscribe to a specific relation pair
 useTraitEffect(entity, ChildOf(parent), (data) => {
-  console.log('ChildOf data changed:', data)
-})
+  console.log("ChildOf data changed:", data);
+});
 ```
 
 ## Actions
@@ -201,26 +201,26 @@ Actions are functions that spawn or modify entities. Use `createActions` to get 
 **`sim/actions.ts`:**
 
 ```typescript
-import { createActions, type Entity } from 'koota'
-import { Position, Velocity, Health, IsPlayer, IsEnemy, IsDead } from './traits'
+import { createActions, type Entity } from "koota";
+import { Position, Velocity, Health, IsPlayer, IsEnemy, IsDead } from "./traits";
 
 export const actions = createActions((world) => ({
   spawnPlayer: () => {
-    return world.spawn(Position({ x: 0, y: 0 }), Velocity, Health({ value: 100 }), IsPlayer)
+    return world.spawn(Position({ x: 0, y: 0 }), Velocity, Health({ value: 100 }), IsPlayer);
   },
 
   spawnEnemy: (x: number, y: number) => {
-    return world.spawn(Position({ x, y }), Velocity, Health({ value: 50 }), IsEnemy)
+    return world.spawn(Position({ x, y }), Velocity, Health({ value: 50 }), IsEnemy);
   },
 
   damageEntity: (entity: Entity, amount: number) => {
-    const health = entity.get(Health)
+    const health = entity.get(Health);
     if (health) {
-      entity.set(Health, { value: Math.max(0, health.value - amount) })
-      if (health.value <= 0) entity.add(IsDead)
+      entity.set(Health, { value: Math.max(0, health.value - amount) });
+      if (health.value <= 0) entity.add(IsDead);
     }
   },
-}))
+}));
 ```
 
 **Using actions:**
@@ -235,23 +235,23 @@ Hooks like `useTrait` rerender when change events fire.
 **Automatic:** `set()` triggers change events automatically.
 
 ```typescript
-entity.set(Position, { x: 10, y: 20 }) // Triggers change, useTrait rerenders
-world.set(GameState, { paused: true }) // Works for world traits too
+entity.set(Position, { x: 10, y: 20 }); // Triggers change, useTrait rerenders
+world.set(GameState, { paused: true }); // Works for world traits too
 ```
 
 **Manual (for AoS traits):** When mutating objects directly, signal the change:
 
 ```typescript
 // ❌ Won't trigger React updates
-const history = entity.get(History)!
-history.undoStack.push(batch)
+const history = entity.get(History)!;
+history.undoStack.push(batch);
 ```
 
 ```typescript
 // ✅ Mutate then signal
-const history = entity.get(History)!
-history.undoStack.push(batch)
-entity.changed(History)
+const history = entity.get(History)!;
+history.undoStack.push(batch);
+entity.changed(History);
 ```
 
 **When to use `changed()`:**

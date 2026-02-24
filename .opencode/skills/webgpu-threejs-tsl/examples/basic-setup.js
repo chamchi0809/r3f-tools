@@ -8,20 +8,15 @@
  * https://github.com/mrdoob/three.js
  */
 
-import * as THREE from 'three/webgpu';
-import { color, time, oscSine, positionLocal, normalWorld } from 'three/tsl';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as THREE from "three/webgpu";
+import { color, time, oscSine, positionLocal, normalWorld } from "three/tsl";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 let camera, scene, renderer, controls;
 
 async function init() {
   // Camera
-  camera = new THREE.PerspectiveCamera(
-    70,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    100
-  );
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
   camera.position.z = 4;
 
   // Scene
@@ -41,13 +36,11 @@ async function init() {
   const material = new THREE.MeshStandardNodeMaterial();
 
   // Animated color using TSL
-  material.colorNode = color(0x0088ff).mul(
-    oscSine(time.mul(0.5)).mul(0.5).add(0.5)
-  );
+  material.colorNode = color(0x0088ff).mul(oscSine(time.mul(0.5)).mul(0.5).add(0.5));
 
   // Add slight position wobble
   material.positionNode = positionLocal.add(
-    normalWorld.mul(oscSine(time.mul(2.0).add(positionLocal.y)).mul(0.05))
+    normalWorld.mul(oscSine(time.mul(2.0).add(positionLocal.y)).mul(0.05)),
   );
 
   const mesh = new THREE.Mesh(geometry, material);
@@ -67,7 +60,7 @@ async function init() {
   controls.enableDamping = true;
 
   // Handle resize
-  window.addEventListener('resize', onWindowResize);
+  window.addEventListener("resize", onWindowResize);
 
   // Start animation loop
   renderer.setAnimationLoop(animate);

@@ -10,7 +10,7 @@
  * https://github.com/mrdoob/three.js
  */
 
-import * as THREE from 'three/webgpu';
+import * as THREE from "three/webgpu";
 import {
   Fn,
   If,
@@ -20,9 +20,9 @@ import {
   instancedArray,
   instanceIndex,
   hash,
-  time
-} from 'three/tsl';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  time,
+} from "three/tsl";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 let camera, scene, renderer, controls;
 let computeInit, computeUpdate, computeHit;
@@ -31,8 +31,8 @@ let computeInit, computeUpdate, computeHit;
 const PARTICLE_COUNT = 100000;
 
 // Storage buffers
-const positions = instancedArray(PARTICLE_COUNT, 'vec3');
-const velocities = instancedArray(PARTICLE_COUNT, 'vec3');
+const positions = instancedArray(PARTICLE_COUNT, "vec3");
+const velocities = instancedArray(PARTICLE_COUNT, "vec3");
 
 // Uniforms
 const gravity = uniform(-9.8);
@@ -60,7 +60,7 @@ async function init() {
   // Floor
   const floorGeometry = new THREE.PlaneGeometry(30, 30);
   const floorMaterial = new THREE.MeshStandardNodeMaterial({
-    color: 0x333333
+    color: 0x333333,
   });
   const floor = new THREE.Mesh(floorGeometry, floorMaterial);
   floor.rotation.x = -Math.PI / 2;
@@ -91,8 +91,8 @@ async function init() {
   controls.target.set(0, 2, 0);
 
   // Events
-  window.addEventListener('resize', onWindowResize);
-  renderer.domElement.addEventListener('click', onClick);
+  window.addEventListener("resize", onWindowResize);
+  renderer.domElement.addEventListener("click", onClick);
 
   renderer.setAnimationLoop(animate);
 }
@@ -175,7 +175,11 @@ function createComputeShaders() {
       const force = float(3.0).sub(distance).div(3.0).mul(hitStrength);
 
       // Add randomness
-      const randomForce = force.mul(hash(instanceIndex.add(time.mul(1000))).mul(0.5).add(0.75));
+      const randomForce = force.mul(
+        hash(instanceIndex.add(time.mul(1000)))
+          .mul(0.5)
+          .add(0.75),
+      );
 
       velocity.addAssign(direction.mul(randomForce));
       velocity.y.addAssign(randomForce.mul(0.5));
@@ -216,7 +220,7 @@ function onClick(event) {
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2(
     (event.clientX / window.innerWidth) * 2 - 1,
-    -(event.clientY / window.innerHeight) * 2 + 1
+    -(event.clientY / window.innerHeight) * 2 + 1,
   );
 
   raycaster.setFromCamera(mouse, camera);

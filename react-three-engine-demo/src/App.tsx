@@ -7,8 +7,7 @@ function App() {
     <div style={{ padding: "2rem", fontFamily: "system-ui" }}>
       <h1>React Three Engine Demo</h1>
       <p>
-        This is a demonstration application for the{" "}
-        <code>react-three-engine</code> package.
+        This is a demonstration application for the <code>react-three-engine</code> package.
       </p>
       <nav>
         <button
