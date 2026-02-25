@@ -97,9 +97,9 @@ importers:
       '@react-three/fiber':
         specifier: ^9.0.0
         version: 9.5.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.182.0)
-      flexlayout-react:
-        specifier: ^0.8.18
-        version: 0.8.18(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      dockview:
+        specifier: ^5.0.0
+        version: 5.0.0(react@19.2.4)
       koota:
         specifier: 0.6.5
         version: 0.6.5(@types/react@19.2.14)(react@19.2.4)
@@ -1330,6 +1330,14 @@ packages:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
 
+  dockview-core@5.0.0:
+    resolution: {integrity: sha512-bUgH/e/PTVZ/5Y97QvF30eAs67HPzTQUbcVMojwsWX/RKys5bQCblGMvxPu+KVx+jes2JIhepFvjMepCyz1uNQ==}
+
+  dockview@5.0.0:
+    resolution: {integrity: sha512-GPUMnhaZ7pH28Ai6HPEu4cecp9xNSp4tMtDn/In7sYCDhTztBbbLEK3BqbAwiJBEUXadnZ7j01BaZkz9ndJJ7A==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   dom-serializer@2.0.0:
     resolution: {integrity: sha512-wIkAryiqt/nV5EQKqQpo3SToSOV9J0DnbJqwK7Wv/Trc92zIAYZ4FlMu+JPFW1DfGFt81ZTCGgDEabffXeLyJg==}
 
@@ -1453,12 +1461,6 @@ packages:
 
   find-root@1.1.0:
     resolution: {integrity: sha512-NKfW6bec6GfKc0SGx1e07QZY9PE99u0Bft/0rzSD5k3sO/vwkVUpDUKVm5Gpp5Ue3YfShPFTX2070tDs5kB9Ng==}
-
-  flexlayout-react@0.8.18:
-    resolution: {integrity: sha512-xxifwxfS0NigaPHkunKZ39CafGzm7L+UDEcfuNatiOKhDQaIujmMwQrE1/B7uxbHNN3P19yoX/DJmtMo/sIiZA==}
-    peerDependencies:
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
 
   form-data@4.0.5:
     resolution: {integrity: sha512-8RipRLol37bNs2bhoV67fiTEvdTrbMUYcFTiy3+wuuOnUog2QBHCZWXDRijWQfAkhBj2Uf5UnVaiWwA5vdd82w==}
@@ -3506,6 +3508,13 @@ snapshots:
   detect-libc@2.1.2:
     optional: true
 
+  dockview-core@5.0.0: {}
+
+  dockview@5.0.0(react@19.2.4):
+    dependencies:
+      dockview-core: 5.0.0
+      react: 19.2.4
+
   dom-serializer@2.0.0:
     dependencies:
       domelementtype: 2.3.0
@@ -3634,11 +3643,6 @@ snapshots:
   fflate@0.8.2: {}
 
   find-root@1.1.0: {}
-
-  flexlayout-react@0.8.18(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
-    dependencies:
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
 
   form-data@4.0.5:
     dependencies:

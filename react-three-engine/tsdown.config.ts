@@ -23,7 +23,7 @@ export default defineConfig({
     "@emotion/hash",
     "@emotion/weak-memoize",
     "@emotion/memoize",
-    "flexlayout-react",
+    "dockview",
   ],
   external: [
     "react",

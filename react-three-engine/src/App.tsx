@@ -1,21 +1,16 @@
+import { injectGlobal } from "@emotion/css";
 import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
+import { DockviewReact, IDockviewPanelHeaderProps } from "dockview";
+import "dockview/dist/styles/dockview.css";
 import React, { useRef, useState } from "react";
 import * as THREE from "three/webgpu";
 import { HierarchyPane } from "./components/HierarchyPane";
 import { InspectorPane } from "./components/InspectorPane";
 import { PrefabPanel } from "./components/PrefabPanel";
 import { SceneContent } from "./components/SceneContent";
-import {
-  Toolbar,
-  TransformModeBar,
-  type TransformMode,
-} from "./components/Toolbar";
+import { TransformModeBar, type TransformMode } from "./components/Toolbar";
 import "./styles";
-import { injectGlobal } from "@emotion/css";
-import styled from "@emotion/styled";
-import "flexlayout-react/style/dark.css";
-import { Layout, Model, TabNode } from "flexlayout-react";
 
 const Viewport = () => {
   const [transformDragging, setTransformDragging] = useState(false);
@@ -46,115 +41,69 @@ const Viewport = () => {
     </>
   );
 };
-const model = Model.fromJson({
-  global: {},
-  borders: [
-    {
-      type: "border",
-      location: "bottom",
-      autoSelectTabWhenOpen: true,
-      selected: 0,
-      children: [
-        {
-          type: "tab",
-          name: "Prefabs",
-          component: "prefabs",
-          enableClose: false,
-        },
-      ],
-    },
-  ],
-  layout: {
-    type: "row",
-    weight: 100,
-    children: [
-      {
-        type: "tabset",
-        weight: 50,
-        children: [
-          {
-            type: "tab",
-            name: "Hierarchy",
-            component: "hierarchy",
-            enableClose: false,
-          },
-        ],
-      },
-      {
-        type: "tabset",
-        weight: 100,
-        children: [
-          {
-            type: "tab",
-            name: "Viewport",
-            component: "viewport",
-            enableClose: false,
-          },
-        ],
-      },
-      {
-        type: "tabset",
-        weight: 50,
-        children: [
-          {
-            type: "tab",
-            name: "Inspector",
-            component: "inspector",
-            enableClose: false,
-          },
-        ],
-      },
-    ],
-  },
-});
 
 export default function App(): React.JSX.Element {
   const refreshRef = useRef(0);
 
-  const factory = (node: TabNode) => {
-    const component = node.getComponent();
-    if (component === "hierarchy") {
-      return <HierarchyPane />;
-    }
-    if (component === "viewport") {
-      return <Viewport />;
-    }
-    if (component === "inspector") {
-      return <InspectorPane />;
-    }
-    if (component === "prefabs") {
-      return (
-        <PrefabPanel
-          onClose={() => {}}
-          onRefresh={() => {
-            refreshRef.current += 1;
-          }}
-        />
-      );
-    }
-  };
-
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        width: "100vw",
-        height: "100vh",
-        background: "#1e1e1e",
-        color: "#ccc",
-        fontFamily: "system-ui, sans-serif",
-      }}
-    >
-      <Toolbar onTogglePrefabs={() => {}} />
-      <div
-        style={{
-          flex: 1,
-          position: "relative",
+    <div style={{ width: "100dvw", height: "100dvh" }}>
+      <DockviewReact
+        onReady={(e) => {
+          e.api.addPanel({
+            id: "hierarchy",
+            title: "Hierarchy",
+            component: "hierarchy",
+            tabComponent: "default",
+          });
+          e.api.addPanel({
+            id: "viewport",
+            title: "Viewport",
+            component: "viewport",
+            tabComponent: "default",
+            position: {
+              referencePanel: "hierarchy",
+              direction: "right",
+            },
+          });
+          e.api.addPanel({
+            id: "inspector",
+            title: "Inspector",
+            component: "inspector",
+            tabComponent: "default",
+            position: {
+              referencePanel: "viewport",
+              direction: "right",
+            },
+          });
+          e.api.addPanel({
+            id: "prefabs",
+            title: "Prefabs",
+            component: "prefabs",
+            tabComponent: "default",
+            position: {
+              direction: "below",
+            },
+          });
         }}
-      >
-        <Layout model={model} factory={factory} />
-      </div>
+        components={{
+          hierarchy: HierarchyPane,
+          viewport: Viewport,
+          inspector: InspectorPane,
+          prefabs: () => (
+            <PrefabPanel
+              onClose={() => {}}
+              onRefresh={() => {
+                refreshRef.current += 1;
+              }}
+            />
+          ),
+        }}
+        tabComponents={{
+          default: (props: IDockviewPanelHeaderProps) => {
+            return <div>{props.api.title}</div>;
+          },
+        }}
+      />
     </div>
   );
 }
