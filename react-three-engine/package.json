@@ -30,6 +30,9 @@
       "require": "./dist/vitePlugin.cjs"
     }
   },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
