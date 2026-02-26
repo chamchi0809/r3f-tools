@@ -10,6 +10,7 @@ import {
   type MaterialType,
   type SerializedMaterial,
 } from "../store/sceneStore";
+import { useSettingsStore } from "../store/settingsStore";
 import { numInputStyle, textInputStyle } from "../styles";
 import {
   introspectObject,
@@ -732,13 +733,21 @@ function AutoFieldGroup({
   target,
   onCommit,
   defaultOpen = true,
+  isFieldVisible,
 }: {
   group: PropGroup;
   target: object;
   onCommit: () => void;
   defaultOpen?: boolean;
+  isFieldVisible?: (className: string, propKey: string) => boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const visibleProps = isFieldVisible
+    ? group.props.filter((info) => isFieldVisible(group.className, info.key))
+    : group.props;
+
+  // Don't render the group header at all if no visible props
+  if (visibleProps.length === 0) return null;
 
   return (
     <div>
@@ -763,7 +772,7 @@ function AutoFieldGroup({
         <span style={{ fontSize: 9, color: "#555" }}>{open ? "▼" : "▶"}</span>
         {group.className}
       </div>
-      {open && group.props.map((info) => (
+      {open && visibleProps.map((info) => (
         <AutoField
           key={info.key}
           className={group.className}
@@ -788,7 +797,17 @@ const GEOMETRY_TYPES: GeometryType[] = [
   "CapsuleGeometry",
 ];
 
-function GeometryEditor({ uuid, mesh }: { uuid: string; mesh: THREE.Mesh }) {
+function GeometryEditor({
+  uuid,
+  mesh,
+  debugMode,
+  isFieldVisible,
+}: {
+  uuid: string;
+  mesh: THREE.Mesh;
+  debugMode: boolean;
+  isFieldVisible: (className: string, propKey: string) => boolean;
+}) {
   useSceneStore((s) => s.version);
   const params = readGeometryParams(mesh.geometry);
   const geo = mesh.geometry;
@@ -797,12 +816,15 @@ function GeometryEditor({ uuid, mesh }: { uuid: string; mesh: THREE.Mesh }) {
     if (type !== params.type) sceneActions.setGeometryType(uuid, type);
   };
 
-  const set = (patch: Partial<GeometryParams>) => sceneActions.setGeometryParams(uuid, patch);
-  void set;
+  // onCommit for geometry parameter fields: read back the (mutated) parameters
+  // and rebuild the geometry, since Three.js geometries are immutable.
+  const onCommit = () => {
+    const current = readGeometryParams(mesh.geometry);
+    sceneActions.setGeometryParams(uuid, current);
+  };
 
   // introspect the geometry for auto fields
-  const groups = introspectGeometry(geo);
-  const onCommit = () => sceneActions.invalidate();
+  const groups = introspectGeometry(geo, debugMode);
 
   return (
     <>
@@ -825,6 +847,7 @@ function GeometryEditor({ uuid, mesh }: { uuid: string; mesh: THREE.Mesh }) {
               : geo
           }
           onCommit={onCommit}
+          isFieldVisible={isFieldVisible}
         />
       ))}
     </>
@@ -849,7 +872,17 @@ const MATERIAL_LABELS: Record<MaterialType, string> = {
   MeshNormalMaterial: "Normal",
 };
 
-function MaterialEditor({ uuid, mesh }: { uuid: string; mesh: THREE.Mesh }) {
+function MaterialEditor({
+  uuid,
+  mesh,
+  debugMode,
+  isFieldVisible,
+}: {
+  uuid: string;
+  mesh: THREE.Mesh;
+  debugMode: boolean;
+  isFieldVisible: (className: string, propKey: string) => boolean;
+}) {
   useSceneStore((s) => s.version);
   const mat = readMaterialProps(mesh.material as THREE.Material);
   const material = mesh.material as THREE.Material;
@@ -860,7 +893,7 @@ function MaterialEditor({ uuid, mesh }: { uuid: string; mesh: THREE.Mesh }) {
 
   void mat;
 
-  const groups = introspectMaterial(material);
+  const groups = introspectMaterial(material, debugMode);
   const onCommit = () => sceneActions.invalidate();
 
   return (
@@ -880,6 +913,7 @@ function MaterialEditor({ uuid, mesh }: { uuid: string; mesh: THREE.Mesh }) {
           group={group}
           target={material}
           onCommit={onCommit}
+          isFieldVisible={isFieldVisible}
         />
       ))}
     </>
@@ -888,9 +922,17 @@ function MaterialEditor({ uuid, mesh }: { uuid: string; mesh: THREE.Mesh }) {
 
 // ─── Auto object editor (lights, cameras, groups, etc.) ──────────────────────
 
-function ObjectAutoEditor({ obj }: { obj: THREE.Object3D }) {
+function ObjectAutoEditor({
+  obj,
+  debugMode,
+  isFieldVisible,
+}: {
+  obj: THREE.Object3D;
+  debugMode: boolean;
+  isFieldVisible: (className: string, propKey: string) => boolean;
+}) {
   useSceneStore((s) => s.version);
-  const groups = introspectObject(obj);
+  const groups = introspectObject(obj, debugMode);
   const onCommit = () => {
     // If this is a camera (or has a shadow camera), call updateProjectionMatrix
     if (obj instanceof THREE.PerspectiveCamera || obj instanceof THREE.OrthographicCamera) {
@@ -917,6 +959,7 @@ function ObjectAutoEditor({ obj }: { obj: THREE.Object3D }) {
           group={group}
           target={obj}
           onCommit={onCommit}
+          isFieldVisible={isFieldVisible}
         />
       ))}
     </>
@@ -930,6 +973,18 @@ export function InspectorPane(): React.JSX.Element {
   const selectedUUID = useSceneStore((s) => s.selectedUUID);
   const version = useSceneStore((s) => s.version);
 
+  // Settings — subscribe to primitives so re-renders fire when they change
+  const debugMode = useSettingsStore((s) => s.debugMode);
+  const hiddenFields = useSettingsStore((s) => s.hiddenFields);
+  const isFieldVisible = useCallback(
+    (className: string, propKey: string) => {
+      if (debugMode) return true;
+      if (hiddenFields.has(`${className}.${propKey}`)) return false;
+      if (hiddenFields.has(propKey)) return false;
+      return true;
+    },
+    [debugMode, hiddenFields],
+  );
   const obj = selectedUUID ? (objects.get(selectedUUID) ?? null) : null;
 
   const pos: [number, number, number] = obj
@@ -975,9 +1030,31 @@ export function InspectorPane(): React.JSX.Element {
 
   const isMesh = obj instanceof THREE.Mesh;
   const isLight = obj instanceof THREE.Light;
+  void isLight;
 
   return (
     <div style={{ padding: "12px", overflowY: "auto", height: "100%" }}>
+      {/* Debug mode badge */}
+      {debugMode && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "4px 8px",
+            marginBottom: 10,
+            background: "#1a2d1a",
+            border: "1px solid #2d5a2d",
+            borderRadius: 4,
+            fontSize: 10,
+            color: "#6aef6a",
+          }}
+        >
+          <span style={{ fontSize: 12 }}>⬡</span>
+          Debug Mode — all fields visible
+        </div>
+      )}
+
       {/* Name */}
       <div style={{ marginBottom: 14 }}>
         <div style={sectionLabel}>Name</div>
@@ -1008,15 +1085,23 @@ export function InspectorPane(): React.JSX.Element {
       {/* Mesh: geometry + material type switchers + auto fields */}
       {isMesh && selectedUUID && (
         <>
-          <GeometryEditor uuid={selectedUUID} mesh={obj} />
-          <MaterialEditor uuid={selectedUUID} mesh={obj} />
+          <GeometryEditor
+            uuid={selectedUUID}
+            mesh={obj}
+            debugMode={debugMode}
+            isFieldVisible={isFieldVisible}
+          />
+          <MaterialEditor
+            uuid={selectedUUID}
+            mesh={obj}
+            debugMode={debugMode}
+            isFieldVisible={isFieldVisible}
+          />
         </>
       )}
 
-
-
       {/* All other auto-generated object properties (lights, cameras, groups, etc.) */}
-      <ObjectAutoEditor obj={obj} />
+      <ObjectAutoEditor obj={obj} debugMode={debugMode} isFieldVisible={isFieldVisible} />
     </div>
   );
 }

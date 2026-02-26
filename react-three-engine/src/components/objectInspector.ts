@@ -106,6 +106,11 @@ function classifyValue(value: unknown): PropValueType {
   if (typeof value === "number")      return "number";
   if (typeof value === "boolean")     return "boolean";
   if (typeof value === "string")      return "string";
+  // Guard: arrays, typed arrays, ArrayBuffer, DOM nodes — never inspectable sub-objects
+  if (Array.isArray(value))           return "unsupported";
+  if (ArrayBuffer.isView(value))      return "unsupported";
+  if (value instanceof ArrayBuffer)   return "unsupported";
+  if (typeof window !== "undefined" && value instanceof Element) return "unsupported";
   // Plain object with an inspectable prototype chain → sub-object
   if (value !== null && typeof value === "object") {
     const chain = protoChain(value as object);
@@ -154,17 +159,17 @@ function findOwnerClass(
  */
 const _introspecting = new WeakSet<object>();
 
-function introspect(target: object): PropGroup[] {
+function introspect(target: object, debug = false): PropGroup[] {
   if (_introspecting.has(target)) return [];
   _introspecting.add(target);
   try {
-    return _introspectInner(target);
+    return _introspectInner(target, debug);
   } finally {
     _introspecting.delete(target);
   }
 }
 
-function _introspectInner(target: object): PropGroup[] {
+function _introspectInner(target: object, debug = false): PropGroup[] {
   const chain = protoChain(target);
   if (chain.length === 0) return [];
 
@@ -186,7 +191,7 @@ function _introspectInner(target: object): PropGroup[] {
   const groupMap = new Map<string, PropInfo[]>();
 
   for (const key of allKeys) {
-    if (shouldSkipKey(key)) continue;
+    if (!debug && shouldSkipKey(key)) continue;
 
     // Read value
     let value: unknown;
@@ -200,12 +205,12 @@ function _introspectInner(target: object): PropGroup[] {
     if (typeof value === "function" || value === null || value === undefined) continue;
 
     const vt = classifyValue(value);
-    if (vt === "unsupported") continue;
+    if (!debug && vt === "unsupported") continue;
 
     // Build PropInfo — for sub-objects, attach nested groups
     let subGroups: PropGroup[] | undefined;
     if (vt === "object") {
-      subGroups = introspect(value as object);
+      subGroups = introspect(value as object, debug);
       // If sub-object has no renderable fields, skip it entirely
       if (!subGroups || subGroups.length === 0) continue;
     }
@@ -243,15 +248,15 @@ function _introspectInner(target: object): PropGroup[] {
 
 // ─── public API ──────────────────────────────────────────────────────────────
 
-export function introspectObject(obj: THREE.Object3D): PropGroup[] {
-  return introspect(obj);
+export function introspectObject(obj: THREE.Object3D, debug = false): PropGroup[] {
+  return introspect(obj, debug);
 }
 
-export function introspectMaterial(mat: THREE.Material): PropGroup[] {
-  return introspect(mat);
+export function introspectMaterial(mat: THREE.Material, debug = false): PropGroup[] {
+  return introspect(mat, debug);
 }
 
-export function introspectGeometry(geo: THREE.BufferGeometry): PropGroup[] {
+export function introspectGeometry(geo: THREE.BufferGeometry, debug = false): PropGroup[] {
   // Expose geo.parameters as a top-level group first (the user-facing params
   // like width/height/radius are the most useful geometry properties)
   const groups: PropGroup[] = [];
@@ -271,7 +276,7 @@ export function introspectGeometry(geo: THREE.BufferGeometry): PropGroup[] {
   }
 
   // Run standard introspection but filter out parameter keys and "parameters" itself
-  const raw = introspect(geo);
+  const raw = introspect(geo, debug);
   for (const group of raw) {
     const filtered = group.props.filter(
       (p) => p.key !== "parameters" && !paramKeys.has(p.key),

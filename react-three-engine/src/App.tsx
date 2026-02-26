@@ -7,6 +7,7 @@ import React, { useRef, useState } from "react";
 import * as THREE from "three/webgpu";
 import { HierarchyPane } from "./components/HierarchyPane";
 import { InspectorPane } from "./components/InspectorPane";
+import { SettingsPane } from "./components/SettingsPane";
 import { PrefabPanel } from "./components/PrefabPanel";
 import { SceneContent } from "./components/SceneContent";
 import { TransformModeBar, type TransformMode } from "./components/Toolbar";
@@ -77,6 +78,16 @@ export default function App(): React.JSX.Element {
             },
           });
           e.api.addPanel({
+            id: "settings",
+            title: "Settings",
+            component: "settings",
+            tabComponent: "default",
+            position: {
+              referencePanel: "inspector",
+              direction: "within",
+            },
+          });
+          e.api.addPanel({
             id: "prefabs",
             title: "Prefabs",
             component: "prefabs",
@@ -90,6 +101,7 @@ export default function App(): React.JSX.Element {
           hierarchy: HierarchyPane,
           viewport: Viewport,
           inspector: InspectorPane,
+          settings: SettingsPane,
           prefabs: () => (
             <PrefabPanel
               onClose={() => {}}
