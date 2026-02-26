@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three/webgpu";
 import { editorConfig } from "virtual:react-three-engine/config";
 import type { ThreeElements } from "@react-three/fiber";
-import { makeObject } from "../store/sceneStore";
-import type { SerializedObject, SerializedMaterial } from "../store/sceneStore";
+import { makeObject, buildMaterial, buildGeometry, applySerializedObject } from "../store/sceneStore";
+import type { SerializedObject } from "../store/sceneStore";
 import type { PrefabTypeRegistry, PrefabRef } from "../prefabTypes";
 
 export type PrefabProps<K extends string = string> = Omit<
@@ -14,30 +14,17 @@ export type PrefabProps<K extends string = string> = Omit<
   ref?: React.Ref<PrefabRef<K>>;
 };
 
-function buildMaterial(
-  mat: SerializedMaterial,
-): THREE.MeshStandardMaterial | THREE.MeshBasicMaterial {
-  if (mat.type === "MeshStandardMaterial") {
-    const m = new THREE.MeshStandardMaterial();
-    m.color.set(mat.color);
-    if (mat.roughness !== undefined) m.roughness = mat.roughness;
-    if (mat.metalness !== undefined) m.metalness = mat.metalness;
-    return m;
-  }
-  const m = new THREE.MeshBasicMaterial();
-  m.color.set(mat.color);
-  return m;
-}
-
 function buildSubtree(serialized: SerializedObject): THREE.Object3D {
   const obj = makeObject(serialized.kind);
   obj.name = serialized.name;
   obj.position.set(...serialized.position);
   obj.rotation.set(...serialized.rotation);
   obj.scale.set(...serialized.scale);
-  if (serialized.material && obj instanceof THREE.Mesh) {
-    obj.material = buildMaterial(serialized.material);
+  if (obj instanceof THREE.Mesh) {
+    if (serialized.geometry) obj.geometry = buildGeometry(serialized.geometry);
+    if (serialized.material) obj.material = buildMaterial(serialized.material);
   }
+  applySerializedObject(obj, serialized);
   for (const child of serialized.children) {
     obj.add(buildSubtree(child));
   }

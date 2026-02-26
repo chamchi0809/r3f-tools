@@ -1,2 +1,2 @@
-export { useSceneStore, sceneActions } from "./sceneStore";
-export type { ObjectKind, SerializedMaterial, SerializedObject } from "./sceneStore";
+export { useSceneStore, sceneActions, buildMaterial, buildGeometry, readMaterialProps, readGeometryParams, readLightProps, readCameraProps, DEFAULT_GEOMETRY_PARAMS } from "./sceneStore";
+export type { ObjectKind, SerializedMaterial, SerializedObject, GeometryType, GeometryParams, MaterialType, LightProps, CameraProps } from "./sceneStore";

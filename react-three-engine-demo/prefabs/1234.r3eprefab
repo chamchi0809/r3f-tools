@@ -1,11 +1,11 @@
 [
   {
-    "uuid": "ef96c695-3f01-48a9-9574-ca5ce0b5e3c3",
+    "uuid": "7ea879b6-bbfb-4f6e-b7e0-9e3ad5a2be56",
     "name": "Mesh",
     "kind": "mesh",
     "position": [
       0,
-      0,
+      -0.2624367082161564,
       0
     ],
     "rotation": [
@@ -18,21 +18,35 @@
       1,
       1
     ],
+    "castShadow": true,
+    "receiveShadow": false,
     "children": [],
+    "geometry": {
+      "type": "SphereGeometry",
+      "radius": 0.5,
+      "widthSegments": 32,
+      "heightSegments": 16
+    },
     "material": {
       "type": "MeshStandardMaterial",
       "color": "#888888",
+      "opacity": 1,
+      "transparent": false,
+      "wireframe": false,
+      "flatShading": false,
+      "emissive": "#000000",
+      "emissiveIntensity": 1,
       "roughness": 1,
       "metalness": 0
     }
   },
   {
-    "uuid": "0875bafc-4f24-4cb8-9223-c462ca7c0280",
-    "name": "Group",
-    "kind": "group",
+    "uuid": "53eac607-71da-43d4-b441-6fc7bbc332d3",
+    "name": "PointLight",
+    "kind": "pointLight",
     "position": [
       0,
-      0,
+      0.8514016809090834,
       0
     ],
     "rotation": [
@@ -45,27 +59,66 @@
       1,
       1
     ],
-    "children": []
+    "castShadow": true,
+    "receiveShadow": false,
+    "children": [],
+    "lightProps": {
+      "color": "#ffffff",
+      "intensity": 1,
+      "castShadow": true,
+      "distance": 100,
+      "decay": 2
+    },
+    "shadowProps": {
+      "bias": 0,
+      "normalBias": 0,
+      "radius": 1,
+      "mapSizeWidth": 512,
+      "mapSizeHeight": 512,
+      "cameraNear": 0.5,
+      "cameraFar": 100
+    }
   },
   {
-    "uuid": "f94d7520-dbae-4f2e-8887-d1861e407667",
-    "name": "AmbientLight",
-    "kind": "ambientLight",
+    "uuid": "ffd7806d-f1b4-465e-ad1a-1cbcb73a2b7a",
+    "name": "Mesh",
+    "kind": "mesh",
     "position": [
       0,
-      0,
+      -1.0135646043150757,
       0
     ],
     "rotation": [
-      0,
+      -1.5707963267948966,
       0,
       0
     ],
     "scale": [
-      1,
-      1,
+      5,
+      5,
       1
     ],
-    "children": []
+    "castShadow": false,
+    "receiveShadow": true,
+    "children": [],
+    "geometry": {
+      "type": "PlaneGeometry",
+      "width": 1,
+      "height": 1,
+      "widthSegments": 1,
+      "heightSegments": 1
+    },
+    "material": {
+      "type": "MeshStandardMaterial",
+      "color": "#888888",
+      "opacity": 1,
+      "transparent": false,
+      "wireframe": false,
+      "flatShading": false,
+      "emissive": "#000000",
+      "emissiveIntensity": 1,
+      "roughness": 1,
+      "metalness": 0
+    }
   }
 ]

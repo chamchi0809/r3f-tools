@@ -4,6 +4,9 @@ import { useEffect } from "react";
 import * as THREE from "three/webgpu";
 import {
   makeObject,
+  buildMaterial,
+  buildGeometry,
+  applySerializedObject,
   useSceneStore,
   type SerializedObject,
 } from "../store/sceneStore";
@@ -17,18 +20,11 @@ function makeDeserializedObject(node: SerializedObject): THREE.Object3D {
   obj.position.set(...node.position);
   obj.rotation.set(...node.rotation);
   obj.scale.set(...node.scale);
-  if (node.material && obj instanceof THREE.Mesh) {
-    const mat =
-      node.material.type === "MeshStandardMaterial"
-        ? new THREE.MeshStandardMaterial()
-        : new THREE.MeshBasicMaterial();
-    mat.color.set(node.material.color);
-    if (mat instanceof THREE.MeshStandardMaterial) {
-      if (node.material.roughness !== undefined) mat.roughness = node.material.roughness;
-      if (node.material.metalness !== undefined) mat.metalness = node.material.metalness;
-    }
-    obj.material = mat;
+  if (obj instanceof THREE.Mesh) {
+    if (node.geometry) obj.geometry = buildGeometry(node.geometry);
+    if (node.material) obj.material = buildMaterial(node.material);
   }
+  applySerializedObject(obj, node);
   return obj;
 }
 

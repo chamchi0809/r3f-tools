@@ -128,14 +128,17 @@ if (root) {
 
       registerApiRoutes(server, apiBase, resolvedSavePath, PREFAB_EXT);
 
-      if (resolvedSavePath && dtsAbsPath) {
+      if (resolvedSavePath) {
         const watchDir = resolvedSavePath;
-        const watchDts = dtsAbsPath;
+        const dtsPath = path.join(watchDir, "prefabs.d.ts");
+        const dtsFwd = dtsPath.replace(/\\/g, "/");
         const watcher: FSWatcher = server.watcher;
+        watcher.add(watchDir);
         const regenerate = (changedPath: string) => {
-          if (changedPath === watchDts) return;
+          const fwd = changedPath.replace(/\\/g, "/");
+          if (fwd === dtsFwd) return;
           if (changedPath.endsWith(PREFAB_EXT)) {
-            writePrefabsDts(watchDir, PREFAB_EXT, watchDts);
+            writePrefabsDts(watchDir, PREFAB_EXT, dtsPath);
           }
         };
         watcher.on("add", regenerate);

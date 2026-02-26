@@ -19,6 +19,7 @@ const Viewport = () => {
   return (
     <>
       <Canvas
+        shadows="percentage"
         gl={async (props) => {
           const renderer = new THREE.WebGPURenderer(props as any);
           await renderer.init();
