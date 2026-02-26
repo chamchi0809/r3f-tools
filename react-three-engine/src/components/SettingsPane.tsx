@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import * as THREE from "three/webgpu";
 import { useSceneStore } from "../store/sceneStore";
-import { useSettingsStore, settingsActions, DEFAULT_HIDDEN_FIELDS } from "../store/settingsStore";
+import { useSettingsStore, settingsActions } from "../store/settingsStore";
 import {
   introspectObject,
   introspectMaterial,
@@ -9,6 +9,7 @@ import {
   type PropGroup,
 } from "./objectInspector";
 import { btnStyle } from "../styles";
+import { DEFAULT_HIDDEN_FIELDS } from "../constants/defaultHiddenFields";
 
 // ─── Style helpers ────────────────────────────────────────────────────────────
 
@@ -192,7 +193,13 @@ export function SettingsPane(): React.JSX.Element {
         }}
       >
         <div>
-          <div style={{ fontSize: 12, color: debugMode ? "#6aef6a" : "#ccc", fontWeight: 600 }}>
+          <div
+            style={{
+              fontSize: 12,
+              color: debugMode ? "#6aef6a" : "#ccc",
+              fontWeight: 600,
+            }}
+          >
             Debug Mode
           </div>
           <div style={{ fontSize: 10, color: "#666", marginTop: 2 }}>
@@ -236,7 +243,12 @@ export function SettingsPane(): React.JSX.Element {
         {!isAtDefaults && (
           <button
             onClick={settingsActions.resetHiddenFields}
-            style={{ ...btnStyle, fontSize: 10, padding: "2px 8px", color: "#888" }}
+            style={{
+              ...btnStyle,
+              fontSize: 10,
+              padding: "2px 8px",
+              color: "#888",
+            }}
           >
             Reset to defaults
           </button>
@@ -244,13 +256,27 @@ export function SettingsPane(): React.JSX.Element {
       </div>
 
       {!obj && (
-        <div style={{ padding: "20px 4px", fontSize: 11, color: "#555", textAlign: "center" }}>
+        <div
+          style={{
+            padding: "20px 4px",
+            fontSize: 11,
+            color: "#555",
+            textAlign: "center",
+          }}
+        >
           Select an object to configure its field visibility
         </div>
       )}
 
       {obj && allGroups.length === 0 && (
-        <div style={{ padding: "20px 4px", fontSize: 11, color: "#555", textAlign: "center" }}>
+        <div
+          style={{
+            padding: "20px 4px",
+            fontSize: 11,
+            color: "#555",
+            textAlign: "center",
+          }}
+        >
           No configurable fields
         </div>
       )}
