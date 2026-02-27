@@ -27,21 +27,29 @@ export function TransformModeBar({
         backdropFilter: "blur(4px)",
       }}
     >
-      {(["translate", "rotate", "scale"] as TransformMode[]).map((m) => (
-        <button
-          key={m}
-          onClick={() => setMode(m)}
-          style={{
-            ...btnStyle,
-            background: mode === m ? "#2d5fa6" : "transparent",
-            color: mode === m ? "#fff" : "#888",
-            fontSize: 11,
-            padding: "3px 10px",
-          }}
-        >
-          {m[0].toUpperCase() + m.slice(1)}
-        </button>
-      ))}
+      {(["translate", "rotate", "scale"] as TransformMode[]).map((m) => {
+        const hotkey = m === "translate" ? "G" : m === "rotate" ? "R" : "S";
+        return (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            title={`${m[0].toUpperCase() + m.slice(1)}  [${hotkey}]`}
+            style={{
+              ...btnStyle,
+              background: mode === m ? "#2d5fa6" : "transparent",
+              color: mode === m ? "#fff" : "#888",
+              fontSize: 11,
+              padding: "3px 10px",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            {m[0].toUpperCase() + m.slice(1)}
+            <span style={{ fontSize: 9, opacity: 0.6, fontFamily: "monospace" }}>[{hotkey}]</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

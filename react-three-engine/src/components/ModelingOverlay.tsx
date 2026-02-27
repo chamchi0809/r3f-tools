@@ -565,6 +565,55 @@ export function ModelingOverlay(): React.JSX.Element | null {
         modelingActions.setTransformMode("rotate");
       } else if (e.key === "s" || e.key === "S") {
         modelingActions.setTransformMode("scale");
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        // Delete selected sub-elements from the active mesh
+        const state = useSceneStore.getState();
+        const mState = useModelingStore.getState();
+        const selUUID = state.selectedUUID;
+        if (!selUUID) return;
+        const obj = state.objects.get(selUUID);
+        if (!(obj instanceof THREE.Mesh)) return;
+        const geo = obj.geometry;
+        const elements = mState.selectedElements;
+        if (elements.length === 0) return;
+
+        const positions = getPositions(geo);
+        const oldIndices = getIndices(geo);
+        if (!oldIndices) return; // non-indexed — skip for safety
+
+        // Collect vertex indices to remove (all vertices touched by selection)
+        const toRemove = selectedVertexIndices(elements, geo);
+
+        // Remove triangles that reference any removed vertex
+        const newTriIndices: number[] = [];
+        for (let t = 0; t < oldIndices.length; t += 3) {
+          const a = oldIndices[t], b = oldIndices[t + 1], c = oldIndices[t + 2];
+          if (!toRemove.has(a) && !toRemove.has(b) && !toRemove.has(c)) {
+            newTriIndices.push(a, b, c);
+          }
+        }
+
+        // Compact vertex buffer: remove vertices not referenced by remaining triangles
+        const usedVerts = new Set(newTriIndices);
+        // Build old→new index remap
+        const remap = new Map<number, number>();
+        let newIdx = 0;
+        for (let i = 0; i < positions.length / 3; i++) {
+          if (usedVerts.has(i)) { remap.set(i, newIdx++); }
+        }
+        const newPositions = new Float32Array(newIdx * 3);
+        for (const [oldI, newI] of remap) {
+          newPositions[newI * 3]     = positions[oldI * 3];
+          newPositions[newI * 3 + 1] = positions[oldI * 3 + 1];
+          newPositions[newI * 3 + 2] = positions[oldI * 3 + 2];
+        }
+        const remappedIndices = newTriIndices.map((i) => remap.get(i)!);
+
+        // Apply back to geometry
+        geo.setIndex(new THREE.BufferAttribute(new Uint32Array(remappedIndices), 1));
+        flushPositions(geo, newPositions);
+        modelingActions.clearSelection();
+        sceneActions.invalidate();
       }
     };
     window.addEventListener("keydown", onKey);

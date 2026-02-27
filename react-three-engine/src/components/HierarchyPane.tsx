@@ -56,7 +56,7 @@ function HierarchyNode({
   return (
     <div>
       <div
-        onClick={() => sceneActions.select(isSelected ? null : node.uuid)}
+        onClick={(e) => { e.stopPropagation(); sceneActions.select(isSelected ? null : node.uuid); }}
         style={{
           display: "flex",
           alignItems: "center",
@@ -206,7 +206,7 @@ export function HierarchyPane(): React.JSX.Element {
           🗑
         </button>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "4px 4px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "4px 4px" }} onClick={() => sceneActions.select(null)}>
         {rootUUIDs.map((uuid) => {
           const node = nodes.get(uuid);
           return node ? (

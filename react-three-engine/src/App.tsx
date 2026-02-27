@@ -3,7 +3,7 @@ import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { DockviewReact, IDockviewPanelHeaderProps } from "dockview";
 import "dockview/dist/styles/dockview.css";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three/webgpu";
 import { HierarchyPane } from "./components/HierarchyPane";
 import { InspectorPane } from "./components/InspectorPane";
@@ -14,6 +14,7 @@ import { TransformModeBar, EditorModeBar, type TransformMode } from "./component
 import { ModelingOverlay } from "./components/ModelingOverlay";
 import { BrushOverlay } from "./components/BrushOverlay";
 import { useModelingStore } from "./store/modelingStore";
+import { sceneActions, useSceneStore } from "./store/sceneStore";
 import { initCustomObjectRegistry } from "./customObjectRegistry";
 import "./styles";
 import { ViewportGizmo, ViewportGizmoAnimator } from "./components/ViewportGizmo";
@@ -33,8 +34,24 @@ const Viewport = () => {
   const cameraRef = useRef<THREE.Camera | null>(null);
   const controlsRef = useRef<any>(null);
 
+  // G/R/S + Delete shortcuts for object mode
+  useEffect(() => {
+    if (isModeling || isBrush) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).tagName === "INPUT") return;
+      if (e.key === "g" || e.key === "G") setTransformMode("translate");
+      else if (e.key === "r" || e.key === "R") setTransformMode("rotate");
+      else if (e.key === "s" || e.key === "S") setTransformMode("scale");
+      else if (e.key === "Delete" || e.key === "Backspace") {
+        const sel = useSceneStore.getState().selectedUUID;
+        if (sel) sceneActions.removeObject(sel);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isModeling, isBrush]);
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+    <div style={{ position: "relative", width: "100%", height: "100%", cursor: isBrush ? "crosshair" : "default" }}>
       <Canvas
         shadows="percentage"
         gl={async (props) => {
@@ -43,7 +60,7 @@ const Viewport = () => {
           return renderer;
         }}
         camera={{ position: [0, 2, 8], fov: 60 }}
-        style={{ background: "#1a1a1a" }}
+        style={{ background: "#1a1a1a", cursor: "inherit" }}
       >
         <ViewportGizmoAnimator controlsRef={controlsRef} cameraRef={cameraRef} />
         <ambientLight intensity={0.4} />

@@ -1,6 +1,6 @@
 [
   {
-    "uuid": "93f42874-2f54-4ddb-8b5e-91a11fb846b6",
+    "uuid": "6656adc3-b505-41e5-8685-cc02a876faf0",
     "name": "Mesh",
     "kind": "mesh",
     "position": [
@@ -42,12 +42,12 @@
     }
   },
   {
-    "uuid": "6375c4be-56f9-4486-9e36-c54b7323938b",
+    "uuid": "ca0188a1-ee2e-4a6f-9a9d-1d819bdf1643",
     "name": "PointLight",
     "kind": "pointLight",
     "position": [
-      0,
-      0.8514016809090834,
+      -1.0332279746120263,
+      0.30175360208367485,
       0
     ],
     "rotation": [
@@ -65,10 +65,10 @@
     "children": [],
     "lightProps": {
       "color": "#ffffff",
-      "intensity": 1,
+      "intensity": 6.28,
       "castShadow": true,
       "distance": 100,
-      "decay": 2
+      "decay": 1
     },
     "shadowProps": {
       "bias": 0,
@@ -81,7 +81,7 @@
     }
   },
   {
-    "uuid": "addf2a1f-add4-4dd5-a632-c98c0e3ff852",
+    "uuid": "4bdf25d7-1952-4e2a-95d4-7cfe264fb83e",
     "name": "Sprite2D",
     "kind": "sprite2D",
     "position": [
@@ -127,7 +127,7 @@
     }
   },
   {
-    "uuid": "31712614-614c-4f9c-b19c-226eec200e7b",
+    "uuid": "ad397de2-2813-4db5-9d2d-40e14b2e3842",
     "name": "Mesh",
     "kind": "mesh",
     "position": [
@@ -187,7 +187,7 @@
     },
     "material": {
       "type": "MeshStandardMaterial",
-      "color": "#888888",
+      "color": "#ffffff",
       "opacity": 1,
       "transparent": false,
       "wireframe": false,
@@ -196,7 +196,10 @@
       "emissive": "#000000",
       "emissiveIntensity": 1,
       "roughness": 1,
-      "metalness": 0
+      "metalness": 0,
+      "maps": {
+        "map": "/stained_pine_diff_4k.jpg"
+      }
     }
   }
 ]
