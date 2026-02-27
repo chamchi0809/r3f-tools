@@ -10,7 +10,10 @@ import { InspectorPane } from "./components/InspectorPane";
 import { SettingsPane } from "./components/SettingsPane";
 import { PrefabPanel } from "./components/PrefabPanel";
 import { SceneContent } from "./components/SceneContent";
-import { TransformModeBar, type TransformMode } from "./components/Toolbar";
+import { TransformModeBar, EditorModeBar, type TransformMode } from "./components/Toolbar";
+import { ModelingOverlay } from "./components/ModelingOverlay";
+import { BrushOverlay } from "./components/BrushOverlay";
+import { useModelingStore } from "./store/modelingStore";
 import { initCustomObjectRegistry } from "./customObjectRegistry";
 import "./styles";
 
@@ -22,6 +25,9 @@ const Viewport = () => {
   const [transformDragging, setTransformDragging] = useState(false);
   const [transformMode, setTransformMode] =
     useState<TransformMode>("translate");
+  const editorMode = useModelingStore((s) => s.editorMode);
+  const isModeling = editorMode === "modeling";
+  const isBrush = editorMode === "brush";
   return (
     <>
       <Canvas
@@ -41,10 +47,14 @@ const Viewport = () => {
           onTransformDrag={setTransformDragging}
           transformDragging={transformDragging}
           transformMode={transformMode}
+          isModeling={isModeling}
         />
-        <OrbitControls makeDefault enabled={!transformDragging} />
+        {isModeling && <ModelingOverlay />}
+        {isBrush && <BrushOverlay />}
+        <OrbitControls makeDefault enabled={!transformDragging && !isBrush} />
       </Canvas>
-      <TransformModeBar mode={transformMode} setMode={setTransformMode} />
+      <EditorModeBar />
+      {!isModeling && !isBrush && <TransformModeBar mode={transformMode} setMode={setTransformMode} />}
     </>
   );
 };

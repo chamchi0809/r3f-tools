@@ -46,10 +46,12 @@ export function SceneContent({
   onTransformDrag,
   transformDragging,
   transformMode,
+  isModeling,
 }: {
   onTransformDrag: (dragging: boolean) => void;
   transformDragging: boolean;
   transformMode: TransformMode;
+  isModeling: boolean;
 }): React.JSX.Element {
   const { scene } = useThree();
   const pendingAdd = useSceneStore((s) => s.pendingAdd);
@@ -63,8 +65,14 @@ export function SceneContent({
   useEffect(() => {
     if (!pendingAdd) return;
     useSceneStore.getState().clearPendingAdd();
-    const { kind, parentUUID } = pendingAdd;
+    const { kind, parentUUID, geometry, position } = pendingAdd;
     const obj = makeObject(kind);
+    if (geometry && obj instanceof THREE.Mesh) {
+      obj.geometry = geometry;
+    }
+    if (position) {
+      obj.position.copy(position);
+    }
     const parent = parentUUID
       ? (useSceneStore.getState().objects.get(parentUUID) ?? scene)
       : scene;
@@ -119,8 +127,8 @@ export function SceneContent({
 
   return (
     <>
-      <ClickSelector transformDragging={transformDragging} />
-      {selectedObj && (
+      {!isModeling && <ClickSelector transformDragging={transformDragging} />}
+      {selectedObj && !isModeling && (
         <TransformControls
           object={selectedObj}
           mode={transformMode}

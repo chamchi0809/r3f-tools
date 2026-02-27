@@ -26,9 +26,9 @@ export function ObjectAutoEditor({
     if (obj instanceof THREE.PerspectiveCamera || obj instanceof THREE.OrthographicCamera) {
       obj.updateProjectionMatrix();
     }
-    const light = obj as THREE.Light;
+    const light = obj as any;
     if (light.shadow?.camera) {
-      const cam = light.shadow.camera;
+      const cam = (light.shadow as THREE.LightShadow).camera;
       if (cam instanceof THREE.PerspectiveCamera || cam instanceof THREE.OrthographicCamera) {
         (cam as THREE.PerspectiveCamera).updateProjectionMatrix();
       }

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { sceneActions, useSceneStore, type ObjectKind, type SceneNode } from "../store/sceneStore";
 import { btnStyle } from "../styles";
 import { getCustomObjectKinds } from "../customObjectRegistry";
+import { useModelingStore } from "../store/modelingStore";
 
 const BUILTIN_KINDS: { kind: ObjectKind; label: string; icon: string }[] = [
   { kind: "mesh", label: "Mesh", icon: "⬛" },
@@ -108,15 +109,19 @@ export function HierarchyPane(): React.JSX.Element {
   const rootUUIDs = useSceneStore((s) => s.rootUUIDs);
   const nodes = useSceneStore((s) => s.nodes);
   const selectedUUID = useSceneStore((s) => s.selectedUUID);
+  const editorMode = useModelingStore((s) => s.editorMode);
+  const isModeling = editorMode === "modeling";
   const [showAddMenu, setShowAddMenu] = useState(false);
 
   const handleAdd = (kind: ObjectKind) => {
+    if (isModeling) return;
     sceneActions.addObject(kind, selectedUUID);
     setShowAddMenu(false);
   };
 
   const handleDelete = () => {
-    if (selectedUUID) sceneActions.removeObject(selectedUUID);
+    if (isModeling || !selectedUUID) return;
+    sceneActions.removeObject(selectedUUID);
   };
 
   return (
@@ -142,9 +147,29 @@ export function HierarchyPane(): React.JSX.Element {
         >
           Hierarchy
         </span>
+        {isModeling && (
+          <span
+            style={{
+              fontSize: 9,
+              fontWeight: 600,
+              color: "#f0a020",
+              textTransform: "uppercase",
+              letterSpacing: 0.8,
+              padding: "2px 5px",
+              border: "1px solid #f0a02040",
+              borderRadius: 3,
+              background: "#f0a01015",
+            }}
+          >
+            Modeling
+          </span>
+        )}
         <div style={{ position: "relative" }}>
-          <button onClick={() => setShowAddMenu((v) => !v)} style={btnStyle}>+</button>
-          {showAddMenu && (
+          <button
+            onClick={() => !isModeling && setShowAddMenu((v) => !v)}
+            style={{ ...btnStyle, opacity: isModeling ? 0.3 : 1, cursor: isModeling ? "not-allowed" : "pointer" }}
+          >+</button>
+          {showAddMenu && !isModeling && (
             <div
               style={{
                 position: "absolute",
@@ -175,8 +200,8 @@ export function HierarchyPane(): React.JSX.Element {
         </div>
         <button
           onClick={handleDelete}
-          disabled={!selectedUUID}
-          style={{ ...btnStyle, opacity: selectedUUID ? 1 : 0.3 }}
+          disabled={!selectedUUID || isModeling}
+          style={{ ...btnStyle, opacity: (selectedUUID && !isModeling) ? 1 : 0.3, cursor: isModeling ? "not-allowed" : "pointer" }}
         >
           🗑
         </button>

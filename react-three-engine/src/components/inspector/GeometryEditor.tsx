@@ -23,6 +23,7 @@ const GEOMETRY_TYPES: GeometryType[] = [
   "PlaneGeometry",
   "TorusGeometry",
   "CapsuleGeometry",
+  "BufferGeometry",
 ];
 
 export function GeometryEditor({
@@ -57,23 +58,34 @@ export function GeometryEditor({
       <div style={rowStyle}>
         <span style={labelText}>Type</span>
         <select value={params.type} onChange={(e) => setType(e.target.value as GeometryType)} style={selectStyle}>
-          {GEOMETRY_TYPES.map((t) => <option key={t} value={t}>{t.replace("Geometry", "")}</option>)}
+          {GEOMETRY_TYPES.map((t) => <option key={t} value={t}>{t.replace("Geometry", "") || "Buffer"}</option>)}
         </select>
       </div>
 
-      {groups.map((group) => (
-        <AutoFieldGroup
-          key={group.className}
-          group={group}
-          target={
-            group.className === "Parameters"
-              ? (geo as unknown as { parameters: object }).parameters
-              : geo
-          }
-          onCommit={onCommit}
-          isFieldVisible={isFieldVisible}
-        />
-      ))}
+      {params.type === "BufferGeometry" && (
+        <div style={rowStyle}>
+          <span style={labelText}>Vertices</span>
+          <span style={{ fontSize: 11, color: "#888" }}>
+            {geo.getAttribute("position") ? geo.getAttribute("position").count : 0}
+          </span>
+        </div>
+      )}
+
+      {params.type !== "BufferGeometry" &&
+        groups.map((group) => (
+          <AutoFieldGroup
+            key={group.className}
+            group={group}
+            target={
+              group.className === "Parameters"
+                ? (geo as unknown as { parameters: object }).parameters
+                : geo
+            }
+            onCommit={onCommit}
+            isFieldVisible={isFieldVisible}
+          />
+        ))
+      }
     </>
   );
 }

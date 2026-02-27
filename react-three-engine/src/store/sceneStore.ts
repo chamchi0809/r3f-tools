@@ -22,7 +22,8 @@ export type GeometryType =
   | "ConeGeometry"
   | "PlaneGeometry"
   | "TorusGeometry"
-  | "CapsuleGeometry";
+  | "CapsuleGeometry"
+  | "BufferGeometry";
 
 export interface BoxGeometryParams { width: number; height: number; depth: number; widthSegments: number; heightSegments: number; depthSegments: number; }
 export interface SphereGeometryParams { radius: number; widthSegments: number; heightSegments: number; }
@@ -32,6 +33,9 @@ export interface PlaneGeometryParams { width: number; height: number; widthSegme
 export interface TorusGeometryParams { radius: number; tube: number; radialSegments: number; tubularSegments: number; }
 export interface CapsuleGeometryParams { radius: number; length: number; capSegments: number; radialSegments: number; }
 
+/** Serialized vertex positions for a custom BufferGeometry (flat Float32Array as number[]). */
+export interface BufferGeometryParams { vertices: number[]; indices?: number[]; }
+
 export type GeometryParams =
   | ({ type: "BoxGeometry" } & BoxGeometryParams)
   | ({ type: "SphereGeometry" } & SphereGeometryParams)
@@ -39,7 +43,8 @@ export type GeometryParams =
   | ({ type: "ConeGeometry" } & ConeGeometryParams)
   | ({ type: "PlaneGeometry" } & PlaneGeometryParams)
   | ({ type: "TorusGeometry" } & TorusGeometryParams)
-  | ({ type: "CapsuleGeometry" } & CapsuleGeometryParams);
+  | ({ type: "CapsuleGeometry" } & CapsuleGeometryParams)
+  | ({ type: "BufferGeometry" } & BufferGeometryParams);
 
 export const DEFAULT_GEOMETRY_PARAMS: Record<GeometryType, GeometryParams> = {
   BoxGeometry:      { type: "BoxGeometry",      width: 1,   height: 1,   depth: 1,   widthSegments: 1,  heightSegments: 1,  depthSegments: 1 },
@@ -49,6 +54,7 @@ export const DEFAULT_GEOMETRY_PARAMS: Record<GeometryType, GeometryParams> = {
   PlaneGeometry:    { type: "PlaneGeometry",    width: 1,   height: 1,   widthSegments: 1,  heightSegments: 1 },
   TorusGeometry:    { type: "TorusGeometry",    radius: 0.4, tube: 0.15, radialSegments: 16, tubularSegments: 64 },
   CapsuleGeometry:  { type: "CapsuleGeometry",  radius: 0.3, length: 0.6, capSegments: 8,  radialSegments: 16 },
+  BufferGeometry:   { type: "BufferGeometry",   vertices: [], indices: [] },
 };
 
 export function buildGeometry(params: GeometryParams): THREE.BufferGeometry {
@@ -60,6 +66,30 @@ export function buildGeometry(params: GeometryParams): THREE.BufferGeometry {
     case "PlaneGeometry":    return new THREE.PlaneGeometry(params.width, params.height, params.widthSegments, params.heightSegments);
     case "TorusGeometry":    return new THREE.TorusGeometry(params.radius, params.tube, params.radialSegments, params.tubularSegments);
     case "CapsuleGeometry":  return new THREE.CapsuleGeometry(params.radius, params.length, params.capSegments, params.radialSegments);
+    case "BufferGeometry": {
+      const geo = new THREE.BufferGeometry();
+      // Always provide a position attribute — WebGPU crashes on geometries with no attributes.
+      // Use the provided vertices, or fall back to a single degenerate point.
+      const verts = params.vertices.length > 0
+        ? new Float32Array(params.vertices)
+        : new Float32Array([0, 0, 0]);
+      const vertCount = verts.length / 3;
+      geo.setAttribute("position", new THREE.BufferAttribute(verts, 3));
+      // WebGPU's node-based shader for MeshStandardMaterial (and others) references
+      // 'normal' and 'uv' nodeAttributes. If they're absent, RenderObject.getAttributes()
+      // does `attribute.id` on undefined and crashes. Always provide zero-filled stubs.
+      if (!geo.getAttribute("normal")) {
+        geo.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(vertCount * 3), 3));
+      }
+      if (!geo.getAttribute("uv")) {
+        geo.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(vertCount * 2), 2));
+      }
+      if (params.indices && params.indices.length > 0) {
+        geo.setIndex(new THREE.BufferAttribute(new Uint32Array(params.indices), 1));
+      }
+      if (params.vertices.length > 0) geo.computeVertexNormals();
+      return geo;
+    }
   }
 }
 
@@ -71,7 +101,12 @@ export function readGeometryParams(geo: THREE.BufferGeometry): GeometryParams {
   if (geo instanceof THREE.PlaneGeometry) { const p = geo.parameters; return { type: "PlaneGeometry", width: p.width ?? 1, height: p.height ?? 1, widthSegments: p.widthSegments ?? 1, heightSegments: p.heightSegments ?? 1 }; }
   if (geo instanceof THREE.TorusGeometry) { const p = geo.parameters; return { type: "TorusGeometry", radius: p.radius ?? 0.4, tube: p.tube ?? 0.15, radialSegments: p.radialSegments ?? 16, tubularSegments: p.tubularSegments ?? 64 }; }
   if (geo instanceof THREE.CapsuleGeometry) { const p = geo.parameters; return { type: "CapsuleGeometry", radius: p.radius ?? 0.3, length: (p as Record<string, number>).length ?? 0.6, capSegments: p.capSegments ?? 8, radialSegments: p.radialSegments ?? 16 }; }
-  return { ...DEFAULT_GEOMETRY_PARAMS.BoxGeometry };
+  // Plain BufferGeometry — read back the raw float arrays
+  const posAttr = geo.getAttribute("position");
+  const vertices = posAttr ? Array.from(posAttr.array as Float32Array) : [];
+  const idxAttr = geo.getIndex();
+  const indices = idxAttr ? Array.from(idxAttr.array as Uint32Array) : [];
+  return { type: "BufferGeometry", vertices, indices };
 }
 
 export type MaterialType =
@@ -315,7 +350,7 @@ export function readLightProps(obj: THREE.Object3D): LightProps {
 }
 
 export function readShadowProps(obj: THREE.Object3D): SerializedShadow | undefined {
-  const light = obj as THREE.Light;
+  const light = obj as any;
   if (!light.shadow) return undefined;
   const s = light.shadow;
   const result: SerializedShadow = {
@@ -338,7 +373,7 @@ export function readShadowProps(obj: THREE.Object3D): SerializedShadow | undefin
 }
 
 export function applyShadowProps(obj: THREE.Object3D, props: SerializedShadow): void {
-  const light = obj as THREE.Light;
+  const light = obj as any;
   if (!light.shadow) return;
   const s = light.shadow;
   if (props.bias !== undefined) s.bias = props.bias;
@@ -399,12 +434,13 @@ interface SceneState {
   objects: Map<string, THREE.Object3D>;
   selectedUUID: string | null;
   version: number;
-  pendingAdd: { kind: ObjectKind; parentUUID: string | null } | null;
+  pendingAdd: { kind: ObjectKind; parentUUID: string | null; geometry?: THREE.BufferGeometry; position?: THREE.Vector3 } | null;
   pendingRemove: string | null;
   pendingDeserialize: SerializedObject[] | null;
   invalidate: () => void;
   select: (uuid: string | null) => void;
   addObject: (kind: ObjectKind, parentUUID?: string | null) => void;
+  addMeshWithGeometry: (geo: THREE.BufferGeometry, position?: THREE.Vector3, parentUUID?: string | null) => void;
   removeObject: (uuid: string) => void;
   registerObject: (obj: THREE.Object3D, kind: ObjectKind, parentUUID: string | null) => void;
   unregisterObject: (uuid: string) => void;
@@ -578,6 +614,10 @@ export const useSceneStore: UseBoundStore<StoreApi<SceneState>> = create<SceneSt
 
     addObject: (kind, parentUUID = null) => {
       set({ pendingAdd: { kind, parentUUID: parentUUID ?? null } });
+    },
+
+    addMeshWithGeometry: (geo, position?, parentUUID = null) => {
+      set({ pendingAdd: { kind: "mesh", parentUUID: parentUUID ?? null, geometry: geo, position } });
     },
 
     removeObject: (uuid) => {
@@ -782,8 +822,10 @@ export const sceneActions: {
   setLightProps: (uuid: string, props: Partial<LightProps>) => void;
   setCameraProps: (uuid: string, props: Partial<CameraProps>) => void;
   invalidate: () => void;
+  addMeshWithGeometry: (geo: THREE.BufferGeometry, parentUUID?: string | null) => void;
 } = {
   addObject: (kind, parentUUID) => useSceneStore.getState().addObject(kind, parentUUID),
+  addMeshWithGeometry: (geo, parentUUID) => useSceneStore.getState().addMeshWithGeometry(geo, parentUUID),
   removeObject: (uuid) => useSceneStore.getState().removeObject(uuid),
   select: (uuid) => useSceneStore.getState().select(uuid),
   setTransform: (uuid, position, rotation, scale) =>
