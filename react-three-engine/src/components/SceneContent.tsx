@@ -69,6 +69,8 @@ export function SceneContent({
     const obj = makeObject(kind);
     if (geometry && obj instanceof THREE.Mesh) {
       obj.geometry = geometry;
+      // Always show both sides — polygon winding can vary by click order
+      (obj.material as THREE.MeshStandardMaterial).side = THREE.DoubleSide;
     }
     if (position) {
       obj.position.copy(position);

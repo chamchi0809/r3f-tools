@@ -77,6 +77,8 @@ function flushPositions(geo: THREE.BufferGeometry, positions: Float32Array): voi
   }
   geo.computeVertexNormals();
   geo.computeBoundingSphere();
+  geo.userData.r3eEdited = true;
+  geo.computeBoundingSphere();
 }
 
 /** Collect the unique set of vertex indices covered by a selection. */
@@ -512,7 +514,7 @@ function SelectionTransformGizmo({
     }
 
     flushPositions(mesh.geometry, positions);
-    sceneActions.invalidate();
+    flushPositions(mesh.geometry, positions);
   }, [mesh, selectedElements]);
 
   const handleMouseUp = useCallback(() => {

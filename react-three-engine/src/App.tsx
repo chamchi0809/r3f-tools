@@ -16,6 +16,7 @@ import { BrushOverlay } from "./components/BrushOverlay";
 import { useModelingStore } from "./store/modelingStore";
 import { initCustomObjectRegistry } from "./customObjectRegistry";
 import "./styles";
+import { ViewportGizmo, ViewportGizmoAnimator } from "./components/ViewportGizmo";
 
 // Initialise the custom object registry as early as possible so that the
 // Hierarchy pane can show custom kinds as soon as the editor mounts.
@@ -28,8 +29,12 @@ const Viewport = () => {
   const editorMode = useModelingStore((s) => s.editorMode);
   const isModeling = editorMode === "modeling";
   const isBrush = editorMode === "brush";
+
+  const cameraRef = useRef<THREE.Camera | null>(null);
+  const controlsRef = useRef<any>(null);
+
   return (
-    <>
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <Canvas
         shadows="percentage"
         gl={async (props) => {
@@ -40,6 +45,7 @@ const Viewport = () => {
         camera={{ position: [0, 2, 8], fov: 60 }}
         style={{ background: "#1a1a1a" }}
       >
+        <ViewportGizmoAnimator controlsRef={controlsRef} cameraRef={cameraRef} />
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 8, 5]} intensity={1} />
         <gridHelper args={[20, 20, "#333", "#2a2a2a"]} />
@@ -47,15 +53,16 @@ const Viewport = () => {
           onTransformDrag={setTransformDragging}
           transformDragging={transformDragging}
           transformMode={transformMode}
-          isModeling={isModeling}
+          isModeling={isModeling || isBrush}
         />
         {isModeling && <ModelingOverlay />}
         {isBrush && <BrushOverlay />}
-        <OrbitControls makeDefault enabled={!transformDragging && !isBrush} />
+        <OrbitControls ref={controlsRef} makeDefault enabled={!transformDragging && !isBrush} />
       </Canvas>
+      <ViewportGizmo cameraRef={cameraRef} controlsRef={controlsRef} />
       <EditorModeBar />
       {!isModeling && !isBrush && <TransformModeBar mode={transformMode} setMode={setTransformMode} />}
-    </>
+    </div>
   );
 };
 

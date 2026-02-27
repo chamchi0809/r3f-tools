@@ -29,7 +29,7 @@ const CLOSE_SNAP_COLOR = "#44ff88";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Fan-triangulate a flat polygon defined by ordered XZ points (Y = FLOOR_Y). */
+/** Triangulate a flat polygon on XZ plane using earcut (supports concave shapes). */
 function triangulatePolygon(pts: THREE.Vector3[]): {
   vertices: number[];
   indices: number[];
@@ -37,11 +37,33 @@ function triangulatePolygon(pts: THREE.Vector3[]): {
   if (pts.length < 3) return { vertices: [], indices: [] };
   const vertices: number[] = [];
   for (const p of pts) vertices.push(p.x, p.y, p.z);
+
+  // Earcut expects a flat array of 2D coords. We use X and Z (the floor plane).
+  const coords2d: number[] = [];
+  for (const p of pts) { coords2d.push(p.x, p.z); }
+  const rawIndices = THREE.ShapeUtils.triangulateShape(
+    pts.map((p) => new THREE.Vector2(p.x, p.z)),
+    [],
+  );
+
+  // rawIndices is an array of [a, b, c] triplets.
+  // Determine winding on XZ via signed area — if CW, flip each triangle so
+  // the front face (+Y normal) is always upward.
+  let signedArea = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i];
+    const b = pts[(i + 1) % pts.length];
+    signedArea += a.x * b.z - b.x * a.z;
+  }
+  const isCCW = signedArea > 0;
+
   const indices: number[] = [];
-  // Simple fan from vertex 0 — works for convex polygons.
-  // Wind counter-clockwise so normals point UP (+Y) after computeVertexNormals
-  for (let i = 1; i < pts.length - 1; i++) {
-    indices.push(0, i + 1, i);
+  for (const tri of rawIndices) {
+    if (isCCW) {
+      indices.push(tri[0], tri[1], tri[2]);
+    } else {
+      indices.push(tri[0], tri[2], tri[1]);
+    }
   }
   return { vertices, indices };
 }
@@ -187,7 +209,13 @@ export function BrushOverlay(): React.JSX.Element | null {
     geo.boundingBox!.getCenter(center);
     geo.translate(-center.x, -center.y, -center.z);
     
-    geo.computeVertexNormals();
+    // Set all normals explicitly to +Y (face up). Do NOT use computeVertexNormals()
+    // because it depends on winding order which varies with click direction.
+    const normalArr = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      normalArr[i * 3 + 1] = 1; // Y = 1
+    }
+    geo.setAttribute("normal", new THREE.BufferAttribute(normalArr, 3));
     geo.computeBoundingSphere();
 
     // Add to scene as a new mesh with a default material

@@ -1,6 +1,6 @@
 [
   {
-    "uuid": "8246ea7f-4fc4-40b6-b9f3-1a117bd594a2",
+    "uuid": "93f42874-2f54-4ddb-8b5e-91a11fb846b6",
     "name": "Mesh",
     "kind": "mesh",
     "position": [
@@ -33,6 +33,7 @@
       "opacity": 1,
       "transparent": false,
       "wireframe": false,
+      "side": 0,
       "flatShading": false,
       "emissive": "#000000",
       "emissiveIntensity": 1,
@@ -41,7 +42,7 @@
     }
   },
   {
-    "uuid": "022dc88f-1cc9-4be4-83ad-4132287d07e1",
+    "uuid": "6375c4be-56f9-4486-9e36-c54b7323938b",
     "name": "PointLight",
     "kind": "pointLight",
     "position": [
@@ -80,49 +81,7 @@
     }
   },
   {
-    "uuid": "88d55836-44f9-4d3f-990e-4bdd274f594a",
-    "name": "Mesh",
-    "kind": "mesh",
-    "position": [
-      0,
-      -1.0135646043150757,
-      0
-    ],
-    "rotation": [
-      -1.5707963267948966,
-      0,
-      0
-    ],
-    "scale": [
-      5,
-      5,
-      1
-    ],
-    "castShadow": false,
-    "receiveShadow": true,
-    "children": [],
-    "geometry": {
-      "type": "PlaneGeometry",
-      "width": 1,
-      "height": 1,
-      "widthSegments": 1,
-      "heightSegments": 1
-    },
-    "material": {
-      "type": "MeshStandardMaterial",
-      "color": "#888888",
-      "opacity": 1,
-      "transparent": false,
-      "wireframe": false,
-      "flatShading": false,
-      "emissive": "#000000",
-      "emissiveIntensity": 1,
-      "roughness": 1,
-      "metalness": 0
-    }
-  },
-  {
-    "uuid": "13e4e226-8db8-4443-a814-d7a4f854c7de",
+    "uuid": "addf2a1f-add4-4dd5-a632-c98c0e3ff852",
     "name": "Sprite2D",
     "kind": "sprite2D",
     "position": [
@@ -156,6 +115,7 @@
       "opacity": 1,
       "transparent": true,
       "wireframe": false,
+      "side": 0,
       "flatShading": false,
       "emissive": "#000000",
       "emissiveIntensity": 1,
@@ -164,6 +124,79 @@
       "maps": {
         "map": "/stained_pine_disp_4k.png"
       }
+    }
+  },
+  {
+    "uuid": "31712614-614c-4f9c-b19c-226eec200e7b",
+    "name": "Mesh",
+    "kind": "mesh",
+    "position": [
+      -0.015869826078414917,
+      -0.774515663009006,
+      0.02380359172821045
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "castShadow": false,
+    "receiveShadow": false,
+    "children": [],
+    "geometry": {
+      "type": "BufferGeometry",
+      "vertices": [
+        -0.023804791271686554,
+        0,
+        -3.039074420928955,
+        -0.9918652772903442,
+        0,
+        -2.102753162384033,
+        -0.9759949445724487,
+        0,
+        1.9123165607452393,
+        -0.007934926077723503,
+        0,
+        3.039074420928955,
+        0.9601250886917114,
+        0,
+        1.975795865058899,
+        0.9918652772903442,
+        0,
+        -2.086883544921875
+      ],
+      "indices": [
+        1,
+        5,
+        0,
+        5,
+        3,
+        4,
+        3,
+        1,
+        2,
+        1,
+        3,
+        5
+      ]
+    },
+    "material": {
+      "type": "MeshStandardMaterial",
+      "color": "#888888",
+      "opacity": 1,
+      "transparent": false,
+      "wireframe": false,
+      "side": 2,
+      "flatShading": false,
+      "emissive": "#000000",
+      "emissiveIntensity": 1,
+      "roughness": 1,
+      "metalness": 0
     }
   }
 ]

@@ -88,20 +88,27 @@ export function buildGeometry(params: GeometryParams): THREE.BufferGeometry {
         geo.setIndex(new THREE.BufferAttribute(new Uint32Array(params.indices), 1));
       }
       if (params.vertices.length > 0) geo.computeVertexNormals();
+      // Mark as raw-buffer geometry so readGeometryParams always serializes
+      // the live buffers instead of falling back to constructor params.
+      geo.userData.r3eEdited = true;
       return geo;
     }
   }
 }
 
 export function readGeometryParams(geo: THREE.BufferGeometry): GeometryParams {
-  if (geo instanceof THREE.BoxGeometry) { const p = geo.parameters; return { type: "BoxGeometry", width: p.width ?? 1, height: p.height ?? 1, depth: p.depth ?? 1, widthSegments: p.widthSegments ?? 1, heightSegments: p.heightSegments ?? 1, depthSegments: p.depthSegments ?? 1 }; }
-  if (geo instanceof THREE.SphereGeometry) { const p = geo.parameters; return { type: "SphereGeometry", radius: p.radius ?? 0.5, widthSegments: p.widthSegments ?? 32, heightSegments: p.heightSegments ?? 16 }; }
-  if (geo instanceof THREE.CylinderGeometry) { const p = geo.parameters; return { type: "CylinderGeometry", radiusTop: p.radiusTop ?? 0.5, radiusBottom: p.radiusBottom ?? 0.5, height: p.height ?? 1, radialSegments: p.radialSegments ?? 32, heightSegments: p.heightSegments ?? 1 }; }
-  if (geo instanceof THREE.ConeGeometry) { const p = geo.parameters; return { type: "ConeGeometry", radius: p.radius ?? 0.5, height: p.height ?? 1, radialSegments: p.radialSegments ?? 32, heightSegments: p.heightSegments ?? 1 }; }
-  if (geo instanceof THREE.PlaneGeometry) { const p = geo.parameters; return { type: "PlaneGeometry", width: p.width ?? 1, height: p.height ?? 1, widthSegments: p.widthSegments ?? 1, heightSegments: p.heightSegments ?? 1 }; }
-  if (geo instanceof THREE.TorusGeometry) { const p = geo.parameters; return { type: "TorusGeometry", radius: p.radius ?? 0.4, tube: p.tube ?? 0.15, radialSegments: p.radialSegments ?? 16, tubularSegments: p.tubularSegments ?? 64 }; }
-  if (geo instanceof THREE.CapsuleGeometry) { const p = geo.parameters; return { type: "CapsuleGeometry", radius: p.radius ?? 0.3, length: (p as Record<string, number>).length ?? 0.6, capSegments: p.capSegments ?? 8, radialSegments: p.radialSegments ?? 16 }; }
-  // Plain BufferGeometry — read back the raw float arrays
+  // If the geometry was mutated in modeling mode, always serialize the raw buffers
+  // regardless of the geometry subclass — the constructor params are stale.
+  if (!geo.userData.r3eEdited) {
+    if (geo instanceof THREE.BoxGeometry) { const p = geo.parameters; return { type: "BoxGeometry", width: p.width ?? 1, height: p.height ?? 1, depth: p.depth ?? 1, widthSegments: p.widthSegments ?? 1, heightSegments: p.heightSegments ?? 1, depthSegments: p.depthSegments ?? 1 }; }
+    if (geo instanceof THREE.SphereGeometry) { const p = geo.parameters; return { type: "SphereGeometry", radius: p.radius ?? 0.5, widthSegments: p.widthSegments ?? 32, heightSegments: p.heightSegments ?? 16 }; }
+    if (geo instanceof THREE.CylinderGeometry) { const p = geo.parameters; return { type: "CylinderGeometry", radiusTop: p.radiusTop ?? 0.5, radiusBottom: p.radiusBottom ?? 0.5, height: p.height ?? 1, radialSegments: p.radialSegments ?? 32, heightSegments: p.heightSegments ?? 1 }; }
+    if (geo instanceof THREE.ConeGeometry) { const p = geo.parameters; return { type: "ConeGeometry", radius: p.radius ?? 0.5, height: p.height ?? 1, radialSegments: p.radialSegments ?? 32, heightSegments: p.heightSegments ?? 1 }; }
+    if (geo instanceof THREE.PlaneGeometry) { const p = geo.parameters; return { type: "PlaneGeometry", width: p.width ?? 1, height: p.height ?? 1, widthSegments: p.widthSegments ?? 1, heightSegments: p.heightSegments ?? 1 }; }
+    if (geo instanceof THREE.TorusGeometry) { const p = geo.parameters; return { type: "TorusGeometry", radius: p.radius ?? 0.4, tube: p.tube ?? 0.15, radialSegments: p.radialSegments ?? 16, tubularSegments: p.tubularSegments ?? 64 }; }
+    if (geo instanceof THREE.CapsuleGeometry) { const p = geo.parameters; return { type: "CapsuleGeometry", radius: p.radius ?? 0.3, length: (p as Record<string, number>).length ?? 0.6, capSegments: p.capSegments ?? 8, radialSegments: p.radialSegments ?? 16 }; }
+  }
+  // Plain BufferGeometry (or an edited typed geometry) — read back the raw float arrays
   const posAttr = geo.getAttribute("position");
   const vertices = posAttr ? Array.from(posAttr.array as Float32Array) : [];
   const idxAttr = geo.getIndex();
@@ -134,6 +141,8 @@ export interface SerializedMaterial {
   emissiveIntensity?: number;
   /** Texture map URLs keyed by slot name (e.g. "map", "normalMap"). */
   maps?: Partial<Record<TextureMapSlot, string>>;
+  /** THREE.Side value (FrontSide=0, BackSide=1, DoubleSide=2). Defaults to FrontSide. */
+  side?: number;
 }
 
 /** All texture map slot names exposed by the texture picker. */
@@ -211,6 +220,7 @@ export function buildMaterial(mat: SerializedMaterial): THREE.Material {
       m.opacity = mat.opacity ?? 1; m.transparent = mat.transparent ?? false;
       m.wireframe = mat.wireframe ?? false; m.flatShading = mat.flatShading ?? false;
       if (mat.emissive) { m.emissive.set(mat.emissive); m.emissiveIntensity = mat.emissiveIntensity ?? 1; }
+      if (mat.side !== undefined) m.side = mat.side;
       applyMaps(m, mat.maps);
       return m;
     }
@@ -219,6 +229,7 @@ export function buildMaterial(mat: SerializedMaterial): THREE.Material {
       m.color.set(mat.color); m.opacity = mat.opacity ?? 1; m.transparent = mat.transparent ?? false;
       m.wireframe = mat.wireframe ?? false;
       if (mat.emissive) { m.emissive.set(mat.emissive); m.emissiveIntensity = mat.emissiveIntensity ?? 1; }
+      if (mat.side !== undefined) m.side = mat.side;
       applyMaps(m, mat.maps);
       return m;
     }
@@ -226,6 +237,7 @@ export function buildMaterial(mat: SerializedMaterial): THREE.Material {
       const m = new THREE.MeshNormalMaterial();
       m.wireframe = mat.wireframe ?? false; m.flatShading = mat.flatShading ?? false;
       m.opacity = mat.opacity ?? 1; m.transparent = mat.transparent ?? false;
+      if (mat.side !== undefined) m.side = mat.side;
       applyMaps(m, mat.maps);
       return m;
     }
@@ -233,6 +245,7 @@ export function buildMaterial(mat: SerializedMaterial): THREE.Material {
       const m = new THREE.MeshBasicMaterial();
       m.color.set(mat.color); m.opacity = mat.opacity ?? 1; m.transparent = mat.transparent ?? false;
       m.wireframe = mat.wireframe ?? false;
+      if (mat.side !== undefined) m.side = mat.side;
       applyMaps(m, mat.maps);
       return m;
     }
@@ -242,6 +255,7 @@ export function buildMaterial(mat: SerializedMaterial): THREE.Material {
       m.opacity = mat.opacity ?? 1; m.transparent = mat.transparent ?? false;
       m.wireframe = mat.wireframe ?? false; m.flatShading = mat.flatShading ?? false;
       if (mat.emissive) { m.emissive.set(mat.emissive); m.emissiveIntensity = mat.emissiveIntensity ?? 1; }
+      if (mat.side !== undefined) m.side = mat.side;
       applyMaps(m, mat.maps);
       return m;
     }
@@ -253,6 +267,7 @@ export function readMaterialProps(mat: THREE.Material): SerializedMaterial {
     type: _matType(mat), color: "#888888",
     opacity: mat.opacity, transparent: mat.transparent,
     wireframe: (mat as THREE.MeshStandardMaterial).wireframe ?? false,
+    side: mat.side,
   };
   if (mat instanceof THREE.MeshNormalMaterial) {
     _readMaps(mat, base);
@@ -822,10 +837,10 @@ export const sceneActions: {
   setLightProps: (uuid: string, props: Partial<LightProps>) => void;
   setCameraProps: (uuid: string, props: Partial<CameraProps>) => void;
   invalidate: () => void;
-  addMeshWithGeometry: (geo: THREE.BufferGeometry, parentUUID?: string | null) => void;
+  addMeshWithGeometry: (geo: THREE.BufferGeometry, position?: THREE.Vector3, parentUUID?: string | null) => void;
 } = {
   addObject: (kind, parentUUID) => useSceneStore.getState().addObject(kind, parentUUID),
-  addMeshWithGeometry: (geo, parentUUID) => useSceneStore.getState().addMeshWithGeometry(geo, parentUUID),
+  addMeshWithGeometry: (geo, position, parentUUID) => useSceneStore.getState().addMeshWithGeometry(geo, position, parentUUID),
   removeObject: (uuid) => useSceneStore.getState().removeObject(uuid),
   select: (uuid) => useSceneStore.getState().select(uuid),
   setTransform: (uuid, position, rotation, scale) =>
