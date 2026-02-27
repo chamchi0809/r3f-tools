@@ -1,6 +1,6 @@
 [
   {
-    "uuid": "7565b022-0102-45f6-8cac-7dbadc0151d1",
+    "uuid": "8246ea7f-4fc4-40b6-b9f3-1a117bd594a2",
     "name": "Mesh",
     "kind": "mesh",
     "position": [
@@ -41,7 +41,7 @@
     }
   },
   {
-    "uuid": "ef52d1b1-a295-4bba-b6ae-e7e4ec68539d",
+    "uuid": "022dc88f-1cc9-4be4-83ad-4132287d07e1",
     "name": "PointLight",
     "kind": "pointLight",
     "position": [
@@ -80,7 +80,7 @@
     }
   },
   {
-    "uuid": "815e75f7-d6a3-4414-a214-3910bbbb321d",
+    "uuid": "88d55836-44f9-4d3f-990e-4bdd274f594a",
     "name": "Mesh",
     "kind": "mesh",
     "position": [
@@ -122,7 +122,7 @@
     }
   },
   {
-    "uuid": "e5dd4fbb-ec40-4988-acfd-6526ce97e485",
+    "uuid": "13e4e226-8db8-4443-a814-d7a4f854c7de",
     "name": "Sprite2D",
     "kind": "sprite2D",
     "position": [
@@ -162,7 +162,7 @@
       "roughness": 0.5,
       "metalness": 0,
       "maps": {
-        "map": "http://localhost:5174/stained_pine_diff_4k.jpg"
+        "map": "/stained_pine_disp_4k.png"
       }
     }
   }

@@ -487,6 +487,8 @@ function TextureField({
     loader.load(path, (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.needsUpdate = true;
+      // Store the original relative path so _readMaps can recover it on save.
+      tex.userData.r3eUrl = path;
       onChange(tex);
     });
   };

@@ -116,6 +116,18 @@ export type TextureMapSlot = typeof TEXTURE_MAP_SLOTS[number];
 
 const _textureCache = new Map<string, THREE.Texture>();
 
+/**
+ * Strips the current page origin from a URL so texture paths are saved as
+ * root-relative paths (e.g. "/textures/foo.jpg") instead of absolute URLs
+ * (e.g. "http://localhost:5174/textures/foo.jpg") that break in production.
+ */
+function _urlToRelative(src: string): string {
+  if (typeof window !== "undefined" && src.startsWith(window.location.origin)) {
+    return src.slice(window.location.origin.length) || "/";
+  }
+  return src;
+}
+
 function loadTexture(url: string, onLoad?: () => void): THREE.Texture {
   if (_textureCache.has(url)) {
     // Already cached — image may already be loaded; fire onLoad immediately.
@@ -127,6 +139,8 @@ function loadTexture(url: string, onLoad?: () => void): THREE.Texture {
     onLoad?.();
   });
   tex.colorSpace = THREE.SRGBColorSpace;
+  // Store the original URL so _readMaps can recover a relative path on save.
+  tex.userData.r3eUrl = url;
   _textureCache.set(url, tex);
   return tex;
 }
@@ -231,8 +245,12 @@ function _readMaps(mat: THREE.Material, out: SerializedMaterial): void {
   for (const slot of TEXTURE_MAP_SLOTS) {
     const tex = m[slot];
     if (tex instanceof THREE.Texture) {
-      const src = (tex.image as HTMLImageElement | undefined)?.src;
-      if (src) maps[slot] = src;
+      // Prefer the stored original URL (set by loadTexture / TextureField.pick).
+      // Fall back to image.src and strip the origin so we always save a
+      // root-relative path like "/foo.jpg" instead of "http://localhost:5174/foo.jpg".
+      const stored = tex.userData.r3eUrl as string | undefined;
+      const src = stored ?? (tex.image as HTMLImageElement | undefined)?.src;
+      if (src) maps[slot] = _urlToRelative(src);
     }
   }
   if (Object.keys(maps).length > 0) out.maps = maps;
