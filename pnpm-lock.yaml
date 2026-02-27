@@ -146,6 +146,9 @@ importers:
       '@react-three/fiber':
         specifier: ^9.0.0
         version: 9.5.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.183.1)
+      koota:
+        specifier: ^0.6.5
+        version: 0.6.5(@types/react@19.2.14)(react@19.2.4)
       react:
         specifier: ^19.1.1
         version: 19.2.4
