@@ -10,3 +10,5 @@ dist
 .env.local
 *.log
 .idea
+.omc
+**/*/.omc
