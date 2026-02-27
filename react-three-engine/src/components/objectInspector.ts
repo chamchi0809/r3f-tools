@@ -32,6 +32,7 @@ export type PropValueType =
   | "vector3"    // THREE.Vector3
   | "vector4"    // THREE.Vector4
   | "euler"      // THREE.Euler
+  | "texture"    // THREE.Texture (texture map slot)
   | "object"     // inspectable sub-object
   | "unsupported";
 
@@ -72,7 +73,14 @@ const SKIP_KEYS = new Set([
   "programs", "clippingPlanes", "userData",
   "extensions", "defines", "uniforms", "glslVersion",
   "iridescenceThicknessRange",
-  // texture slots (unsupported — no texture picker yet)
+  // shadow sub-object internals (render textures)
+  "mapPass",
+  // r3f internals
+  "__r3f",
+]);
+
+/** Keys that represent texture map slots — null value is still renderable as a TextureField. */
+const TEXTURE_SLOT_KEYS = new Set([
   "map", "normalMap", "roughnessMap", "metalnessMap", "aoMap",
   "emissiveMap", "lightMap", "bumpMap", "displacementMap",
   "alphaMap", "envMap", "gradientMap", "clearcoatMap",
@@ -80,10 +88,6 @@ const SKIP_KEYS = new Set([
   "transmissionMap", "thicknessMap", "sheenColorMap",
   "specularIntensityMap", "specularColorMap",
   "anisotropyMap", "iridescenceMap",
-  // shadow sub-object internals (render textures)
-  "mapPass",
-  // r3f internals
-  "__r3f",
 ]);
 
 function shouldSkipKey(key: string): boolean {
@@ -103,6 +107,7 @@ function classifyValue(value: unknown): PropValueType {
   if (value instanceof THREE.Vector4) return "vector4";
   if (value instanceof THREE.Vector3) return "vector3";
   if (value instanceof THREE.Vector2) return "vector2";
+  if (value instanceof THREE.Texture) return "texture";
   if (typeof value === "number")      return "number";
   if (typeof value === "boolean")     return "boolean";
   if (typeof value === "string")      return "string";
@@ -201,10 +206,10 @@ function _introspectInner(target: object, debug = false): PropGroup[] {
       continue;
     }
 
-    // Skip non-data
-    if (typeof value === "function" || value === null || value === undefined) continue;
-
-    const vt = classifyValue(value);
+    // Skip non-data — but allow null texture slots (they render as empty TextureField)
+    if (typeof value === "function" || value === undefined) continue;
+    if (value === null && !TEXTURE_SLOT_KEYS.has(key)) continue;
+    const vt = value === null ? "texture" : classifyValue(value);
     if (!debug && vt === "unsupported") continue;
 
     // Build PropInfo — for sub-objects, attach nested groups

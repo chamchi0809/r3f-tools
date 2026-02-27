@@ -9,6 +9,12 @@ export default defineConfig({
       webgpu: true,
       editorPath: "/editor",
       savePath: "./prefabs",
+      objects: {
+        sprite2D: {
+          module: "./src/Sprite2D",
+          label: "Sprite2D",
+        },
+      },
     }),
   ],
   server: {

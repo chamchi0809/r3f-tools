@@ -11,7 +11,12 @@ import { SettingsPane } from "./components/SettingsPane";
 import { PrefabPanel } from "./components/PrefabPanel";
 import { SceneContent } from "./components/SceneContent";
 import { TransformModeBar, type TransformMode } from "./components/Toolbar";
+import { initCustomObjectRegistry } from "./customObjectRegistry";
 import "./styles";
+
+// Initialise the custom object registry as early as possible so that the
+// Hierarchy pane can show custom kinds as soon as the editor mounts.
+void initCustomObjectRegistry();
 
 const Viewport = () => {
   const [transformDragging, setTransformDragging] = useState(false);

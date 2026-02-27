@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three/webgpu";
+import { editorConfig } from "virtual:react-three-engine/config";
 import {
   sceneActions,
   useSceneStore,
@@ -9,6 +10,7 @@ import {
   type GeometryParams,
   type MaterialType,
   type SerializedMaterial,
+  type TextureMapSlot,
 } from "../store/sceneStore";
 import { useSettingsStore } from "../store/settingsStore";
 import { numInputStyle, textInputStyle } from "../styles";
@@ -446,6 +448,148 @@ function Vec4Field({
   );
 }
 
+// ─── TextureField — texture map slot picker ─────────────────────────────────
+
+interface TextureEntry { path: string; }
+
+function TextureField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: THREE.Texture | null | undefined;
+  onChange: (tex: THREE.Texture | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [textures, setTextures] = useState<TextureEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { apiBase } = editorConfig;
+
+  const thumbUrl = value instanceof THREE.Texture
+    ? (value.image as HTMLImageElement | undefined)?.src ?? null
+    : null;
+
+  const openModal = async () => {
+    setOpen(true);
+    setLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/textures`);
+      if (res.ok) setTextures(await res.json() as TextureEntry[]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const pick = (path: string) => {
+    setOpen(false);
+    const loader = new THREE.TextureLoader();
+    loader.load(path, (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.needsUpdate = true;
+      onChange(tex);
+    });
+  };
+
+  return (
+    <>
+      <div style={rowStyle}>
+        <span style={labelText}>{label}</span>
+        {/* thumbnail */}
+        <div style={{
+          width: 32, height: 32, flexShrink: 0,
+          background: thumbUrl ? `url(${thumbUrl}) center/cover` : "#222",
+          border: "1px solid #333", borderRadius: 2,
+        }} />
+        <button
+          onClick={openModal}
+          style={{
+            fontSize: 10, padding: "2px 6px", background: "#2a2a2a",
+            border: "1px solid #444", borderRadius: 3, color: "#ccc",
+            cursor: "pointer", flexShrink: 0,
+          }}
+        >
+          Set…
+        </button>
+        {value && (
+          <button
+            onClick={() => onChange(null)}
+            style={{
+              fontSize: 10, padding: "2px 6px", background: "#2a1a1a",
+              border: "1px solid #553", borderRadius: 3, color: "#f88",
+              cursor: "pointer", flexShrink: 0,
+            }}
+          >
+            ✕
+          </button>
+        )}
+      </div>
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 9999,
+            background: "rgba(0,0,0,0.7)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#1a1a1a", border: "1px solid #333",
+              borderRadius: 6, padding: 16, width: 480, maxHeight: 480,
+              overflowY: "auto", display: "flex", flexDirection: "column", gap: 10,
+            }}
+          >
+            <div style={{ fontSize: 12, color: "#aaa", marginBottom: 4 }}>
+              Pick texture — <em style={{ color: "#555" }}>{label}</em>
+            </div>
+            {loading && <div style={{ fontSize: 11, color: "#555" }}>Loading…</div>}
+            {!loading && textures.length === 0 && (
+              <div style={{ fontSize: 11, color: "#555" }}>
+                No images found in publicDir.
+              </div>
+            )}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {textures.map((t) => (
+                <button
+                  key={t.path}
+                  onClick={() => pick(t.path)}
+                  title={t.path}
+                  style={{
+                    background: "#111", border: "1px solid #333",
+                    borderRadius: 3, padding: 2, cursor: "pointer",
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                  }}
+                >
+                  <img
+                    src={t.path}
+                    alt={t.path}
+                    style={{ width: 64, height: 64, objectFit: "cover", display: "block" }}
+                  />
+                  <span style={{ fontSize: 9, color: "#666", maxWidth: 64, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {t.path.split("/").pop()}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setOpen(false)}
+              style={{
+                alignSelf: "flex-end", fontSize: 11, padding: "3px 10px",
+                background: "#222", border: "1px solid #444", borderRadius: 3,
+                color: "#aaa", cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ─── Field Registry (pluggable custom field renderers) ───────────────────────
 
 export type FieldRendererProps = {
@@ -497,12 +641,14 @@ function NestedObjectField({
   target,
   subGroups,
   onCommit,
+  onTextureCommit,
   depth = 0,
 }: {
   label: string;
   target: object;
   subGroups: PropGroup[];
   onCommit: () => void;
+  onTextureCommit?: () => void;
   depth?: number;
 }) {
   const [open, setOpen] = useState(true);
@@ -539,6 +685,7 @@ function NestedObjectField({
                   target={(target as Record<string, unknown>)[info.key] as object}
                   subGroups={info.subGroups}
                   onCommit={onCommit}
+                  onTextureCommit={onTextureCommit}
                   depth={depth + 1}
                 />
               ) : (
@@ -548,6 +695,7 @@ function NestedObjectField({
                   info={info}
                   target={target}
                   onCommit={onCommit}
+                  onTextureCommit={onTextureCommit}
                 />
               )
             ))
@@ -565,16 +713,11 @@ interface AutoFieldProps {
   info: PropInfo;
   target: object;
   onCommit: () => void;
+  /** Called instead of onCommit when a texture slot changes (needs material rebuild). */
+  onTextureCommit?: () => void;
 }
 
-interface AutoFieldProps {
-  className: string;
-  info: PropInfo;
-  target: object;
-  onCommit: () => void;
-}
-
-function AutoField({ className, info, target, onCommit }: AutoFieldProps) {
+function AutoField({ className, info, target, onCommit, onTextureCommit }: AutoFieldProps) {
   const { key, valueType } = info;
   const raw = (target as Record<string, unknown>)[key];
 
@@ -723,6 +866,19 @@ function AutoField({ className, info, target, onCommit }: AutoFieldProps) {
     );
   }
 
+  if (valueType === "texture") {
+    return (
+      <TextureField
+        label={key}
+        value={raw as THREE.Texture | null | undefined}
+        onChange={(tex) => {
+          (target as Record<string, unknown>)[key] = tex;
+          (onTextureCommit ?? onCommit)();
+        }}
+      />
+    );
+  }
+
   return null;
 }
 
@@ -732,12 +888,14 @@ function AutoFieldGroup({
   group,
   target,
   onCommit,
+  onTextureCommit,
   defaultOpen = true,
   isFieldVisible,
 }: {
   group: PropGroup;
   target: object;
   onCommit: () => void;
+  onTextureCommit?: () => void;
   defaultOpen?: boolean;
   isFieldVisible?: (className: string, propKey: string) => boolean;
 }) {
@@ -779,6 +937,7 @@ function AutoFieldGroup({
           info={info}
           target={target}
           onCommit={onCommit}
+          onTextureCommit={onTextureCommit}
         />
       ))}
     </div>
@@ -895,6 +1054,9 @@ function MaterialEditor({
 
   const groups = introspectMaterial(material, debugMode);
   const onCommit = () => sceneActions.invalidate();
+  // Texture slot changes need a full material rebuild so WebGPU recompiles
+  // the node graph with the new texture binding.
+  const onTextureCommit = () => sceneActions.setMaterialProps(uuid, {});
 
   return (
     <>
@@ -913,6 +1075,7 @@ function MaterialEditor({
           group={group}
           target={material}
           onCommit={onCommit}
+          onTextureCommit={onTextureCommit}
           isFieldVisible={isFieldVisible}
         />
       ))}

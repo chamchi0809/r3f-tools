@@ -1,15 +1,25 @@
 import React, { useState } from "react";
 import { sceneActions, useSceneStore, type ObjectKind, type SceneNode } from "../store/sceneStore";
 import { btnStyle } from "../styles";
+import { getCustomObjectKinds } from "../customObjectRegistry";
 
-const OBJECT_KINDS: { kind: ObjectKind; label: string }[] = [
-  { kind: "mesh", label: "Mesh" },
-  { kind: "group", label: "Group" },
-  { kind: "ambientLight", label: "Ambient Light" },
-  { kind: "directionalLight", label: "Directional Light" },
-  { kind: "pointLight", label: "Point Light" },
-  { kind: "perspectiveCamera", label: "Camera" },
+const BUILTIN_KINDS: { kind: ObjectKind; label: string; icon: string }[] = [
+  { kind: "mesh", label: "Mesh", icon: "⬛" },
+  { kind: "group", label: "Group", icon: "📁" },
+  { kind: "ambientLight", label: "Ambient Light", icon: "☀" },
+  { kind: "directionalLight", label: "Directional Light", icon: "🔆" },
+  { kind: "pointLight", label: "Point Light", icon: "💡" },
+  { kind: "perspectiveCamera", label: "Camera", icon: "📷" },
 ];
+
+function getAllKinds(): { kind: ObjectKind; label: string; icon: string }[] {
+  const custom = getCustomObjectKinds().map(({ kind, meta }) => ({
+    kind: kind as ObjectKind,
+    label: meta.label,
+    icon: meta.icon,
+  }));
+  return [...BUILTIN_KINDS, ...custom];
+}
 
 function getIconForKind(kind: ObjectKind): string {
   switch (kind) {
@@ -19,6 +29,10 @@ function getIconForKind(kind: ObjectKind): string {
     case "directionalLight": return "🔆";
     case "pointLight": return "💡";
     case "perspectiveCamera": return "📷";
+    default: {
+      const custom = getCustomObjectKinds().find((e) => e.kind === kind);
+      return custom?.meta.icon ?? "⬜";
+    }
   }
 }
 
@@ -144,14 +158,15 @@ export function HierarchyPane(): React.JSX.Element {
                 boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
               }}
             >
-              {OBJECT_KINDS.map(({ kind, label }) => (
+              {getAllKinds().map(({ kind, label, icon }) => (
                 <div
                   key={kind}
                   onClick={() => handleAdd(kind)}
-                  style={{ padding: "7px 12px", fontSize: 12, cursor: "pointer", color: "#ddd" }}
+                  style={{ padding: "7px 12px", fontSize: 12, cursor: "pointer", color: "#ddd", display: "flex", alignItems: "center", gap: 6 }}
                   onMouseEnter={(e) => ((e.target as HTMLElement).style.background = "#333")}
                   onMouseLeave={(e) => ((e.target as HTMLElement).style.background = "transparent")}
                 >
+                  <span style={{ opacity: 0.7 }}>{icon}</span>
                   {label}
                 </div>
               ))}

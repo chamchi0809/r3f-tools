@@ -1,14 +1,19 @@
 import { create, type StoreApi } from "zustand";
 import { type UseBoundStore } from "zustand/react";
 import * as THREE from "three/webgpu";
+import { makeCustomObject, isCustomObjectKind } from "../customObjectRegistry";
+import type { CustomObjectKind } from "../customObjectTypes";
 
-export type ObjectKind =
+export type BuiltinObjectKind =
   | "mesh"
   | "group"
   | "ambientLight"
   | "directionalLight"
   | "pointLight"
   | "perspectiveCamera";
+
+/** All possible object kind strings — builtin + user-registered custom kinds. */
+export type ObjectKind = BuiltinObjectKind | CustomObjectKind;
 
 export type GeometryType =
   | "BoxGeometry"
@@ -92,6 +97,59 @@ export interface SerializedMaterial {
   flatShading?: boolean;
   emissive?: string;
   emissiveIntensity?: number;
+  /** Texture map URLs keyed by slot name (e.g. "map", "normalMap"). */
+  maps?: Partial<Record<TextureMapSlot, string>>;
+}
+
+/** All texture map slot names exposed by the texture picker. */
+export const TEXTURE_MAP_SLOTS = [
+  "map", "normalMap", "roughnessMap", "metalnessMap", "aoMap",
+  "emissiveMap", "lightMap", "bumpMap", "displacementMap",
+  "alphaMap", "envMap", "gradientMap", "clearcoatMap",
+  "clearcoatNormalMap", "clearcoatRoughnessMap",
+  "transmissionMap", "thicknessMap", "sheenColorMap",
+  "specularIntensityMap", "specularColorMap",
+  "anisotropyMap", "iridescenceMap",
+] as const;
+
+export type TextureMapSlot = typeof TEXTURE_MAP_SLOTS[number];
+
+const _textureCache = new Map<string, THREE.Texture>();
+
+function loadTexture(url: string, onLoad?: () => void): THREE.Texture {
+  if (_textureCache.has(url)) {
+    // Already cached — image may already be loaded; fire onLoad immediately.
+    onLoad?.();
+    return _textureCache.get(url)!;
+  }
+  const tex = new THREE.TextureLoader().load(url, (t) => {
+    t.needsUpdate = true;
+    onLoad?.();
+  });
+  tex.colorSpace = THREE.SRGBColorSpace;
+  _textureCache.set(url, tex);
+  return tex;
+}
+
+export function applyMaps(
+  mat: THREE.Material,
+  maps: Partial<Record<TextureMapSlot, string>> | undefined,
+  onLoad?: () => void,
+): void {
+  if (!maps) return;
+  const m = mat as unknown as Record<string, THREE.Texture | null>;
+  for (const slot of TEXTURE_MAP_SLOTS) {
+    if (!(slot in maps)) continue;
+    const url = maps[slot];
+    if (url) {
+      m[slot] = loadTexture(url, onLoad);
+    } else {
+      const existing = m[slot];
+      if (existing instanceof THREE.Texture) { existing.dispose(); }
+      m[slot] = null;
+    }
+  }
+  mat.needsUpdate = true;
 }
 
 export function buildMaterial(mat: SerializedMaterial): THREE.Material {
@@ -104,6 +162,7 @@ export function buildMaterial(mat: SerializedMaterial): THREE.Material {
       m.opacity = mat.opacity ?? 1; m.transparent = mat.transparent ?? false;
       m.wireframe = mat.wireframe ?? false; m.flatShading = mat.flatShading ?? false;
       if (mat.emissive) { m.emissive.set(mat.emissive); m.emissiveIntensity = mat.emissiveIntensity ?? 1; }
+      applyMaps(m, mat.maps);
       return m;
     }
     case "MeshToonMaterial": {
@@ -111,18 +170,21 @@ export function buildMaterial(mat: SerializedMaterial): THREE.Material {
       m.color.set(mat.color); m.opacity = mat.opacity ?? 1; m.transparent = mat.transparent ?? false;
       m.wireframe = mat.wireframe ?? false;
       if (mat.emissive) { m.emissive.set(mat.emissive); m.emissiveIntensity = mat.emissiveIntensity ?? 1; }
+      applyMaps(m, mat.maps);
       return m;
     }
     case "MeshNormalMaterial": {
       const m = new THREE.MeshNormalMaterial();
       m.wireframe = mat.wireframe ?? false; m.flatShading = mat.flatShading ?? false;
       m.opacity = mat.opacity ?? 1; m.transparent = mat.transparent ?? false;
+      applyMaps(m, mat.maps);
       return m;
     }
     case "MeshBasicMaterial": {
       const m = new THREE.MeshBasicMaterial();
       m.color.set(mat.color); m.opacity = mat.opacity ?? 1; m.transparent = mat.transparent ?? false;
       m.wireframe = mat.wireframe ?? false;
+      applyMaps(m, mat.maps);
       return m;
     }
     default: {
@@ -131,6 +193,7 @@ export function buildMaterial(mat: SerializedMaterial): THREE.Material {
       m.opacity = mat.opacity ?? 1; m.transparent = mat.transparent ?? false;
       m.wireframe = mat.wireframe ?? false; m.flatShading = mat.flatShading ?? false;
       if (mat.emissive) { m.emissive.set(mat.emissive); m.emissiveIntensity = mat.emissiveIntensity ?? 1; }
+      applyMaps(m, mat.maps);
       return m;
     }
   }
@@ -142,7 +205,10 @@ export function readMaterialProps(mat: THREE.Material): SerializedMaterial {
     opacity: mat.opacity, transparent: mat.transparent,
     wireframe: (mat as THREE.MeshStandardMaterial).wireframe ?? false,
   };
-  if (mat instanceof THREE.MeshNormalMaterial) return base;
+  if (mat instanceof THREE.MeshNormalMaterial) {
+    _readMaps(mat, base);
+    return base;
+  }
   const colored = mat as THREE.MeshStandardMaterial | THREE.MeshBasicMaterial;
   base.color = `#${colored.color.getHexString()}`;
   if ("flatShading" in mat) base.flatShading = (mat as THREE.MeshStandardMaterial).flatShading;
@@ -155,7 +221,21 @@ export function readMaterialProps(mat: THREE.Material): SerializedMaterial {
     base.transmission = mat.transmission; base.thickness = mat.thickness;
     base.ior = mat.ior; base.clearcoat = mat.clearcoat; base.clearcoatRoughness = mat.clearcoatRoughness;
   }
+  _readMaps(mat, base);
   return base;
+}
+
+function _readMaps(mat: THREE.Material, out: SerializedMaterial): void {
+  const m = mat as unknown as Record<string, unknown>;
+  const maps: Partial<Record<TextureMapSlot, string>> = {};
+  for (const slot of TEXTURE_MAP_SLOTS) {
+    const tex = m[slot];
+    if (tex instanceof THREE.Texture) {
+      const src = (tex.image as HTMLImageElement | undefined)?.src;
+      if (src) maps[slot] = src;
+    }
+  }
+  if (Object.keys(maps).length > 0) out.maps = maps;
 }
 
 function _matType(mat: THREE.Material): MaterialType {
@@ -322,6 +402,7 @@ interface SceneState {
   setMaterialColor: (uuid: string, color: string) => void;
   setMaterialType: (uuid: string, type: MaterialType) => void;
   setMaterialProps: (uuid: string, props: Partial<Omit<SerializedMaterial, "type">>) => void;
+  setTextureMap: (uuid: string, slot: TextureMapSlot, url: string | null) => void;
   setGeometryType: (uuid: string, type: GeometryType) => void;
   setGeometryParams: (uuid: string, params: Partial<GeometryParams>) => void;
   serialize: () => SerializedObject[];
@@ -367,10 +448,28 @@ export function makeObject(kind: ObjectKind): THREE.Object3D {
       c.position.set(0, 0, 5);
       return c;
     }
+    default: {
+      // Custom object kind — delegate to the runtime registry.
+      const custom = makeCustomObject(kind as string);
+      if (custom) {
+        // Stamp the kind so detectKind can recover it later.
+        custom.userData.r3eKind = kind;
+        return custom;
+      }
+      // Fallback: plain Group so the scene doesn't hard-fail.
+      const fallback = new THREE.Group();
+      fallback.name = String(kind);
+      fallback.userData.r3eKind = kind;
+      return fallback;
+    }
   }
 }
 
 function detectKind(obj: THREE.Object3D): ObjectKind {
+  // Custom objects are stamped with their kind at creation time.
+  if (obj.userData.r3eKind && isCustomObjectKind(obj.userData.r3eKind as string)) {
+    return obj.userData.r3eKind as ObjectKind;
+  }
   if (obj instanceof THREE.Mesh) return "mesh";
   if (obj instanceof THREE.AmbientLight) return "ambientLight";
   if (obj instanceof THREE.DirectionalLight) return "directionalLight";
@@ -565,6 +664,21 @@ export const useSceneStore: UseBoundStore<StoreApi<SceneState>> = create<SceneSt
       invalidate();
     },
 
+    setTextureMap: (uuid, slot, url) => {
+      const { objects, invalidate } = get();
+      const obj = objects.get(uuid);
+      if (!(obj instanceof THREE.Mesh)) return;
+      // Read current serialized state, update the specific slot, then do a
+      // full material rebuild so the WebGPU node graph is recompiled with
+      // the new texture binding.
+      const current = readMaterialProps(obj.material as THREE.Material);
+      const maps = { ...(current.maps ?? {}), [slot]: url ?? undefined };
+      if (!url) delete maps[slot as keyof typeof maps];
+      (obj.material as THREE.Material).dispose();
+      obj.material = buildMaterial({ ...current, maps });
+      invalidate();
+    },
+
     setGeometryType: (uuid, type) => {
       const { objects, invalidate } = get();
       const obj = objects.get(uuid);
@@ -642,6 +756,7 @@ export const sceneActions: {
   setMaterialColor: (uuid: string, color: string) => void;
   setMaterialType: (uuid: string, type: MaterialType) => void;
   setMaterialProps: (uuid: string, props: Partial<Omit<SerializedMaterial, "type">>) => void;
+  setTextureMap: (uuid: string, slot: TextureMapSlot, url: string | null) => void;
   setGeometryType: (uuid: string, type: GeometryType) => void;
   setGeometryParams: (uuid: string, params: Partial<GeometryParams>) => void;
   serialize: () => SerializedObject[];
@@ -658,6 +773,7 @@ export const sceneActions: {
   setMaterialColor: (uuid, color) => useSceneStore.getState().setMaterialColor(uuid, color),
   setMaterialType: (uuid, type) => useSceneStore.getState().setMaterialType(uuid, type),
   setMaterialProps: (uuid, props) => useSceneStore.getState().setMaterialProps(uuid, props),
+  setTextureMap: (uuid, slot, url) => useSceneStore.getState().setTextureMap(uuid, slot, url),
   setGeometryType: (uuid, type) => useSceneStore.getState().setGeometryType(uuid, type),
   setGeometryParams: (uuid, params) => useSceneStore.getState().setGeometryParams(uuid, params),
   serialize: () => useSceneStore.getState().serialize(),
