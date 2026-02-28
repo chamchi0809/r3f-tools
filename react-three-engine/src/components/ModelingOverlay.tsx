@@ -9,6 +9,7 @@
  *   - G/R/S hotkeys to switch transform mode; Tab exits to Object Mode
  */
 import { TransformControls } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
 import React, { useEffect, useRef, useMemo, useCallback, useState } from "react";
 import * as THREE from "three/webgpu";
 import { useSceneStore, sceneActions } from "../store/sceneStore";
@@ -24,7 +25,10 @@ import { useSettingsStore, resolveSnapProps } from "../store/settingsStore";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const VERTEX_RADIUS = 0.04;
+const VERTEX_HIT_RADIUS = 0.12;           // invisible hit sphere — 3× visual for forgiving clicks
+const VERTEX_SCREEN_HIT_PX = 24;          // screen-space hover threshold (pixels)
 const VERTEX_COLOR_DEFAULT = "#888888";
+const VERTEX_COLOR_HOVERABLE = "#44aaff"; // within cursor reach but not yet clicked
 const VERTEX_COLOR_SELECTED = "#f0a020";
 const EDGE_COLOR_DEFAULT = "#555555";
 const EDGE_COLOR_SELECTED = "#f0a020";
@@ -153,8 +157,59 @@ function expandToColocated(baseSet: Set<number>, positions: Float32Array, eps = 
   return expanded;
 }
 
+// ─── Vertex hover gizmo ───────────────────────────────────────────────────────
+
+/**
+ * Camera-facing ring rendered at the hovered vertex's WORLD position (outside
+ * the local-space mesh group). Scales each frame so its screen-space radius
+ * always matches VERTEX_SCREEN_HIT_PX, giving the user clear visual feedback
+ * about how large the selection zone is.
+ */
+function VertexHoverGizmo({
+  position,
+  isSelected,
+}: {
+  position: THREE.Vector3;
+  isSelected: boolean;
+}) {
+  const { camera, size } = useThree();
+  const ref = useRef<THREE.Mesh>(null!);
+
+  useFrame(() => {
+    const m = ref.current;
+    if (!m) return;
+    // Billboard: orient ring to always face the camera
+    m.quaternion.copy(camera.quaternion);
+    // Scale so the ring's radius equals VERTEX_SCREEN_HIT_PX pixels at any distance
+    const dist = camera.position.distanceTo(position);
+    const fovRad = ((camera as THREE.PerspectiveCamera).fov ?? 60) * (Math.PI / 180);
+    const worldRadius = (VERTEX_SCREEN_HIT_PX * dist * 2 * Math.tan(fovRad / 2)) / size.height;
+    m.scale.setScalar(worldRadius);
+  });
+
+  return (
+    <mesh ref={ref} position={position}>
+      <ringGeometry args={[0.72, 1.0, 32]} />
+      <meshBasicMaterial
+        color={isSelected ? VERTEX_COLOR_SELECTED : VERTEX_COLOR_HOVERABLE}
+        transparent
+        opacity={0.65}
+        depthTest={false}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
+  );
+}
+
 // ─── Vertex dots ──────────────────────────────────────────────────────────────
 
+/**
+ * Renders visual spheres for every vertex plus a larger invisible hit sphere
+ * (3× radius) for a more forgiving click target.
+ *
+ * Hover state is driven by per-frame screen-space proximity detection instead
+ * of Three.js raycasting, so it works at any zoom level.
+ */
 function VertexDots({
   mesh,
   selectedElements,
@@ -168,12 +223,128 @@ function VertexDots({
   onHover: (idx: number | null) => void;
   onClick: (idx: number, additive: boolean) => void;
 }) {
+  const { camera, size, gl } = useThree();
   const positions = getPositions(mesh.geometry);
   const count = positions.length / 3;
+
   const selectedSet = useMemo(
     () => new Set(selectedElements.filter((e) => e.type === "vertex").map((e) => e.index)),
     [selectedElements],
   );
+
+  // Always-current ref so useFrame can read selectedSet without stale closures
+  const selectedSetRef = useRef(selectedSet);
+  selectedSetRef.current = selectedSet;
+
+  // Direct refs to visual meshes — colors are updated in useFrame, not via React state
+  const visualMeshRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const hoveredIdxRef = useRef<number | null>(null);
+  const mouseNDC = useRef(new THREE.Vector2(-10, -10));
+
+  // Reusable vectors to avoid per-frame heap allocations
+  const _wp = useRef(new THREE.Vector3());
+  const _ndc = useRef(new THREE.Vector3());
+
+  // Pre-built Color objects (avoid per-frame allocation)
+  const C_DEFAULT = useMemo(() => new THREE.Color(VERTEX_COLOR_DEFAULT), []);
+  const C_HOVER = useMemo(() => new THREE.Color(VERTEX_COLOR_HOVERABLE), []);
+  const C_SELECT = useMemo(() => new THREE.Color(VERTEX_COLOR_SELECTED), []);
+
+  // Sync material colors whenever the selection set changes
+  useEffect(() => {
+    for (let i = 0; i < visualMeshRefs.current.length; i++) {
+      const m = visualMeshRefs.current[i];
+      if (!m) continue;
+      const mat = m.material as THREE.MeshBasicMaterial;
+      if (selectedSet.has(i)) {
+        mat.color.copy(C_SELECT);
+      } else if (hoveredIdxRef.current === i) {
+        mat.color.copy(C_HOVER);
+      } else {
+        mat.color.copy(C_DEFAULT);
+      }
+    }
+  }, [selectedSet, C_DEFAULT, C_HOVER, C_SELECT]);
+
+  // Reset hover visuals when switching away from vertex/edge mode
+  useEffect(() => {
+    if (selectionMode !== "vertex" && selectionMode !== "edge") {
+      const prev = hoveredIdxRef.current;
+      if (prev !== null) {
+        const m = visualMeshRefs.current[prev];
+        if (m && !selectedSetRef.current.has(prev)) {
+          (m.material as THREE.MeshBasicMaterial).color.copy(C_DEFAULT);
+        }
+        hoveredIdxRef.current = null;
+        onHover(null);
+      }
+    }
+  }, [selectionMode, C_DEFAULT, onHover]);
+
+  // Track mouse in NDC space
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const onMove = (e: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseNDC.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseNDC.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    };
+    canvas.addEventListener("pointermove", onMove, { passive: true });
+    return () => canvas.removeEventListener("pointermove", onMove);
+  }, [gl]);
+
+  // Per-frame screen-space proximity detection
+  useFrame(() => {
+    if (selectionMode !== "vertex" && selectionMode !== "edge") return;
+    if (count === 0) return;
+
+    const w = size.width;
+    const h = size.height;
+    const mx = (mouseNDC.current.x * 0.5 + 0.5) * w;
+    const my = (1 - (mouseNDC.current.y * 0.5 + 0.5)) * h;
+
+    const wp = _wp.current;
+    const ndc = _ndc.current;
+    let bestDist = VERTEX_SCREEN_HIT_PX;
+    let bestIdx: number | null = null;
+
+    for (let i = 0; i < count; i++) {
+      wp.set(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]).applyMatrix4(
+        mesh.matrixWorld,
+      );
+      ndc.copy(wp).project(camera);
+      if (ndc.z > 1) continue; // behind near clipping plane
+      const sx = (ndc.x * 0.5 + 0.5) * w;
+      const sy = (1 - (ndc.y * 0.5 + 0.5)) * h;
+      const dist = Math.hypot(sx - mx, sy - my);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = i;
+      }
+    }
+
+    if (hoveredIdxRef.current !== bestIdx) {
+      // Restore previous hovered vertex to its correct color
+      const prev = hoveredIdxRef.current;
+      if (prev !== null) {
+        const m = visualMeshRefs.current[prev];
+        if (m) {
+          (m.material as THREE.MeshBasicMaterial).color.copy(
+            selectedSetRef.current.has(prev) ? C_SELECT : C_DEFAULT,
+          );
+        }
+      }
+      // Apply hover color to newly hovered vertex (don't override selected)
+      if (bestIdx !== null) {
+        const m = visualMeshRefs.current[bestIdx];
+        if (m && !selectedSetRef.current.has(bestIdx)) {
+          (m.material as THREE.MeshBasicMaterial).color.copy(C_HOVER);
+        }
+      }
+      hoveredIdxRef.current = bestIdx;
+      onHover(bestIdx);
+    }
+  });
 
   if (selectionMode !== "vertex" && selectionMode !== "edge") return null;
 
@@ -185,26 +356,30 @@ function VertexDots({
         const z = positions[i * 3 + 2];
         const isSelected = selectedSet.has(i);
         return (
-          <mesh
-            key={i}
-            position={[x, y, z]}
-            matrixAutoUpdate
-            onPointerOver={(e) => {
-              e.stopPropagation();
-              onHover(i);
-            }}
-            onPointerOut={() => onHover(null)}
-            onClick={(e) => {
-              e.stopPropagation();
-              onClick(i, e.shiftKey);
-            }}
-          >
-            <sphereGeometry args={[VERTEX_RADIUS, 8, 8]} />
-            <meshBasicMaterial
-              color={isSelected ? VERTEX_COLOR_SELECTED : VERTEX_COLOR_DEFAULT}
-              depthTest={false}
-            />
-          </mesh>
+          <group key={i} position={[x, y, z]}>
+            {/* Visual sphere: small dot, color managed by useFrame */}
+            <mesh
+              ref={(el) => {
+                visualMeshRefs.current[i] = el;
+              }}
+            >
+              <sphereGeometry args={[VERTEX_RADIUS, 8, 8]} />
+              <meshBasicMaterial
+                color={isSelected ? VERTEX_COLOR_SELECTED : VERTEX_COLOR_DEFAULT}
+                depthTest={false}
+              />
+            </mesh>
+            {/* Invisible hit sphere: 3× larger for a forgiving click target */}
+            <mesh
+              onClick={(e) => {
+                e.stopPropagation();
+                onClick(i, e.shiftKey);
+              }}
+            >
+              <sphereGeometry args={[VERTEX_HIT_RADIUS, 6, 6]} />
+              <meshBasicMaterial visible={false} />
+            </mesh>
+          </group>
         );
       })}
     </>
@@ -652,6 +827,113 @@ function SelectionTransformGizmo({
   );
 }
 
+// ─── Bounding box gizmo ────────────────────────────────────────────────────────
+
+/**
+ * SketchUp-style bounding box: renders 12 wire-frame edges around the selected
+ * mesh (world-space AABB) and three DOM labels anchored to the midpoints of the
+ * W, H, and D edges. Labels are projected to screen space every frame so they
+ * stay attached as the camera orbits.
+ */
+function BoundingBoxGizmo({ mesh }: { mesh: THREE.Mesh }) {
+  const { camera, size, gl } = useThree();
+
+  // Stable line geometry — 12 edges × 2 vertices = 24 points = 72 floats.
+  const lineGeo = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(72), 3));
+    return geo;
+  }, []);
+  useEffect(() => () => lineGeo.dispose(), [lineGeo]);
+
+  // Three DOM labels (W, H, D) — created once, positioned every frame.
+  const labelsRef = useRef<HTMLDivElement[]>([]);
+  useEffect(() => {
+    const COLORS = ["#ff8888", "#88ee99", "#88aaff"];
+    const divs = COLORS.map((color) => {
+      const div = document.createElement("div");
+      Object.assign(div.style, {
+        position: "fixed",
+        zIndex: "9999",
+        pointerEvents: "none",
+        transform: "translate(-50%, -50%)",
+        background: "rgba(0,0,0,0.72)",
+        border: `1px solid ${color}66`,
+        borderRadius: "3px",
+        padding: "1px 6px",
+        fontFamily: "monospace",
+        fontSize: "11px",
+        color,
+        userSelect: "none",
+        whiteSpace: "nowrap",
+      });
+      document.body.appendChild(div);
+      return div;
+    });
+    labelsRef.current = divs;
+    return () => divs.forEach((d) => document.body.removeChild(d));
+  }, []);
+
+  useFrame(() => {
+    // precise=true reads the position buffer directly instead of the cached
+    // boundingBox, so edits made via flushPositions are reflected immediately.
+    const box = new THREE.Box3().setFromObject(mesh, true);
+    if (box.isEmpty()) return;
+    const { min, max } = box;
+    const cx = (min.x + max.x) / 2;
+    const cy = (min.y + max.y) / 2;
+    const cz = (min.z + max.z) / 2;
+
+    // 8 corners (front face = minZ, back face = maxZ)
+    const C: [number, number, number][] = [
+      [min.x, min.y, min.z], // 0 front-bottom-left
+      [max.x, min.y, min.z], // 1 front-bottom-right
+      [max.x, max.y, min.z], // 2 front-top-right
+      [min.x, max.y, min.z], // 3 front-top-left
+      [min.x, min.y, max.z], // 4 back-bottom-left
+      [max.x, min.y, max.z], // 5 back-bottom-right
+      [max.x, max.y, max.z], // 6 back-top-right
+      [min.x, max.y, max.z], // 7 back-top-left
+    ];
+    // 12 edges
+    const E = [0,1, 1,2, 2,3, 3,0, 4,5, 5,6, 6,7, 7,4, 0,4, 1,5, 2,6, 3,7];
+    const pts = new Float32Array(72);
+    for (let i = 0; i < E.length; i += 2) {
+      pts.set(C[E[i]], (i / 2) * 6);
+      pts.set(C[E[i + 1]], (i / 2) * 6 + 3);
+    }
+    const attr = lineGeo.getAttribute("position") as THREE.BufferAttribute;
+    attr.set(pts);
+    attr.needsUpdate = true;
+
+    // Midpoints of the three edges emanating from corner 0 (front-bottom-left).
+    const midpoints = [
+      new THREE.Vector3(cx,    min.y, min.z), // W: bottom-front edge
+      new THREE.Vector3(min.x, cy,    min.z), // H: front-left vertical
+      new THREE.Vector3(min.x, min.y, cz   ), // D: left-bottom depth edge
+    ];
+    const values = [max.x - min.x, max.y - min.y, max.z - min.z];
+    const labels = ["W", "H", "D"];
+    const rect = gl.domElement.getBoundingClientRect();
+    const vw = size.width, vh = size.height;
+
+    labelsRef.current.forEach((div, i) => {
+      const ndc = midpoints[i].clone().project(camera);
+      if (ndc.z > 1) { div.style.display = "none"; return; }
+      div.style.display = "";
+      div.style.left = `${rect.left + (ndc.x * 0.5 + 0.5) * vw}px`;
+      div.style.top  = `${rect.top  + (1 - (ndc.y * 0.5 + 0.5)) * vh}px`;
+      div.textContent = `${labels[i]} ${values[i].toFixed(2)}`;
+    });
+  });
+
+  return (
+    <lineSegments geometry={lineGeo}>
+      <lineBasicMaterial color="#6699ff" transparent opacity={0.55} depthTest={false} />
+    </lineSegments>
+  );
+}
+
 // ─── Main overlay ─────────────────────────────────────────────────────────────
 
 export function ModelingOverlay(): React.JSX.Element | null {
@@ -662,6 +944,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
   const selectionMode = useModelingStore((s) => s.selectionMode);
   const transformMode = useModelingStore((s) => s.transformMode);
   const [ctrlHeld, setCtrlHeld] = useState(false);
+  const [hoveredVertexIdx, setHoveredVertexIdx] = useState<number | null>(null);
 
   void version; // force re-render on geometry changes
 
@@ -760,6 +1043,22 @@ export function ModelingOverlay(): React.JSX.Element | null {
     return obj instanceof THREE.Mesh ? obj : null;
   }, [selectedUUID, objects]);
 
+  const handleVertexHover = useCallback((idx: number | null) => {
+    setHoveredVertexIdx(idx);
+  }, []);
+
+  // World-space position of the hovered vertex (for the gizmo rendered outside the local group)
+  const hoveredVertexWorldPos = useMemo(() => {
+    if (hoveredVertexIdx === null || !mesh) return null;
+    const positions = getPositions(mesh.geometry);
+    if (hoveredVertexIdx >= positions.length / 3) return null;
+    return new THREE.Vector3(
+      positions[hoveredVertexIdx * 3],
+      positions[hoveredVertexIdx * 3 + 1],
+      positions[hoveredVertexIdx * 3 + 2],
+    ).applyMatrix4(mesh.matrixWorld);
+  }, [hoveredVertexIdx, mesh, version]); // version ensures refresh after geometry edits
+
   const handleTransformStart = useCallback(() => {
     // Disable OrbitControls while dragging gizmo
     // (TransformControls fires stopPropagation on pointer events so OrbitControls
@@ -789,12 +1088,23 @@ export function ModelingOverlay(): React.JSX.Element | null {
 
   return (
     <>
+      {/* SketchUp-style bounding box — wireframe + edge-midpoint dimension labels */}
+      <BoundingBoxGizmo mesh={mesh} />
+      {/* Vertex hover radius gizmo — rendered in world space, outside the local mesh group */}
+      {selectionMode === "vertex" && hoveredVertexWorldPos && (
+        <VertexHoverGizmo
+          position={hoveredVertexWorldPos}
+          isSelected={selectedElements.some(
+            (e) => e.type === "vertex" && e.index === hoveredVertexIdx,
+          )}
+        />
+      )}
       <group matrixAutoUpdate={false} matrix={mesh.matrixWorld}>
         <VertexDots
           mesh={mesh}
           selectedElements={selectedElements}
           selectionMode={selectionMode}
-          onHover={() => {}}
+          onHover={handleVertexHover}
           onClick={handleVertexClick}
         />
         <EdgeLines

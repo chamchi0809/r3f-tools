@@ -19,7 +19,7 @@
  *             as a DOM overlay near the cursor.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three/webgpu";
 import { sceneActions } from "../store/sceneStore";
 import { useModelingStore, modelingActions } from "../store/modelingStore";
@@ -435,6 +435,139 @@ function CursorGizmoDom({
   return null;
 }
 
+// ─── Brush bounding box gizmo ─────────────────────────────────────────────────
+
+/**
+ * SketchUp-style bounding box for brush mode. Renders a wireframe rectangle
+ * (phase 1) or full 3D box (phase 2) around the drawn shape, with W/D labels
+ * on the floor plane and an H label on the vertical edge in phase 2. Label
+ * divs are projected from 3D midpoints every frame so they stay on the edges
+ * as the camera orbits.
+ */
+function BrushBoundingBoxGizmo({
+  points,
+  height,
+}: {
+  points: THREE.Vector3[];
+  height?: number;
+}) {
+  const { camera, size, gl } = useThree();
+
+  // 12 edges × 2 vertices = 24 points = 72 floats (flat rect reuses the box)
+  const lineGeo = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(72), 3));
+    return geo;
+  }, []);
+  useEffect(() => () => lineGeo.dispose(), [lineGeo]);
+
+  // Three DOM labels (W, D, H) — H hidden in phase 1.
+  const labelsRef = useRef<HTMLDivElement[]>([]);
+  useEffect(() => {
+    const COLORS = ["#ff8888", "#88aaff", "#88ee99"]; // W, D, H
+    const divs = COLORS.map((color) => {
+      const div = document.createElement("div");
+      Object.assign(div.style, {
+        position: "fixed",
+        zIndex: "9999",
+        pointerEvents: "none",
+        transform: "translate(-50%, -50%)",
+        background: "rgba(0,0,0,0.72)",
+        border: `1px solid ${color}66`,
+        borderRadius: "3px",
+        padding: "1px 6px",
+        fontFamily: "monospace",
+        fontSize: "11px",
+        color,
+        userSelect: "none",
+        whiteSpace: "nowrap",
+      });
+      document.body.appendChild(div);
+      return div;
+    });
+    labelsRef.current = divs;
+    return () => divs.forEach((d) => document.body.removeChild(d));
+  }, []);
+
+  useFrame(() => {
+    const attr = lineGeo.getAttribute("position") as THREE.BufferAttribute;
+
+    if (points.length < 2) {
+      attr.array.fill(0);
+      attr.needsUpdate = true;
+      labelsRef.current.forEach((d) => (d.style.display = "none"));
+      return;
+    }
+
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (const p of points) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.z < minZ) minZ = p.z;
+      if (p.z > maxZ) maxZ = p.z;
+    }
+
+    const hasH = height !== undefined;
+    const h = hasH ? height! : 0;
+    const yBot = Math.min(0, h);
+    const yTop = Math.max(0, h);
+    const cx = (minX + maxX) / 2;
+    const cy = (yBot + yTop) / 2;
+    const cz = (minZ + maxZ) / 2;
+
+    // 8 corners — for phase 1, yBot === yTop === 0, box degenerates to a rect.
+    const C: [number, number, number][] = [
+      [minX, yBot, minZ], // 0
+      [maxX, yBot, minZ], // 1
+      [maxX, yTop, minZ], // 2
+      [minX, yTop, minZ], // 3
+      [minX, yBot, maxZ], // 4
+      [maxX, yBot, maxZ], // 5
+      [maxX, yTop, maxZ], // 6
+      [minX, yTop, maxZ], // 7
+    ];
+    const E = [0,1, 1,2, 2,3, 3,0, 4,5, 5,6, 6,7, 7,4, 0,4, 1,5, 2,6, 3,7];
+    const pts = new Float32Array(72);
+    for (let i = 0; i < E.length; i += 2) {
+      pts.set(C[E[i]], (i / 2) * 6);
+      pts.set(C[E[i + 1]], (i / 2) * 6 + 3);
+    }
+    attr.set(pts);
+    attr.needsUpdate = true;
+
+    const rect = gl.domElement.getBoundingClientRect();
+    const vw = size.width, vh = size.height;
+
+    // Midpoints of edges from corner 0 (front-bottom-left)
+    const labelData: { pos: THREE.Vector3; text: string; idx: number }[] = [
+      { pos: new THREE.Vector3(cx,    yBot, minZ), text: `W ${(maxX - minX).toFixed(2)}`, idx: 0 },
+      { pos: new THREE.Vector3(minX,  yBot, cz  ), text: `D ${(maxZ - minZ).toFixed(2)}`, idx: 1 },
+    ];
+    if (hasH) {
+      labelData.push({ pos: new THREE.Vector3(minX, cy, minZ), text: `H ${Math.abs(h).toFixed(2)}`, idx: 2 });
+    }
+
+    // Hide all first, then show the ones in use
+    labelsRef.current.forEach((d) => (d.style.display = "none"));
+    for (const { pos, text, idx } of labelData) {
+      const div = labelsRef.current[idx];
+      if (!div) continue;
+      const ndc = pos.clone().project(camera);
+      if (ndc.z > 1) continue;
+      div.style.display = "";
+      div.style.left = `${rect.left + (ndc.x * 0.5 + 0.5) * vw}px`;
+      div.style.top  = `${rect.top  + (1 - (ndc.y * 0.5 + 0.5)) * vh}px`;
+      div.textContent = text;
+    }
+  });
+
+  return (
+    <lineSegments geometry={lineGeo}>
+      <lineBasicMaterial color="#f0a020" transparent opacity={0.55} depthTest={false} />
+    </lineSegments>
+  );
+}
+
 // ─── Main brush overlay ───────────────────────────────────────────────────────
 export function BrushOverlay(): React.JSX.Element | null {
   const brushType = useModelingStore((s) => s.brushType);
@@ -683,6 +816,7 @@ export function BrushOverlay(): React.JSX.Element | null {
         <VertexDots points={extrudePoints} />
         <HeightLabelDom height={extrudeHeight} screenX={cursorScreen.x} screenY={cursorScreen.y} />
         <CursorGizmoDom screenX={cursorScreen.x} screenY={cursorScreen.y} variant="extrude" />
+        <BrushBoundingBoxGizmo points={extrudePoints} height={extrudeHeight} />
       </>
     );
   }
@@ -695,6 +829,7 @@ export function BrushOverlay(): React.JSX.Element | null {
       <VertexDots points={points} />
       <PreviewLine points={points} cursor={cursor} closingSnap={closingSnap} />
       <CursorGizmoDom screenX={cursorScreen.x} screenY={cursorScreen.y} variant={gizmoVariant} />
+      {points.length >= 2 && <BrushBoundingBoxGizmo points={points} />}
     </>
   );
 }
