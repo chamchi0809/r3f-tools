@@ -106,6 +106,37 @@ function selectedVertexIndices(elements: SelectedElement[], geo: THREE.BufferGeo
   return set;
 }
 
+/**
+ * Expand a set of vertex indices to include ALL position-buffer entries that
+ * are co-located (within epsilon) with any vertex already in the set.
+ *
+ * This is required for geometries like BoxGeometry that store split vertices
+ * (duplicate XYZ entries per face for per-face normals). Without this,
+ * moving a face only shifts one copy of each corner, tearing adjacent faces.
+ */
+function expandToColocated(baseSet: Set<number>, positions: Float32Array, eps = 1e-5): Set<number> {
+  const n = positions.length / 3;
+  const expanded = new Set<number>(baseSet);
+  // Collect world positions of the base set
+  const basePositions: Array<{ x: number; y: number; z: number }> = [];
+  for (const vi of baseSet) {
+    basePositions.push({ x: positions[vi * 3], y: positions[vi * 3 + 1], z: positions[vi * 3 + 2] });
+  }
+  const eps2 = eps * eps;
+  for (let i = 0; i < n; i++) {
+    if (expanded.has(i)) continue;
+    const ix = positions[i * 3], iy = positions[i * 3 + 1], iz = positions[i * 3 + 2];
+    for (const bp of basePositions) {
+      const dx = ix - bp.x, dy = iy - bp.y, dz = iz - bp.z;
+      if (dx * dx + dy * dy + dz * dz < eps2) {
+        expanded.add(i);
+        break;
+      }
+    }
+  }
+  return expanded;
+}
+
 // ─── Vertex dots ──────────────────────────────────────────────────────────────
 
 function VertexDots({
@@ -466,8 +497,13 @@ function SelectionTransformGizmo({
 
   const handleMouseDown = useCallback(() => {
     // Snapshot: vertex positions and centroid in local space.
+    // Expand selection to include co-located vertices so split-vertex
+    // geometries (BoxGeometry etc.) move as a connected surface.
     const positions = getPositions(mesh.geometry);
-    const vis = selectedVertexIndices(selectedElements, mesh.geometry);
+    const vis = expandToColocated(
+      selectedVertexIndices(selectedElements, mesh.geometry),
+      positions,
+    );
     snapPositions.current.clear();
     const localCentroid = new THREE.Vector3();
     for (const vi of vis) {
@@ -495,7 +531,7 @@ function SelectionTransformGizmo({
     );
 
     const positions = getPositions(mesh.geometry);
-    const vis = selectedVertexIndices(selectedElements, mesh.geometry);
+    const vis = new Set(snapPositions.current.keys());
 
     for (const vi of vis) {
       const snap = snapPositions.current.get(vi);
@@ -513,7 +549,6 @@ function SelectionTransformGizmo({
       positions[vi * 3 + 2] = worldPt.z;
     }
 
-    flushPositions(mesh.geometry, positions);
     flushPositions(mesh.geometry, positions);
   }, [mesh, selectedElements]);
 

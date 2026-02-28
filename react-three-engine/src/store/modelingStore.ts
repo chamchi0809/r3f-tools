@@ -5,7 +5,7 @@ import { create } from "zustand";
 export type EditorMode = "object" | "modeling" | "brush";
 export type SelectionMode = "vertex" | "edge" | "face";
 export type ModelingTransformMode = "translate" | "rotate" | "scale";
-export type BrushType = "polygon" | "cube" | "slope";
+export type BrushType = "polygon" | "poly3d" | "cube" | "slope";
 
 /** A selected sub-element index within the active mesh's BufferGeometry. */
 export interface SelectedElement {

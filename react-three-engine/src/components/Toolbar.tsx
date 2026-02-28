@@ -76,6 +76,7 @@ const MODELING_TRANSFORM_MODES: { mode: ModelingTransformMode; label: string; ho
 
 const BRUSH_TYPES: { type: BrushType; label: string; disabled?: boolean }[] = [
   { type: "polygon", label: "Polygon Brush" },
+  { type: "poly3d",  label: "Poly3D Brush" },
   { type: "cube",    label: "Cube Brush",  disabled: true },
   { type: "slope",   label: "Slope Brush", disabled: true },
 ];
