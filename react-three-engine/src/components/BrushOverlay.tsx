@@ -351,6 +351,55 @@ function HeightLabelDom({
   return null;
 }
 
+// ─── Distance label DOM overlay ───────────────────────────────────────────────
+
+function DistanceLabelDom({
+  from,
+  to,
+  screenX,
+  screenY,
+}: {
+  from: THREE.Vector3;
+  to: THREE.Vector3;
+  screenX: number;
+  screenY: number;
+}) {
+  const { gl } = useThree();
+  const elRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const div = document.createElement("div");
+    Object.assign(div.style, {
+      position: "fixed",
+      zIndex: "9999",
+      pointerEvents: "none",
+      background: "rgba(0,0,0,0.65)",
+      color: "#f0a020",
+      fontFamily: "monospace",
+      fontSize: "12px",
+      padding: "2px 6px",
+      borderRadius: "3px",
+      whiteSpace: "nowrap",
+      userSelect: "none",
+    });
+    document.body.appendChild(div);
+    elRef.current = div;
+    return () => {
+      document.body.removeChild(div);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!elRef.current) return;
+    const rect = gl.domElement.getBoundingClientRect();
+    elRef.current.style.left = `${rect.left + screenX + 14}px`;
+    elRef.current.style.top = `${rect.top + screenY - 8}px`;
+    elRef.current.textContent = `${from.distanceTo(to).toFixed(2)}`;
+  });
+
+  return null;
+}
+
 // ─── Cursor gizmo DOM overlay ─────────────────────────────────────────────────
 
 type GizmoVariant = "crosshair" | "snap" | "extrude";
@@ -829,6 +878,14 @@ export function BrushOverlay(): React.JSX.Element | null {
       <VertexDots points={points} />
       <PreviewLine points={points} cursor={cursor} closingSnap={closingSnap} />
       <CursorGizmoDom screenX={cursorScreen.x} screenY={cursorScreen.y} variant={gizmoVariant} />
+      {points.length >= 1 && cursor && (
+        <DistanceLabelDom
+          from={points[points.length - 1]}
+          to={cursor}
+          screenX={cursorScreen.x}
+          screenY={cursorScreen.y}
+        />
+      )}
       {points.length >= 2 && <BrushBoundingBoxGizmo points={points} />}
     </>
   );
