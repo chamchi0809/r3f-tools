@@ -35,8 +35,8 @@ const MODELING_TRANSFORM_MODES: { mode: ModelingTransformMode; label: string; ho
 const BRUSH_TYPES: { type: BrushType; label: string; disabled?: boolean }[] = [
   { type: "polygon", label: "Polygon Brush" },
   { type: "poly3d", label: "Poly3D Brush" },
-  { type: "cube", label: "Cube Brush", disabled: true },
-  { type: "slope", label: "Slope Brush", disabled: true },
+  { type: "cube", label: "Cube Brush" },
+  { type: "slope", label: "Slope Brush" },
 ];
 
 // ─── Brush instruction panel ────────────────────────────────────────────────────────
@@ -46,6 +46,27 @@ function getInstructionLines(
   brushPhase: 1 | 2,
   brushPointCount: number,
 ): string[] {
+  if (brushType === "slope") {
+    if (brushPhase === 2) {
+      return ["Move mouse up/down to set height", "Click or Enter to confirm · Esc to cancel"];
+    }
+    if (brushPointCount === 3) {
+      return ["Move mouse to pick slope direction (+X / −X / +Z / −Z)", "Click to confirm · Esc to cancel"];
+    }
+    if (brushPointCount === 1) {
+      return ["Move mouse to set rectangle size", "Click to confirm · Esc to cancel"];
+    }
+    return ["Click to place starting corner"];
+  }
+  if (brushType === "cube") {
+    if (brushPhase === 2) {
+      return ["Move mouse up/down to set height", "Click or Enter to confirm · Esc to cancel"];
+    }
+    if (brushPointCount === 1) {
+      return ["Move mouse to set rectangle size", "Click to confirm · Esc to cancel"];
+    }
+    return ["Click to place starting corner"];
+  }
   if (brushPhase === 2) {
     // Poly3D extrude phase
     return ["Move mouse up/down to set height", "Click or Enter to confirm · Esc to cancel"];

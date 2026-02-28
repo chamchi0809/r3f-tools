@@ -1,139 +1,12 @@
 [
   {
-    "uuid": "32e4725d-1970-4b1b-983d-9be22b8468f5",
+    "uuid": "3d90a797-df71-49f0-924b-7defe34b77ec",
     "name": "Mesh",
     "kind": "mesh",
     "position": [
       0,
-      -0.2624367082161564,
+      0.6000000238418579,
       0
-    ],
-    "rotation": [
-      0,
-      0,
-      0
-    ],
-    "scale": [
-      1,
-      1,
-      1
-    ],
-    "castShadow": true,
-    "receiveShadow": false,
-    "children": [],
-    "geometry": {
-      "type": "SphereGeometry",
-      "radius": 0.5,
-      "widthSegments": 32,
-      "heightSegments": 16
-    },
-    "material": {
-      "type": "MeshStandardMaterial",
-      "color": "#888888",
-      "opacity": 1,
-      "transparent": false,
-      "wireframe": false,
-      "side": 0,
-      "flatShading": false,
-      "emissive": "#000000",
-      "emissiveIntensity": 1,
-      "roughness": 1,
-      "metalness": 0
-    }
-  },
-  {
-    "uuid": "34c0be93-09b7-45f1-ad4f-fae5b05feedb",
-    "name": "PointLight",
-    "kind": "pointLight",
-    "position": [
-      -1.0332279746120263,
-      0.30175360208367485,
-      0
-    ],
-    "rotation": [
-      0,
-      0,
-      0
-    ],
-    "scale": [
-      1,
-      1,
-      1
-    ],
-    "castShadow": true,
-    "receiveShadow": false,
-    "children": [],
-    "lightProps": {
-      "color": "#ffffff",
-      "intensity": 6.28,
-      "castShadow": true,
-      "distance": 100,
-      "decay": 1
-    },
-    "shadowProps": {
-      "bias": 0,
-      "normalBias": 0,
-      "radius": 1,
-      "mapSizeWidth": 512,
-      "mapSizeHeight": 512,
-      "cameraNear": 0.5,
-      "cameraFar": 100
-    }
-  },
-  {
-    "uuid": "29ed6f4b-eb43-434f-816c-91637bad9dd5",
-    "name": "Sprite2D",
-    "kind": "sprite2D",
-    "position": [
-      -1.3045131008227453,
-      0.9923052442468716,
-      0
-    ],
-    "rotation": [
-      0,
-      0,
-      0
-    ],
-    "scale": [
-      1,
-      1,
-      1
-    ],
-    "castShadow": false,
-    "receiveShadow": false,
-    "children": [],
-    "geometry": {
-      "type": "PlaneGeometry",
-      "width": 1,
-      "height": 1,
-      "widthSegments": 1,
-      "heightSegments": 1
-    },
-    "material": {
-      "type": "MeshStandardMaterial",
-      "color": "#ffffff",
-      "opacity": 1,
-      "transparent": true,
-      "wireframe": false,
-      "side": 0,
-      "flatShading": false,
-      "emissive": "#000000",
-      "emissiveIntensity": 1,
-      "roughness": 0.5,
-      "metalness": 0,
-      "maps": {
-        "map": "/stained_pine_disp_4k.png"
-      }
-    }
-  },
-  {
-    "uuid": "0dc9c744-a04a-4bb7-a411-a445e207ec9b",
-    "name": "Mesh",
-    "kind": "mesh",
-    "position": [
-      -0.015869826078414917,
-      -0.774515663009006,
-      0.02380359172821045
     ],
     "rotation": [
       0,
@@ -151,169 +24,116 @@
     "geometry": {
       "type": "BufferGeometry",
       "vertices": [
-        -0.023804791271686554,
-        0,
-        -3.039074420928955,
-        -0.9918652772903442,
-        0,
-        -2.102753162384033,
-        -0.9759949445724487,
-        0,
-        1.9123165607452393,
-        -0.007934926077723503,
-        0,
-        3.039074420928955,
-        0.9601250886917114,
-        0,
-        1.975795865058899,
-        0.9918652772903442,
-        0,
-        -2.086883544921875
+        -3,
+        -0.6000000238418579,
+        -3,
+        -3.739633083343506,
+        -0.6000000238418579,
+        1.65908682346344,
+        1.7062311172485352,
+        -0.6000000238418579,
+        2.414839506149292,
+        3,
+        -0.6000000238418579,
+        -3,
+        -3,
+        0.6000000238418579,
+        -3,
+        -1.7502915859222412,
+        0.6000000238418579,
+        1.7450308799743652,
+        0.8301474452018738,
+        1.1346449851989746,
+        1.0656867027282715,
+        3,
+        0.6000000238418579,
+        -3,
+        -3,
+        -0.6000000238418579,
+        -3,
+        -3.739633083343506,
+        -0.6000000238418579,
+        1.65908682346344,
+        -1.7502915859222412,
+        0.6000000238418579,
+        1.7450308799743652,
+        -3,
+        0.6000000238418579,
+        -3,
+        -3.739633083343506,
+        -0.6000000238418579,
+        1.65908682346344,
+        1.7062311172485352,
+        -0.6000000238418579,
+        2.414839506149292,
+        0.8301474452018738,
+        1.1346449851989746,
+        1.0656867027282715,
+        -1.7502915859222412,
+        0.6000000238418579,
+        1.7450308799743652,
+        1.7062311172485352,
+        -0.6000000238418579,
+        2.414839506149292,
+        3,
+        -0.6000000238418579,
+        -3,
+        3,
+        0.6000000238418579,
+        -3,
+        0.8301474452018738,
+        1.1346449851989746,
+        1.0656867027282715,
+        3,
+        -0.6000000238418579,
+        -3,
+        -3,
+        -0.6000000238418579,
+        -3,
+        -3,
+        0.6000000238418579,
+        -3,
+        3,
+        0.6000000238418579,
+        -3
       ],
       "indices": [
+        0,
+        3,
         1,
+        2,
+        1,
+        3,
         5,
-        0,
+        4,
+        7,
+        7,
+        6,
         5,
-        3,
-        4,
-        3,
-        1,
-        2,
-        1,
-        3,
-        5
-      ]
-    },
-    "material": {
-      "type": "MeshStandardMaterial",
-      "color": "#ffffff",
-      "opacity": 1,
-      "transparent": false,
-      "wireframe": false,
-      "side": 2,
-      "flatShading": false,
-      "emissive": "#000000",
-      "emissiveIntensity": 1,
-      "roughness": 1,
-      "metalness": 0,
-      "maps": {
-        "map": "/stained_pine_diff_4k.jpg"
-      }
-    }
-  },
-  {
-    "uuid": "f4ec73bf-a376-4b78-b56e-103e062dff41",
-    "name": "Mesh",
-    "kind": "mesh",
-    "position": [
-      3.819745421409607,
-      -1.4597528406778575,
-      1.2102680802345276
-    ],
-    "rotation": [
-      0,
-      0,
-      0
-    ],
-    "scale": [
-      1,
-      1,
-      1
-    ],
-    "castShadow": false,
-    "receiveShadow": false,
-    "children": [],
-    "geometry": {
-      "type": "BufferGeometry",
-      "vertices": [
-        1.1920928955078125e-7,
-        0,
-        -2.30545711517334,
-        -1.9064154624938965,
-        0,
-        -1.8153808116912842,
-        -1.2226670980453491,
-        0,
-        1.217245101928711,
-        1.933609127998352,
-        0,
-        -0.8721523284912109
-      ],
-      "indices": [
-        1,
-        3,
-        0,
-        3,
-        1,
-        2
-      ]
-    },
-    "material": {
-      "type": "MeshStandardMaterial",
-      "color": "#888888",
-      "opacity": 1,
-      "transparent": false,
-      "wireframe": false,
-      "side": 2,
-      "flatShading": false,
-      "emissive": "#000000",
-      "emissiveIntensity": 1,
-      "roughness": 1,
-      "metalness": 0
-    }
-  },
-  {
-    "uuid": "7cce34ac-c016-43e3-8e01-d719084b7dba",
-    "name": "Mesh",
-    "kind": "mesh",
-    "position": [
-      0.8472263813018799,
-      -1.0606678893388335,
-      -0.8580119609832764
-    ],
-    "rotation": [
-      0,
-      0,
-      0
-    ],
-    "scale": [
-      1,
-      1,
-      1
-    ],
-    "castShadow": false,
-    "receiveShadow": false,
-    "children": [],
-    "geometry": {
-      "type": "BufferGeometry",
-      "vertices": [
-        -4.012001991271973,
-        0,
-        0.49490344524383545,
-        -2.7470502853393555,
-        0,
-        5.666550636291504,
-        1.1134538650512695,
-        0,
-        6.619180679321289,
-        4.012001991271973,
-        0,
-        -0.18215107917785645,
-        0.4581320285797119,
-        0,
-        -6.619180679321289
-      ],
-      "indices": [
-        1,
-        4,
-        0,
-        4,
-        2,
-        3,
-        2,
-        4,
-        1
+        8,
+        9,
+        10,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14,
+        12,
+        14,
+        15,
+        16,
+        17,
+        18,
+        16,
+        18,
+        19,
+        20,
+        21,
+        22,
+        20,
+        22,
+        23
       ]
     },
     "material": {
