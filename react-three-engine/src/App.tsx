@@ -10,7 +10,7 @@ import { InspectorPane } from "./components/InspectorPane";
 import { SettingsPane } from "./components/SettingsPane";
 import { PrefabPanel } from "./components/PrefabPanel";
 import { SceneContent } from "./components/SceneContent";
-import { TransformModeBar, EditorModeBar, type TransformMode } from "./components/Toolbar";
+import { EditorModeBar, type TransformMode } from "./components/Toolbar";
 import { ModelingOverlay } from "./components/ModelingOverlay";
 import { BrushOverlay } from "./components/BrushOverlay";
 import { useModelingStore } from "./store/modelingStore";
@@ -83,10 +83,7 @@ const Viewport = () => {
         <OrbitControls ref={controlsRef} makeDefault enabled={!transformDragging && !isBrush} />
       </Canvas>
       <ViewportGizmo cameraRef={cameraRef} controlsRef={controlsRef} />
-      <EditorModeBar />
-      {!isModeling && !isBrush && (
-        <TransformModeBar mode={transformMode} setMode={setTransformMode} />
-      )}
+      <EditorModeBar transformMode={transformMode} setTransformMode={setTransformMode} />
     </div>
   );
 };

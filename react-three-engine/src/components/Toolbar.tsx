@@ -11,55 +11,6 @@ import {
 
 export type TransformMode = "translate" | "rotate" | "scale";
 
-export function TransformModeBar({
-  mode,
-  setMode,
-}: {
-  mode: TransformMode;
-  setMode: (m: TransformMode) => void;
-}): React.JSX.Element {
-  return (
-    <div
-      style={{
-        position: "absolute",
-        top: 8,
-        left: "50%",
-        transform: "translateX(-50%)",
-        background: "#1e1e1ecc",
-        border: "1px solid #444",
-        borderRadius: 6,
-        display: "flex",
-        gap: 2,
-        padding: 3,
-        backdropFilter: "blur(4px)",
-      }}
-    >
-      {(["translate", "rotate", "scale"] as TransformMode[]).map((m) => {
-        const hotkey = m === "translate" ? "G" : m === "rotate" ? "R" : "S";
-        return (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            title={`${m[0].toUpperCase() + m.slice(1)}  [${hotkey}]`}
-            style={{
-              ...btnStyle,
-              background: mode === m ? "#2d5fa6" : "transparent",
-              color: mode === m ? "#fff" : "#888",
-              fontSize: 13,
-              padding: "3px 10px",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            {m[0].toUpperCase() + m.slice(1)}
-            <span style={{ fontSize: 11, opacity: 0.6, fontFamily: "monospace" }}>[{hotkey}]</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 // ─── Editor mode tabs (Object / Modeling / Brush) ──────────────────────────────
 
@@ -150,13 +101,21 @@ function BrushInstructionPanel({
     </div>
   );
 }
-export function EditorModeBar(): React.JSX.Element {
+export function EditorModeBar({
+  transformMode,
+  setTransformMode,
+}: {
+  transformMode: TransformMode;
+  setTransformMode: (m: TransformMode) => void;
+}): React.JSX.Element {
   const editorMode = useModelingStore((s) => s.editorMode);
   const selectionMode = useModelingStore((s) => s.selectionMode);
-  const transformMode = useModelingStore((s) => s.transformMode);
+  const modelingTransformMode = useModelingStore((s) => s.transformMode);
   const brushType = useModelingStore((s) => s.brushType);
   const brushPhase = useModelingStore((s) => s.brushPhase);
   const brushPointCount = useModelingStore((s) => s.brushPointCount);
+  const isObject = editorMode === "object";
+  const isModeling = editorMode === "modeling";
   return (
     <div
       style={{
@@ -199,8 +158,48 @@ export function EditorModeBar(): React.JSX.Element {
         ))}
       </div>
 
+      {/* Object mode — transform mode (G / R / S) */}
+      {isObject && (
+        <div
+          style={{
+            background: "#1e1e1ecc",
+            border: "1px solid #444",
+            borderRadius: 6,
+            display: "flex",
+            gap: 2,
+            padding: 3,
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          {(["translate", "rotate", "scale"] as TransformMode[]).map((m) => {
+            const hotkey = m === "translate" ? "G" : m === "rotate" ? "R" : "S";
+            return (
+              <button
+                key={m}
+                onClick={() => setTransformMode(m)}
+                title={`${m[0].toUpperCase() + m.slice(1)}  [${hotkey}]`}
+                style={{
+                  ...btnStyle,
+                  background: transformMode === m ? "#2d5fa6" : "transparent",
+                  color: transformMode === m ? "#fff" : "#888",
+                  fontSize: 13,
+                  padding: "3px 10px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  border: "none",
+                }}
+              >
+                {m[0].toUpperCase() + m.slice(1)}
+                <span style={{ fontSize: 11, opacity: 0.6, fontFamily: "monospace" }}>[{hotkey}]</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Modeling sub-controls */}
-      {editorMode === "modeling" && (
+      {isModeling && (
         <>
           {/* Selection mode */}
           <div
@@ -253,8 +252,8 @@ export function EditorModeBar(): React.JSX.Element {
                 title={`${label}  [${hotkey}]`}
                 style={{
                   ...btnStyle,
-                  background: transformMode === mode ? "#7a4a2d" : "transparent",
-                  color: transformMode === mode ? "#fff" : "#888",
+                  background: modelingTransformMode === mode ? "#7a4a2d" : "transparent",
+                  color: modelingTransformMode === mode ? "#fff" : "#888",
                   fontSize: 13,
                   padding: "3px 10px",
                   border: "none",

@@ -1,6 +1,6 @@
 import { TransformControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three/webgpu";
 import {
   makeObject,
@@ -41,6 +41,32 @@ function addDeserializedSubtree(
   for (const child of serialized.children) {
     addDeserializedSubtree(scene, child, obj, obj.uuid);
   }
+}
+
+function SelectionOutline({ selectedObj }: { selectedObj: THREE.Mesh }) {
+  const lineRef = useRef<THREE.LineSegments | null>(null);
+
+  useEffect(() => {
+    // Build EdgesGeometry from the mesh's current geometry.
+    const edgesGeo = new THREE.EdgesGeometry(selectedObj.geometry, 1);
+    const lineMat = new THREE.LineBasicMaterial({ color: 0x44aaff });
+    const line = new THREE.LineSegments(edgesGeo, lineMat);
+    line.name = "__selectionOutline";
+    // Disable raycasting so the outline never intercepts click/selection events.
+    line.raycast = () => {};
+    // Imperatively parent it so it inherits the mesh's transform exactly.
+    selectedObj.add(line);
+    lineRef.current = line;
+
+    return () => {
+      selectedObj.remove(line);
+      edgesGeo.dispose();
+      lineMat.dispose();
+      lineRef.current = null;
+    };
+  }, [selectedObj, selectedObj.geometry]);
+
+  return null;
 }
 
 export function SceneContent({
@@ -157,6 +183,9 @@ export function SceneContent({
             useSceneStore.getState().invalidate();
           }}
         />
+      )}
+      {selectedObj instanceof THREE.Mesh && !isModeling && (
+        <SelectionOutline selectedObj={selectedObj} />
       )}
     </>
   );
