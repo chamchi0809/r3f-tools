@@ -50,23 +50,17 @@ export const useModelingStore = create<ModelingState>((set) => ({
   brushPointCount: 0,
   selectedElements: [],
 
-  setEditorMode: (mode) =>
-    set({ editorMode: mode, selectedElements: [] }),
+  setEditorMode: (mode) => set({ editorMode: mode, selectedElements: [] }),
 
-  setSelectionMode: (mode) =>
-    set({ selectionMode: mode, selectedElements: [] }),
+  setSelectionMode: (mode) => set({ selectionMode: mode, selectedElements: [] }),
 
-  setTransformMode: (mode) =>
-    set({ transformMode: mode }),
+  setTransformMode: (mode) => set({ transformMode: mode }),
 
-  setBrushType: (type) =>
-    set({ brushType: type, brushPhase: 1, brushPointCount: 0 }),
+  setBrushType: (type) => set({ brushType: type, brushPhase: 1, brushPointCount: 0 }),
 
-  setBrushPhase: (phase) =>
-    set({ brushPhase: phase }),
+  setBrushPhase: (phase) => set({ brushPhase: phase }),
 
-  setBrushPointCount: (count) =>
-    set({ brushPointCount: count }),
+  setBrushPointCount: (count) => set({ brushPointCount: count }),
 
   selectElement: (el, additive) =>
     set((s) => {
@@ -91,10 +85,12 @@ export const useModelingStore = create<ModelingState>((set) => ({
 export const modelingActions = {
   setEditorMode: (mode: EditorMode) => useModelingStore.getState().setEditorMode(mode),
   setSelectionMode: (mode: SelectionMode) => useModelingStore.getState().setSelectionMode(mode),
-  setTransformMode: (mode: ModelingTransformMode) => useModelingStore.getState().setTransformMode(mode),
+  setTransformMode: (mode: ModelingTransformMode) =>
+    useModelingStore.getState().setTransformMode(mode),
   setBrushType: (type: BrushType) => useModelingStore.getState().setBrushType(type),
   setBrushPhase: (phase: 1 | 2) => useModelingStore.getState().setBrushPhase(phase),
   setBrushPointCount: (count: number) => useModelingStore.getState().setBrushPointCount(count),
-  selectElement: (el: SelectedElement, additive = false) => useModelingStore.getState().selectElement(el, additive),
+  selectElement: (el: SelectedElement, additive = false) =>
+    useModelingStore.getState().selectElement(el, additive),
   clearSelection: () => useModelingStore.getState().clearSelection(),
 };

@@ -25,16 +25,56 @@ export type GeometryType =
   | "CapsuleGeometry"
   | "BufferGeometry";
 
-export interface BoxGeometryParams { width: number; height: number; depth: number; widthSegments: number; heightSegments: number; depthSegments: number; }
-export interface SphereGeometryParams { radius: number; widthSegments: number; heightSegments: number; }
-export interface CylinderGeometryParams { radiusTop: number; radiusBottom: number; height: number; radialSegments: number; heightSegments: number; }
-export interface ConeGeometryParams { radius: number; height: number; radialSegments: number; heightSegments: number; }
-export interface PlaneGeometryParams { width: number; height: number; widthSegments: number; heightSegments: number; }
-export interface TorusGeometryParams { radius: number; tube: number; radialSegments: number; tubularSegments: number; }
-export interface CapsuleGeometryParams { radius: number; length: number; capSegments: number; radialSegments: number; }
+export interface BoxGeometryParams {
+  width: number;
+  height: number;
+  depth: number;
+  widthSegments: number;
+  heightSegments: number;
+  depthSegments: number;
+}
+export interface SphereGeometryParams {
+  radius: number;
+  widthSegments: number;
+  heightSegments: number;
+}
+export interface CylinderGeometryParams {
+  radiusTop: number;
+  radiusBottom: number;
+  height: number;
+  radialSegments: number;
+  heightSegments: number;
+}
+export interface ConeGeometryParams {
+  radius: number;
+  height: number;
+  radialSegments: number;
+  heightSegments: number;
+}
+export interface PlaneGeometryParams {
+  width: number;
+  height: number;
+  widthSegments: number;
+  heightSegments: number;
+}
+export interface TorusGeometryParams {
+  radius: number;
+  tube: number;
+  radialSegments: number;
+  tubularSegments: number;
+}
+export interface CapsuleGeometryParams {
+  radius: number;
+  length: number;
+  capSegments: number;
+  radialSegments: number;
+}
 
 /** Serialized vertex positions for a custom BufferGeometry (flat Float32Array as number[]). */
-export interface BufferGeometryParams { vertices: number[]; indices?: number[]; }
+export interface BufferGeometryParams {
+  vertices: number[];
+  indices?: number[];
+}
 
 export type GeometryParams =
   | ({ type: "BoxGeometry" } & BoxGeometryParams)
@@ -47,32 +87,112 @@ export type GeometryParams =
   | ({ type: "BufferGeometry" } & BufferGeometryParams);
 
 export const DEFAULT_GEOMETRY_PARAMS: Record<GeometryType, GeometryParams> = {
-  BoxGeometry:      { type: "BoxGeometry",      width: 1,   height: 1,   depth: 1,   widthSegments: 1,  heightSegments: 1,  depthSegments: 1 },
-  SphereGeometry:   { type: "SphereGeometry",   radius: 0.5, widthSegments: 32, heightSegments: 16 },
-  CylinderGeometry: { type: "CylinderGeometry", radiusTop: 0.5, radiusBottom: 0.5, height: 1, radialSegments: 32, heightSegments: 1 },
-  ConeGeometry:     { type: "ConeGeometry",     radius: 0.5, height: 1, radialSegments: 32, heightSegments: 1 },
-  PlaneGeometry:    { type: "PlaneGeometry",    width: 1,   height: 1,   widthSegments: 1,  heightSegments: 1 },
-  TorusGeometry:    { type: "TorusGeometry",    radius: 0.4, tube: 0.15, radialSegments: 16, tubularSegments: 64 },
-  CapsuleGeometry:  { type: "CapsuleGeometry",  radius: 0.3, length: 0.6, capSegments: 8,  radialSegments: 16 },
-  BufferGeometry:   { type: "BufferGeometry",   vertices: [], indices: [] },
+  BoxGeometry: {
+    type: "BoxGeometry",
+    width: 1,
+    height: 1,
+    depth: 1,
+    widthSegments: 1,
+    heightSegments: 1,
+    depthSegments: 1,
+  },
+  SphereGeometry: { type: "SphereGeometry", radius: 0.5, widthSegments: 32, heightSegments: 16 },
+  CylinderGeometry: {
+    type: "CylinderGeometry",
+    radiusTop: 0.5,
+    radiusBottom: 0.5,
+    height: 1,
+    radialSegments: 32,
+    heightSegments: 1,
+  },
+  ConeGeometry: {
+    type: "ConeGeometry",
+    radius: 0.5,
+    height: 1,
+    radialSegments: 32,
+    heightSegments: 1,
+  },
+  PlaneGeometry: {
+    type: "PlaneGeometry",
+    width: 1,
+    height: 1,
+    widthSegments: 1,
+    heightSegments: 1,
+  },
+  TorusGeometry: {
+    type: "TorusGeometry",
+    radius: 0.4,
+    tube: 0.15,
+    radialSegments: 16,
+    tubularSegments: 64,
+  },
+  CapsuleGeometry: {
+    type: "CapsuleGeometry",
+    radius: 0.3,
+    length: 0.6,
+    capSegments: 8,
+    radialSegments: 16,
+  },
+  BufferGeometry: { type: "BufferGeometry", vertices: [], indices: [] },
 };
 
 export function buildGeometry(params: GeometryParams): THREE.BufferGeometry {
   switch (params.type) {
-    case "BoxGeometry":      return new THREE.BoxGeometry(params.width, params.height, params.depth, params.widthSegments, params.heightSegments, params.depthSegments);
-    case "SphereGeometry":   return new THREE.SphereGeometry(params.radius, params.widthSegments, params.heightSegments);
-    case "CylinderGeometry": return new THREE.CylinderGeometry(params.radiusTop, params.radiusBottom, params.height, params.radialSegments, params.heightSegments);
-    case "ConeGeometry":     return new THREE.ConeGeometry(params.radius, params.height, params.radialSegments, params.heightSegments);
-    case "PlaneGeometry":    return new THREE.PlaneGeometry(params.width, params.height, params.widthSegments, params.heightSegments);
-    case "TorusGeometry":    return new THREE.TorusGeometry(params.radius, params.tube, params.radialSegments, params.tubularSegments);
-    case "CapsuleGeometry":  return new THREE.CapsuleGeometry(params.radius, params.length, params.capSegments, params.radialSegments);
+    case "BoxGeometry":
+      return new THREE.BoxGeometry(
+        params.width,
+        params.height,
+        params.depth,
+        params.widthSegments,
+        params.heightSegments,
+        params.depthSegments,
+      );
+    case "SphereGeometry":
+      return new THREE.SphereGeometry(params.radius, params.widthSegments, params.heightSegments);
+    case "CylinderGeometry":
+      return new THREE.CylinderGeometry(
+        params.radiusTop,
+        params.radiusBottom,
+        params.height,
+        params.radialSegments,
+        params.heightSegments,
+      );
+    case "ConeGeometry":
+      return new THREE.ConeGeometry(
+        params.radius,
+        params.height,
+        params.radialSegments,
+        params.heightSegments,
+      );
+    case "PlaneGeometry":
+      return new THREE.PlaneGeometry(
+        params.width,
+        params.height,
+        params.widthSegments,
+        params.heightSegments,
+      );
+    case "TorusGeometry":
+      return new THREE.TorusGeometry(
+        params.radius,
+        params.tube,
+        params.radialSegments,
+        params.tubularSegments,
+      );
+    case "CapsuleGeometry":
+      return new THREE.CapsuleGeometry(
+        params.radius,
+        params.length,
+        params.capSegments,
+        params.radialSegments,
+      );
     case "BufferGeometry": {
       const geo = new THREE.BufferGeometry();
       // Always provide a position attribute — WebGPU crashes on geometries with no attributes.
       // Use the provided vertices, or fall back to a single degenerate point.
-      const verts = params.vertices.length > 0
-        ? new Float32Array(params.vertices)
-        : new Float32Array([0, 0, 0]);
+      const verts =
+        params.vertices.length > 0
+          ? new Float32Array(params.vertices)
+          : new Float32Array([0, 0, 0]);
       const vertCount = verts.length / 3;
       geo.setAttribute("position", new THREE.BufferAttribute(verts, 3));
       // WebGPU's node-based shader for MeshStandardMaterial (and others) references
@@ -100,13 +220,78 @@ export function readGeometryParams(geo: THREE.BufferGeometry): GeometryParams {
   // If the geometry was mutated in modeling mode, always serialize the raw buffers
   // regardless of the geometry subclass — the constructor params are stale.
   if (!geo.userData.r3eEdited) {
-    if (geo instanceof THREE.BoxGeometry) { const p = geo.parameters; return { type: "BoxGeometry", width: p.width ?? 1, height: p.height ?? 1, depth: p.depth ?? 1, widthSegments: p.widthSegments ?? 1, heightSegments: p.heightSegments ?? 1, depthSegments: p.depthSegments ?? 1 }; }
-    if (geo instanceof THREE.SphereGeometry) { const p = geo.parameters; return { type: "SphereGeometry", radius: p.radius ?? 0.5, widthSegments: p.widthSegments ?? 32, heightSegments: p.heightSegments ?? 16 }; }
-    if (geo instanceof THREE.CylinderGeometry) { const p = geo.parameters; return { type: "CylinderGeometry", radiusTop: p.radiusTop ?? 0.5, radiusBottom: p.radiusBottom ?? 0.5, height: p.height ?? 1, radialSegments: p.radialSegments ?? 32, heightSegments: p.heightSegments ?? 1 }; }
-    if (geo instanceof THREE.ConeGeometry) { const p = geo.parameters; return { type: "ConeGeometry", radius: p.radius ?? 0.5, height: p.height ?? 1, radialSegments: p.radialSegments ?? 32, heightSegments: p.heightSegments ?? 1 }; }
-    if (geo instanceof THREE.PlaneGeometry) { const p = geo.parameters; return { type: "PlaneGeometry", width: p.width ?? 1, height: p.height ?? 1, widthSegments: p.widthSegments ?? 1, heightSegments: p.heightSegments ?? 1 }; }
-    if (geo instanceof THREE.TorusGeometry) { const p = geo.parameters; return { type: "TorusGeometry", radius: p.radius ?? 0.4, tube: p.tube ?? 0.15, radialSegments: p.radialSegments ?? 16, tubularSegments: p.tubularSegments ?? 64 }; }
-    if (geo instanceof THREE.CapsuleGeometry) { const p = geo.parameters; return { type: "CapsuleGeometry", radius: p.radius ?? 0.3, length: (p as Record<string, number>).length ?? 0.6, capSegments: p.capSegments ?? 8, radialSegments: p.radialSegments ?? 16 }; }
+    if (geo instanceof THREE.BoxGeometry) {
+      const p = geo.parameters;
+      return {
+        type: "BoxGeometry",
+        width: p.width ?? 1,
+        height: p.height ?? 1,
+        depth: p.depth ?? 1,
+        widthSegments: p.widthSegments ?? 1,
+        heightSegments: p.heightSegments ?? 1,
+        depthSegments: p.depthSegments ?? 1,
+      };
+    }
+    if (geo instanceof THREE.SphereGeometry) {
+      const p = geo.parameters;
+      return {
+        type: "SphereGeometry",
+        radius: p.radius ?? 0.5,
+        widthSegments: p.widthSegments ?? 32,
+        heightSegments: p.heightSegments ?? 16,
+      };
+    }
+    if (geo instanceof THREE.CylinderGeometry) {
+      const p = geo.parameters;
+      return {
+        type: "CylinderGeometry",
+        radiusTop: p.radiusTop ?? 0.5,
+        radiusBottom: p.radiusBottom ?? 0.5,
+        height: p.height ?? 1,
+        radialSegments: p.radialSegments ?? 32,
+        heightSegments: p.heightSegments ?? 1,
+      };
+    }
+    if (geo instanceof THREE.ConeGeometry) {
+      const p = geo.parameters;
+      return {
+        type: "ConeGeometry",
+        radius: p.radius ?? 0.5,
+        height: p.height ?? 1,
+        radialSegments: p.radialSegments ?? 32,
+        heightSegments: p.heightSegments ?? 1,
+      };
+    }
+    if (geo instanceof THREE.PlaneGeometry) {
+      const p = geo.parameters;
+      return {
+        type: "PlaneGeometry",
+        width: p.width ?? 1,
+        height: p.height ?? 1,
+        widthSegments: p.widthSegments ?? 1,
+        heightSegments: p.heightSegments ?? 1,
+      };
+    }
+    if (geo instanceof THREE.TorusGeometry) {
+      const p = geo.parameters;
+      return {
+        type: "TorusGeometry",
+        radius: p.radius ?? 0.4,
+        tube: p.tube ?? 0.15,
+        radialSegments: p.radialSegments ?? 16,
+        tubularSegments: p.tubularSegments ?? 64,
+      };
+    }
+    if (geo instanceof THREE.CapsuleGeometry) {
+      const p = geo.parameters;
+      return {
+        type: "CapsuleGeometry",
+        radius: p.radius ?? 0.3,
+        length: (p as Record<string, number>).length ?? 0.6,
+        capSegments: p.capSegments ?? 8,
+        radialSegments: p.radialSegments ?? 16,
+      };
+    }
   }
   // Plain BufferGeometry (or an edited typed geometry) — read back the raw float arrays
   const posAttr = geo.getAttribute("position");
@@ -147,16 +332,31 @@ export interface SerializedMaterial {
 
 /** All texture map slot names exposed by the texture picker. */
 export const TEXTURE_MAP_SLOTS = [
-  "map", "normalMap", "roughnessMap", "metalnessMap", "aoMap",
-  "emissiveMap", "lightMap", "bumpMap", "displacementMap",
-  "alphaMap", "envMap", "gradientMap", "clearcoatMap",
-  "clearcoatNormalMap", "clearcoatRoughnessMap",
-  "transmissionMap", "thicknessMap", "sheenColorMap",
-  "specularIntensityMap", "specularColorMap",
-  "anisotropyMap", "iridescenceMap",
+  "map",
+  "normalMap",
+  "roughnessMap",
+  "metalnessMap",
+  "aoMap",
+  "emissiveMap",
+  "lightMap",
+  "bumpMap",
+  "displacementMap",
+  "alphaMap",
+  "envMap",
+  "gradientMap",
+  "clearcoatMap",
+  "clearcoatNormalMap",
+  "clearcoatRoughnessMap",
+  "transmissionMap",
+  "thicknessMap",
+  "sheenColorMap",
+  "specularIntensityMap",
+  "specularColorMap",
+  "anisotropyMap",
+  "iridescenceMap",
 ] as const;
 
-export type TextureMapSlot = typeof TEXTURE_MAP_SLOTS[number];
+export type TextureMapSlot = (typeof TEXTURE_MAP_SLOTS)[number];
 
 const _textureCache = new Map<string, THREE.Texture>();
 
@@ -203,7 +403,9 @@ export function applyMaps(
       m[slot] = loadTexture(url, onLoad);
     } else {
       const existing = m[slot];
-      if (existing instanceof THREE.Texture) { existing.dispose(); }
+      if (existing instanceof THREE.Texture) {
+        existing.dispose();
+      }
       m[slot] = null;
     }
   }
@@ -214,36 +416,55 @@ export function buildMaterial(mat: SerializedMaterial): THREE.Material {
   switch (mat.type) {
     case "MeshPhysicalMaterial": {
       const m = new THREE.MeshPhysicalMaterial();
-      m.color.set(mat.color); m.roughness = mat.roughness ?? 0.5; m.metalness = mat.metalness ?? 0;
-      m.transmission = mat.transmission ?? 0; m.thickness = mat.thickness ?? 0; m.ior = mat.ior ?? 1.5;
-      m.clearcoat = mat.clearcoat ?? 0; m.clearcoatRoughness = mat.clearcoatRoughness ?? 0;
-      m.opacity = mat.opacity ?? 1; m.transparent = mat.transparent ?? false;
-      m.wireframe = mat.wireframe ?? false; m.flatShading = mat.flatShading ?? false;
-      if (mat.emissive) { m.emissive.set(mat.emissive); m.emissiveIntensity = mat.emissiveIntensity ?? 1; }
+      m.color.set(mat.color);
+      m.roughness = mat.roughness ?? 0.5;
+      m.metalness = mat.metalness ?? 0;
+      m.transmission = mat.transmission ?? 0;
+      m.thickness = mat.thickness ?? 0;
+      m.ior = mat.ior ?? 1.5;
+      m.clearcoat = mat.clearcoat ?? 0;
+      m.clearcoatRoughness = mat.clearcoatRoughness ?? 0;
+      m.opacity = mat.opacity ?? 1;
+      m.transparent = mat.transparent ?? false;
+      m.wireframe = mat.wireframe ?? false;
+      m.flatShading = mat.flatShading ?? false;
+      if (mat.emissive) {
+        m.emissive.set(mat.emissive);
+        m.emissiveIntensity = mat.emissiveIntensity ?? 1;
+      }
       if (mat.side !== undefined) m.side = mat.side;
       applyMaps(m, mat.maps);
       return m;
     }
     case "MeshToonMaterial": {
       const m = new THREE.MeshToonMaterial();
-      m.color.set(mat.color); m.opacity = mat.opacity ?? 1; m.transparent = mat.transparent ?? false;
+      m.color.set(mat.color);
+      m.opacity = mat.opacity ?? 1;
+      m.transparent = mat.transparent ?? false;
       m.wireframe = mat.wireframe ?? false;
-      if (mat.emissive) { m.emissive.set(mat.emissive); m.emissiveIntensity = mat.emissiveIntensity ?? 1; }
+      if (mat.emissive) {
+        m.emissive.set(mat.emissive);
+        m.emissiveIntensity = mat.emissiveIntensity ?? 1;
+      }
       if (mat.side !== undefined) m.side = mat.side;
       applyMaps(m, mat.maps);
       return m;
     }
     case "MeshNormalMaterial": {
       const m = new THREE.MeshNormalMaterial();
-      m.wireframe = mat.wireframe ?? false; m.flatShading = mat.flatShading ?? false;
-      m.opacity = mat.opacity ?? 1; m.transparent = mat.transparent ?? false;
+      m.wireframe = mat.wireframe ?? false;
+      m.flatShading = mat.flatShading ?? false;
+      m.opacity = mat.opacity ?? 1;
+      m.transparent = mat.transparent ?? false;
       if (mat.side !== undefined) m.side = mat.side;
       applyMaps(m, mat.maps);
       return m;
     }
     case "MeshBasicMaterial": {
       const m = new THREE.MeshBasicMaterial();
-      m.color.set(mat.color); m.opacity = mat.opacity ?? 1; m.transparent = mat.transparent ?? false;
+      m.color.set(mat.color);
+      m.opacity = mat.opacity ?? 1;
+      m.transparent = mat.transparent ?? false;
       m.wireframe = mat.wireframe ?? false;
       if (mat.side !== undefined) m.side = mat.side;
       applyMaps(m, mat.maps);
@@ -251,10 +472,17 @@ export function buildMaterial(mat: SerializedMaterial): THREE.Material {
     }
     default: {
       const m = new THREE.MeshStandardMaterial();
-      m.color.set(mat.color); m.roughness = mat.roughness ?? 0.5; m.metalness = mat.metalness ?? 0;
-      m.opacity = mat.opacity ?? 1; m.transparent = mat.transparent ?? false;
-      m.wireframe = mat.wireframe ?? false; m.flatShading = mat.flatShading ?? false;
-      if (mat.emissive) { m.emissive.set(mat.emissive); m.emissiveIntensity = mat.emissiveIntensity ?? 1; }
+      m.color.set(mat.color);
+      m.roughness = mat.roughness ?? 0.5;
+      m.metalness = mat.metalness ?? 0;
+      m.opacity = mat.opacity ?? 1;
+      m.transparent = mat.transparent ?? false;
+      m.wireframe = mat.wireframe ?? false;
+      m.flatShading = mat.flatShading ?? false;
+      if (mat.emissive) {
+        m.emissive.set(mat.emissive);
+        m.emissiveIntensity = mat.emissiveIntensity ?? 1;
+      }
       if (mat.side !== undefined) m.side = mat.side;
       applyMaps(m, mat.maps);
       return m;
@@ -264,8 +492,10 @@ export function buildMaterial(mat: SerializedMaterial): THREE.Material {
 
 export function readMaterialProps(mat: THREE.Material): SerializedMaterial {
   const base: SerializedMaterial = {
-    type: _matType(mat), color: "#888888",
-    opacity: mat.opacity, transparent: mat.transparent,
+    type: _matType(mat),
+    color: "#888888",
+    opacity: mat.opacity,
+    transparent: mat.transparent,
     wireframe: (mat as THREE.MeshStandardMaterial).wireframe ?? false,
     side: mat.side,
   };
@@ -280,10 +510,16 @@ export function readMaterialProps(mat: THREE.Material): SerializedMaterial {
     base.emissive = `#${(mat as THREE.MeshStandardMaterial).emissive.getHexString()}`;
     base.emissiveIntensity = (mat as THREE.MeshStandardMaterial).emissiveIntensity;
   }
-  if (mat instanceof THREE.MeshStandardMaterial) { base.roughness = mat.roughness; base.metalness = mat.metalness; }
+  if (mat instanceof THREE.MeshStandardMaterial) {
+    base.roughness = mat.roughness;
+    base.metalness = mat.metalness;
+  }
   if (mat instanceof THREE.MeshPhysicalMaterial) {
-    base.transmission = mat.transmission; base.thickness = mat.thickness;
-    base.ior = mat.ior; base.clearcoat = mat.clearcoat; base.clearcoatRoughness = mat.clearcoatRoughness;
+    base.transmission = mat.transmission;
+    base.thickness = mat.thickness;
+    base.ior = mat.ior;
+    base.clearcoat = mat.clearcoat;
+    base.clearcoatRoughness = mat.clearcoatRoughness;
   }
   _readMaps(mat, base);
   return base;
@@ -320,8 +556,8 @@ function _matType(mat: THREE.Material): MaterialType {
 export interface LightProps {
   color: string;
   intensity: number;
-  distance?: number;  // PointLight only
-  decay?: number;     // PointLight only
+  distance?: number; // PointLight only
+  decay?: number; // PointLight only
   castShadow?: boolean;
 }
 
@@ -449,13 +685,22 @@ interface SceneState {
   objects: Map<string, THREE.Object3D>;
   selectedUUID: string | null;
   version: number;
-  pendingAdd: { kind: ObjectKind; parentUUID: string | null; geometry?: THREE.BufferGeometry; position?: THREE.Vector3 } | null;
+  pendingAdd: {
+    kind: ObjectKind;
+    parentUUID: string | null;
+    geometry?: THREE.BufferGeometry;
+    position?: THREE.Vector3;
+  } | null;
   pendingRemove: string | null;
   pendingDeserialize: SerializedObject[] | null;
   invalidate: () => void;
   select: (uuid: string | null) => void;
   addObject: (kind: ObjectKind, parentUUID?: string | null) => void;
-  addMeshWithGeometry: (geo: THREE.BufferGeometry, position?: THREE.Vector3, parentUUID?: string | null) => void;
+  addMeshWithGeometry: (
+    geo: THREE.BufferGeometry,
+    position?: THREE.Vector3,
+    parentUUID?: string | null,
+  ) => void;
   removeObject: (uuid: string) => void;
   registerObject: (obj: THREE.Object3D, kind: ObjectKind, parentUUID: string | null) => void;
   unregisterObject: (uuid: string) => void;
@@ -632,7 +877,9 @@ export const useSceneStore: UseBoundStore<StoreApi<SceneState>> = create<SceneSt
     },
 
     addMeshWithGeometry: (geo, position?, parentUUID = null) => {
-      set({ pendingAdd: { kind: "mesh", parentUUID: parentUUID ?? null, geometry: geo, position } });
+      set({
+        pendingAdd: { kind: "mesh", parentUUID: parentUUID ?? null, geometry: geo, position },
+      });
     },
 
     removeObject: (uuid) => {
@@ -837,10 +1084,15 @@ export const sceneActions: {
   setLightProps: (uuid: string, props: Partial<LightProps>) => void;
   setCameraProps: (uuid: string, props: Partial<CameraProps>) => void;
   invalidate: () => void;
-  addMeshWithGeometry: (geo: THREE.BufferGeometry, position?: THREE.Vector3, parentUUID?: string | null) => void;
+  addMeshWithGeometry: (
+    geo: THREE.BufferGeometry,
+    position?: THREE.Vector3,
+    parentUUID?: string | null,
+  ) => void;
 } = {
   addObject: (kind, parentUUID) => useSceneStore.getState().addObject(kind, parentUUID),
-  addMeshWithGeometry: (geo, position, parentUUID) => useSceneStore.getState().addMeshWithGeometry(geo, position, parentUUID),
+  addMeshWithGeometry: (geo, position, parentUUID) =>
+    useSceneStore.getState().addMeshWithGeometry(geo, position, parentUUID),
   removeObject: (uuid) => useSceneStore.getState().removeObject(uuid),
   select: (uuid) => useSceneStore.getState().select(uuid),
   setTransform: (uuid, position, rotation, scale) =>

@@ -93,13 +93,7 @@ function FieldToggleRow({
 
 // ─── FieldGroupSection ────────────────────────────────────────────────────────
 
-function FieldGroupSection({
-  group,
-  debugMode,
-}: {
-  group: PropGroup;
-  debugMode: boolean;
-}) {
+function FieldGroupSection({ group, debugMode }: { group: PropGroup; debugMode: boolean }) {
   const [open, setOpen] = React.useState(true);
 
   return (
@@ -117,9 +111,7 @@ function FieldGroupSection({
       >
         <span style={{ fontSize: 9, color: "#444" }}>{open ? "▼" : "▶"}</span>
         {group.className}
-        <span style={{ color: "#444", fontSize: 10 }}>
-          ({group.props.length})
-        </span>
+        <span style={{ color: "#444", fontSize: 10 }}>({group.props.length})</span>
       </div>
       {open && (
         <div style={{ paddingLeft: 8, borderLeft: "1px solid #1e1e1e" }}>
@@ -235,9 +227,7 @@ export function SettingsPane(): React.JSX.Element {
         <div style={{ ...sectionLabel, marginTop: 0, marginBottom: 0 }}>
           Field Visibility
           {hiddenCount > 0 && !debugMode && (
-            <span style={{ color: "#a06020", marginLeft: 6 }}>
-              ({hiddenCount} hidden)
-            </span>
+            <span style={{ color: "#a06020", marginLeft: 6 }}>({hiddenCount} hidden)</span>
           )}
         </div>
         {!isAtDefaults && (
@@ -284,11 +274,7 @@ export function SettingsPane(): React.JSX.Element {
       {obj && allGroups.length > 0 && (
         <div>
           {allGroups.map((group) => (
-            <FieldGroupSection
-              key={group.className}
-              group={group}
-              debugMode={debugMode}
-            />
+            <FieldGroupSection key={group.className} group={group} debugMode={debugMode} />
           ))}
         </div>
       )}

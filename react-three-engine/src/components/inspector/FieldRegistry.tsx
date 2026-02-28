@@ -84,20 +84,20 @@ export function NestedObjectField({
           alignItems: "center",
           gap: 4,
           cursor: "pointer",
-          fontSize: 11,
+          fontSize: 12,
           color: "#999",
           marginBottom: open ? 4 : 2,
           userSelect: "none",
           paddingLeft: indent,
         }}
       >
-        <span style={{ fontSize: 9, color: "#555" }}>{open ? "▼" : "▶"}</span>
+        <span style={{ fontSize: 11, color: "#555" }}>{open ? "▼" : "▶"}</span>
         <span style={{ fontWeight: 500 }}>{label}</span>
       </div>
       {open && (
         <div style={{ paddingLeft: indent + 8, borderLeft: "1px solid #222" }}>
-          {subGroups.map((group) => (
-            group.props.map((info) => (
+          {subGroups.map((group) =>
+            group.props.map((info) =>
               info.valueType === "object" && info.subGroups ? (
                 <NestedObjectField
                   key={info.key}
@@ -117,9 +117,9 @@ export function NestedObjectField({
                   onCommit={onCommit}
                   onTextureCommit={onTextureCommit}
                 />
-              )
-            ))
-          ))}
+              ),
+            ),
+          )}
         </div>
       )}
     </div>
@@ -334,7 +334,7 @@ export function AutoFieldGroup({
           alignItems: "center",
           gap: 4,
           cursor: "pointer",
-          fontSize: 11,
+          fontSize: 12,
           color: "#888",
           textTransform: "uppercase",
           letterSpacing: 1,
@@ -345,19 +345,20 @@ export function AutoFieldGroup({
           userSelect: "none",
         }}
       >
-        <span style={{ fontSize: 9, color: "#555" }}>{open ? "▼" : "▶"}</span>
+        <span style={{ fontSize: 11, color: "#555" }}>{open ? "▼" : "▶"}</span>
         {group.className}
       </div>
-      {open && visibleProps.map((info) => (
-        <AutoField
-          key={info.key}
-          className={group.className}
-          info={info}
-          target={target}
-          onCommit={onCommit}
-          onTextureCommit={onTextureCommit}
-        />
-      ))}
+      {open &&
+        visibleProps.map((info) => (
+          <AutoField
+            key={info.key}
+            className={group.className}
+            info={info}
+            target={target}
+            onCommit={onCommit}
+            onTextureCommit={onTextureCommit}
+          />
+        ))}
     </div>
   );
 }
@@ -378,13 +379,11 @@ function EnumField({
   return (
     <div style={rowStyle}>
       <span style={labelText}>{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        style={selectStyle}
-      >
+      <select value={value} onChange={(e) => onChange(Number(e.target.value))} style={selectStyle}>
         {options.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
         ))}
       </select>
     </div>
@@ -399,12 +398,12 @@ registerFieldRenderer("blending", ({ label, value, onChange }) => (
     value={value as number}
     onChange={onChange as (v: number) => void}
     options={[
-      { label: "No Blending",   value: THREE.NoBlending },
-      { label: "Normal",        value: THREE.NormalBlending },
-      { label: "Additive",      value: THREE.AdditiveBlending },
-      { label: "Subtractive",   value: THREE.SubtractiveBlending },
-      { label: "Multiply",      value: THREE.MultiplyBlending },
-      { label: "Custom",        value: THREE.CustomBlending },
+      { label: "No Blending", value: THREE.NoBlending },
+      { label: "Normal", value: THREE.NormalBlending },
+      { label: "Additive", value: THREE.AdditiveBlending },
+      { label: "Subtractive", value: THREE.SubtractiveBlending },
+      { label: "Multiply", value: THREE.MultiplyBlending },
+      { label: "Custom", value: THREE.CustomBlending },
     ]}
   />
 ));
@@ -415,8 +414,8 @@ registerFieldRenderer("side", ({ label, value, onChange }) => (
     value={value as number}
     onChange={onChange as (v: number) => void}
     options={[
-      { label: "Front",  value: THREE.FrontSide },
-      { label: "Back",   value: THREE.BackSide },
+      { label: "Front", value: THREE.FrontSide },
+      { label: "Back", value: THREE.BackSide },
       { label: "Double", value: THREE.DoubleSide },
     ]}
   />
@@ -428,14 +427,14 @@ registerFieldRenderer("depthFunc", ({ label, value, onChange }) => (
     value={value as number}
     onChange={onChange as (v: number) => void}
     options={[
-      { label: "Never",         value: THREE.NeverDepth },
-      { label: "Always",        value: THREE.AlwaysDepth },
-      { label: "Less",          value: THREE.LessDepth },
-      { label: "Less Equal",    value: THREE.LessEqualDepth },
-      { label: "Equal",         value: THREE.EqualDepth },
+      { label: "Never", value: THREE.NeverDepth },
+      { label: "Always", value: THREE.AlwaysDepth },
+      { label: "Less", value: THREE.LessDepth },
+      { label: "Less Equal", value: THREE.LessEqualDepth },
+      { label: "Equal", value: THREE.EqualDepth },
       { label: "Greater Equal", value: THREE.GreaterEqualDepth },
-      { label: "Greater",       value: THREE.GreaterDepth },
-      { label: "Not Equal",     value: THREE.NotEqualDepth },
+      { label: "Greater", value: THREE.GreaterDepth },
+      { label: "Not Equal", value: THREE.NotEqualDepth },
     ]}
   />
 ));
@@ -447,7 +446,7 @@ registerFieldRenderer("normalMapType", ({ label, value, onChange }) => (
     onChange={onChange as (v: number) => void}
     options={[
       { label: "Tangent Space", value: THREE.TangentSpaceNormalMap },
-      { label: "Object Space",  value: THREE.ObjectSpaceNormalMap },
+      { label: "Object Space", value: THREE.ObjectSpaceNormalMap },
     ]}
   />
 ));
@@ -459,8 +458,8 @@ registerFieldRenderer("combine", ({ label, value, onChange }) => (
     onChange={onChange as (v: number) => void}
     options={[
       { label: "Multiply", value: THREE.MultiplyOperation },
-      { label: "Mix",      value: THREE.MixOperation },
-      { label: "Add",      value: THREE.AddOperation },
+      { label: "Mix", value: THREE.MixOperation },
+      { label: "Add", value: THREE.AddOperation },
     ]}
   />
 ));

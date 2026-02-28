@@ -66,13 +66,17 @@ export function SceneContent({
   useFrame(() => {});
 
   useEffect(() => {
-    const onDown = (e: KeyboardEvent) => { if (e.key === "Control") setCtrlHeld(true); };
-    const onUp   = (e: KeyboardEvent) => { if (e.key === "Control") setCtrlHeld(false); };
+    const onDown = (e: KeyboardEvent) => {
+      if (e.key === "Control") setCtrlHeld(true);
+    };
+    const onUp = (e: KeyboardEvent) => {
+      if (e.key === "Control") setCtrlHeld(false);
+    };
     window.addEventListener("keydown", onDown);
-    window.addEventListener("keyup",   onUp);
+    window.addEventListener("keyup", onUp);
     return () => {
       window.removeEventListener("keydown", onDown);
-      window.removeEventListener("keyup",   onUp);
+      window.removeEventListener("keyup", onUp);
     };
   }, []);
 
@@ -89,9 +93,7 @@ export function SceneContent({
     if (position) {
       obj.position.copy(position);
     }
-    const parent = parentUUID
-      ? (useSceneStore.getState().objects.get(parentUUID) ?? scene)
-      : scene;
+    const parent = parentUUID ? (useSceneStore.getState().objects.get(parentUUID) ?? scene) : scene;
     parent.add(obj);
     useSceneStore.getState().registerObject(obj, kind, parentUUID);
   }, [pendingAdd, scene]);

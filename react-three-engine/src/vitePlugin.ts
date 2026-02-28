@@ -35,9 +35,7 @@ export interface ReactThreeEnginePluginOptions {
   [key: string]: unknown;
 }
 
-export function reactThreeEnginePlugin(
-  options: ReactThreeEnginePluginOptions = {},
-): Plugin {
+export function reactThreeEnginePlugin(options: ReactThreeEnginePluginOptions = {}): Plugin {
   const {
     webgpu = true,
     editorPath: pathname = "/editor",
@@ -115,9 +113,7 @@ export function reactThreeEnginePlugin(
       prefabUrls = null;
       let files: string[] = [];
       try {
-        files = fs
-          .readdirSync(resolvedSavePath)
-          .filter((f) => f.endsWith(PREFAB_EXT));
+        files = fs.readdirSync(resolvedSavePath).filter((f) => f.endsWith(PREFAB_EXT));
       } catch {
         return;
       }
@@ -176,10 +172,7 @@ if (root) {
 
     configureServer(server) {
       const editorPath = resolveEditorPath(server.config.base, pathname);
-      const editorModuleUrl = resolveWithBase(
-        server.config.base,
-        `/@id/${virtualEditorId}`,
-      );
+      const editorModuleUrl = resolveWithBase(server.config.base, `/@id/${virtualEditorId}`);
 
       // Warm up the virtual objects module immediately on server start.
       // This causes Vite to discover npm imports (e.g. three-flatland) before
@@ -299,8 +292,7 @@ function registerApiRoutes(
             name: string;
             data: unknown;
           };
-          if (!name || typeof name !== "string")
-            throw new Error("Invalid name");
+          if (!name || typeof name !== "string") throw new Error("Invalid name");
           const safeName = name.replace(/[^a-zA-Z0-9_\-. ]/g, "_");
           fs.mkdirSync(saveDir, { recursive: true });
           const filePath = path.join(saveDir, `${safeName}${ext}`);
@@ -343,7 +335,6 @@ function registerApiRoutes(
       return;
     }
 
-
     if (url === texturesRoute && req.method === "GET") {
       if (!publicDir) {
         res.statusCode = 200;
@@ -356,7 +347,11 @@ function registerApiRoutes(
         const results: { path: string }[] = [];
         function scanDir(dir: string, base: string) {
           let entries: fs.Dirent[];
-          try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+          try {
+            entries = fs.readdirSync(dir, { withFileTypes: true });
+          } catch {
+            return;
+          }
           for (const entry of entries) {
             const rel = base ? `${base}/${entry.name}` : entry.name;
             if (entry.isDirectory()) {
@@ -384,9 +379,7 @@ function registerApiRoutes(
 function resolveApiBase(base: string | undefined, pathname: string): string {
   const resolvedBase = normalizeBase(base);
   const normalizedPathname = normalizePathname(pathname);
-  return `${resolvedBase}__r3e_api${normalizedPathname}`
-    .replace(/\/+/g, "/")
-    .replace(/\/$/, "");
+  return `${resolvedBase}__r3e_api${normalizedPathname}`.replace(/\/+/g, "/").replace(/\/$/, "");
 }
 
 function normalizePathname(pathname: string): string {
@@ -458,9 +451,7 @@ function generatePrefabsDts(saveDir: string, ext: string): string {
   for (const file of files) {
     const name = file.slice(0, -ext.length);
     try {
-      const raw = JSON.parse(
-        fs.readFileSync(path.join(saveDir, file), "utf-8"),
-      ) as RawNode[];
+      const raw = JSON.parse(fs.readFileSync(path.join(saveDir, file), "utf-8")) as RawNode[];
       const childTypes = raw.map(nodeToType).join(", ");
       const groupType = `Omit<import("three").Group, "children"> & { children: [${childTypes}] }`;
       entries.push(`    ${JSON.stringify(name)}: ${groupType};`);
@@ -470,10 +461,10 @@ function generatePrefabsDts(saveDir: string, ext: string): string {
   }
   const body = entries.length > 0 ? entries.join("\n") : "";
   return [
-    "import \"react-three-engine\";",
-    "import * as THREE from \"three/webgpu\";",
+    'import "react-three-engine";',
+    'import * as THREE from "three/webgpu";',
     "",
-    "declare module \"react-three-engine\" {",
+    'declare module "react-three-engine" {',
     "  interface PrefabTypeRegistry {",
     body,
     "  }",
@@ -486,8 +477,7 @@ function writePrefabsDts(saveDir: string, ext: string, dtsPath: string): void {
   try {
     fs.mkdirSync(saveDir, { recursive: true });
     fs.writeFileSync(dtsPath, generatePrefabsDts(saveDir, ext), "utf-8");
-  } catch {
-  }
+  } catch {}
 }
 
 export default reactThreeEnginePlugin;
@@ -517,7 +507,7 @@ function generateCustomObjectsModule(
     const meta = JSON.stringify({ label: def.label ?? kind, icon: def.icon ?? "⬜" });
     lines.push(`  [${JSON.stringify(kind)}, { factory: ${varName}, meta: ${meta} }],`);
   }
-  lines.push("]);")
+  lines.push("]);");
   return lines.join("\n");
 }
 

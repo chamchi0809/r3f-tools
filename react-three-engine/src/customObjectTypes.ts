@@ -29,10 +29,9 @@ export type CustomObjectKind = keyof CustomObjectKindRegistry extends never
   : keyof CustomObjectKindRegistry;
 
 /** Resolves the THREE.Object3D subtype for a custom kind. Falls back to `THREE.Object3D`. */
-export type CustomObjectRef<K extends string> =
-  K extends keyof CustomObjectKindRegistry
-    ? CustomObjectKindRegistry[K]
-    : THREE.Object3D;
+export type CustomObjectRef<K extends string> = K extends keyof CustomObjectKindRegistry
+  ? CustomObjectKindRegistry[K]
+  : THREE.Object3D;
 
 /** Metadata stored alongside each custom object factory in the registry. */
 export interface CustomObjectMeta {

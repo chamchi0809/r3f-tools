@@ -44,7 +44,9 @@ export function NumField({
         step={step}
         min={min}
         max={max}
-        onFocus={() => { focused.current = true; }}
+        onFocus={() => {
+          focused.current = true;
+        }}
         onChange={(e) => {
           setDraft(e.target.value);
           const parsed = parseFloat(e.target.value);
@@ -91,7 +93,9 @@ export function IntField({
         value={draft}
         step={1}
         min={min}
-        onFocus={() => { focused.current = true; }}
+        onFocus={() => {
+          focused.current = true;
+        }}
         onChange={(e) => {
           setDraft(e.target.value);
           const v = Math.max(min, Math.round(parseFloat(e.target.value) || min));
@@ -152,9 +156,17 @@ export function ColorField({
         value={draft}
         onChange={(e) => handleChange(e.target.value)}
         onBlur={handleCommit}
-        style={{ width: 32, height: 22, border: "none", cursor: "pointer", background: "none", padding: 0, flexShrink: 0 }}
+        style={{
+          width: 32,
+          height: 22,
+          border: "none",
+          cursor: "pointer",
+          background: "none",
+          padding: 0,
+          flexShrink: 0,
+        }}
       />
-      <span style={{ fontSize: 11, color: "#555", flex: 1 }}>{draft}</span>
+      <span style={{ fontSize: 12, color: "#555", flex: 1 }}>{draft}</span>
     </div>
   );
 }
@@ -207,9 +219,17 @@ export function StringField({
       <input
         type="text"
         value={draft}
-        onFocus={() => { focused.current = true; }}
-        onChange={(e) => { setDraft(e.target.value); onChange(e.target.value); }}
-        onBlur={() => { focused.current = false; onChange(draft); }}
+        onFocus={() => {
+          focused.current = true;
+        }}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          onChange(e.target.value);
+        }}
+        onBlur={() => {
+          focused.current = false;
+          onChange(draft);
+        }}
         style={{ ...textInputStyle, flex: 1 }}
       />
     </div>

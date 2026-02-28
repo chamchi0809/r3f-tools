@@ -24,12 +24,18 @@ function getAllKinds(): { kind: ObjectKind; label: string; icon: string }[] {
 
 function getIconForKind(kind: ObjectKind): string {
   switch (kind) {
-    case "mesh": return "⬛";
-    case "group": return "📁";
-    case "ambientLight": return "☀";
-    case "directionalLight": return "🔆";
-    case "pointLight": return "💡";
-    case "perspectiveCamera": return "📷";
+    case "mesh":
+      return "⬛";
+    case "group":
+      return "📁";
+    case "ambientLight":
+      return "☀";
+    case "directionalLight":
+      return "🔆";
+    case "pointLight":
+      return "💡";
+    case "perspectiveCamera":
+      return "📷";
     default: {
       const custom = getCustomObjectKinds().find((e) => e.kind === kind);
       return custom?.meta.icon ?? "⬜";
@@ -56,7 +62,10 @@ function HierarchyNode({
   return (
     <div>
       <div
-        onClick={(e) => { e.stopPropagation(); sceneActions.select(isSelected ? null : node.uuid); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          sceneActions.select(isSelected ? null : node.uuid);
+        }}
         style={{
           display: "flex",
           alignItems: "center",
@@ -75,7 +84,10 @@ function HierarchyNode({
       >
         {hasChildren ? (
           <span
-            onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded((v) => !v);
+            }}
             style={{ opacity: 0.5, fontSize: 10, width: 10 }}
           >
             {expanded ? "▾" : "▸"}
@@ -84,7 +96,9 @@ function HierarchyNode({
           <span style={{ width: 10 }} />
         )}
         <span style={{ opacity: 0.6, marginRight: 2 }}>{icon}</span>
-        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span
+          style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+        >
           {node.name || node.kind}
         </span>
       </div>
@@ -167,8 +181,14 @@ export function HierarchyPane(): React.JSX.Element {
         <div style={{ position: "relative" }}>
           <button
             onClick={() => !isModeling && setShowAddMenu((v) => !v)}
-            style={{ ...btnStyle, opacity: isModeling ? 0.3 : 1, cursor: isModeling ? "not-allowed" : "pointer" }}
-          >+</button>
+            style={{
+              ...btnStyle,
+              opacity: isModeling ? 0.3 : 1,
+              cursor: isModeling ? "not-allowed" : "pointer",
+            }}
+          >
+            +
+          </button>
           {showAddMenu && !isModeling && (
             <div
               style={{
@@ -187,7 +207,15 @@ export function HierarchyPane(): React.JSX.Element {
                 <div
                   key={kind}
                   onClick={() => handleAdd(kind)}
-                  style={{ padding: "7px 12px", fontSize: 12, cursor: "pointer", color: "#ddd", display: "flex", alignItems: "center", gap: 6 }}
+                  style={{
+                    padding: "7px 12px",
+                    fontSize: 12,
+                    cursor: "pointer",
+                    color: "#ddd",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
                   onMouseEnter={(e) => ((e.target as HTMLElement).style.background = "#333")}
                   onMouseLeave={(e) => ((e.target as HTMLElement).style.background = "transparent")}
                 >
@@ -201,16 +229,29 @@ export function HierarchyPane(): React.JSX.Element {
         <button
           onClick={handleDelete}
           disabled={!selectedUUID || isModeling}
-          style={{ ...btnStyle, opacity: (selectedUUID && !isModeling) ? 1 : 0.3, cursor: isModeling ? "not-allowed" : "pointer" }}
+          style={{
+            ...btnStyle,
+            opacity: selectedUUID && !isModeling ? 1 : 0.3,
+            cursor: isModeling ? "not-allowed" : "pointer",
+          }}
         >
           🗑
         </button>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "4px 4px" }} onClick={() => sceneActions.select(null)}>
+      <div
+        style={{ flex: 1, overflowY: "auto", padding: "4px 4px" }}
+        onClick={() => sceneActions.select(null)}
+      >
         {rootUUIDs.map((uuid) => {
           const node = nodes.get(uuid);
           return node ? (
-            <HierarchyNode key={uuid} node={node} depth={0} selectedUUID={selectedUUID} nodes={nodes} />
+            <HierarchyNode
+              key={uuid}
+              node={node}
+              depth={0}
+              selectedUUID={selectedUUID}
+              nodes={nodes}
+            />
           ) : null;
         })}
         {rootUUIDs.length === 0 && (

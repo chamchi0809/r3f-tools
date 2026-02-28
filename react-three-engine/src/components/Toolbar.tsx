@@ -1,6 +1,13 @@
 import React from "react";
 import { btnStyle } from "../styles";
-import { useModelingStore, modelingActions, type EditorMode, type SelectionMode, type ModelingTransformMode, type BrushType } from "../store/modelingStore";
+import {
+  useModelingStore,
+  modelingActions,
+  type EditorMode,
+  type SelectionMode,
+  type ModelingTransformMode,
+  type BrushType,
+} from "../store/modelingStore";
 
 export type TransformMode = "translate" | "rotate" | "scale";
 
@@ -38,7 +45,7 @@ export function TransformModeBar({
               ...btnStyle,
               background: mode === m ? "#2d5fa6" : "transparent",
               color: mode === m ? "#fff" : "#888",
-              fontSize: 11,
+              fontSize: 13,
               padding: "3px 10px",
               display: "flex",
               alignItems: "center",
@@ -46,7 +53,7 @@ export function TransformModeBar({
             }}
           >
             {m[0].toUpperCase() + m.slice(1)}
-            <span style={{ fontSize: 9, opacity: 0.6, fontFamily: "monospace" }}>[{hotkey}]</span>
+            <span style={{ fontSize: 11, opacity: 0.6, fontFamily: "monospace" }}>[{hotkey}]</span>
           </button>
         );
       })}
@@ -57,28 +64,28 @@ export function TransformModeBar({
 // ─── Editor mode tabs (Object / Modeling / Brush) ──────────────────────────────
 
 const EDITOR_MODES: { mode: EditorMode; label: string }[] = [
-  { mode: "object",   label: "Object Mode" },
+  { mode: "object", label: "Object Mode" },
   { mode: "modeling", label: "Modeling Mode" },
-  { mode: "brush",    label: "Brush Mode" },
+  { mode: "brush", label: "Brush Mode" },
 ];
 
 const SELECTION_MODES: { mode: SelectionMode; label: string; icon: string }[] = [
   { mode: "vertex", label: "Vertex", icon: "●" },
-  { mode: "edge",   label: "Edge",   icon: "╱" },
-  { mode: "face",   label: "Face",   icon: "▣" },
+  { mode: "edge", label: "Edge", icon: "╱" },
+  { mode: "face", label: "Face", icon: "▣" },
 ];
 
 const MODELING_TRANSFORM_MODES: { mode: ModelingTransformMode; label: string; hotkey: string }[] = [
-  { mode: "translate", label: "Move",   hotkey: "G" },
-  { mode: "rotate",    label: "Rotate", hotkey: "R" },
-  { mode: "scale",     label: "Scale",  hotkey: "S" },
+  { mode: "translate", label: "Move", hotkey: "G" },
+  { mode: "rotate", label: "Rotate", hotkey: "R" },
+  { mode: "scale", label: "Scale", hotkey: "S" },
 ];
 
 const BRUSH_TYPES: { type: BrushType; label: string; disabled?: boolean }[] = [
   { type: "polygon", label: "Polygon Brush" },
-  { type: "poly3d",  label: "Poly3D Brush" },
-  { type: "cube",    label: "Cube Brush",  disabled: true },
-  { type: "slope",   label: "Slope Brush", disabled: true },
+  { type: "poly3d", label: "Poly3D Brush" },
+  { type: "cube", label: "Cube Brush", disabled: true },
+  { type: "slope", label: "Slope Brush", disabled: true },
 ];
 
 // ─── Brush instruction panel ────────────────────────────────────────────────────────
@@ -90,10 +97,7 @@ function getInstructionLines(
 ): string[] {
   if (brushPhase === 2) {
     // Poly3D extrude phase
-    return [
-      "Move mouse up/down to set height",
-      "Click or Enter to confirm · Esc to cancel",
-    ];
+    return ["Move mouse up/down to set height", "Click or Enter to confirm · Esc to cancel"];
   }
   // Phase 1 — polygon drawing (polygon or poly3d)
   if (brushPointCount === 0) {
@@ -134,7 +138,7 @@ function BrushInstructionPanel({
         <span
           key={i}
           style={{
-            fontSize: 10,
+            fontSize: 12,
             color: i === 0 ? "#ccc" : "#888",
             fontFamily: "monospace",
             whiteSpace: "nowrap",
@@ -147,11 +151,11 @@ function BrushInstructionPanel({
   );
 }
 export function EditorModeBar(): React.JSX.Element {
-  const editorMode    = useModelingStore((s) => s.editorMode);
+  const editorMode = useModelingStore((s) => s.editorMode);
   const selectionMode = useModelingStore((s) => s.selectionMode);
   const transformMode = useModelingStore((s) => s.transformMode);
-  const brushType     = useModelingStore((s) => s.brushType);
-  const brushPhase    = useModelingStore((s) => s.brushPhase);
+  const brushType = useModelingStore((s) => s.brushType);
+  const brushPhase = useModelingStore((s) => s.brushPhase);
   const brushPointCount = useModelingStore((s) => s.brushPointCount);
   return (
     <div
@@ -185,7 +189,7 @@ export function EditorModeBar(): React.JSX.Element {
               ...btnStyle,
               background: editorMode === mode ? "#2d5fa6" : "transparent",
               color: editorMode === mode ? "#fff" : "#888",
-              fontSize: 11,
+              fontSize: 13,
               padding: "3px 10px",
               border: "none",
             }}
@@ -251,7 +255,7 @@ export function EditorModeBar(): React.JSX.Element {
                   ...btnStyle,
                   background: transformMode === mode ? "#7a4a2d" : "transparent",
                   color: transformMode === mode ? "#fff" : "#888",
-                  fontSize: 11,
+                  fontSize: 13,
                   padding: "3px 10px",
                   border: "none",
                   display: "flex",
@@ -260,7 +264,9 @@ export function EditorModeBar(): React.JSX.Element {
                 }}
               >
                 {label}
-                <span style={{ fontSize: 9, opacity: 0.6, fontFamily: "monospace" }}>[{hotkey}]</span>
+                <span style={{ fontSize: 11, opacity: 0.6, fontFamily: "monospace" }}>
+                  [{hotkey}]
+                </span>
               </button>
             ))}
           </div>
@@ -290,8 +296,8 @@ export function EditorModeBar(): React.JSX.Element {
                 style={{
                   ...btnStyle,
                   background: brushType === type ? "#7a2d5f" : "transparent",
-                  color: disabled ? "#555" : (brushType === type ? "#fff" : "#888"),
-                  fontSize: 11,
+                  color: disabled ? "#555" : brushType === type ? "#fff" : "#888",
+                  fontSize: 13,
                   padding: "3px 10px",
                   border: "none",
                   cursor: disabled ? "not-allowed" : "pointer",
@@ -330,8 +336,10 @@ export function Toolbar({ onTogglePrefabs }: { onTogglePrefabs: () => void }): R
         position: "relative",
       }}
     >
-      <span style={{ fontSize: 13, fontWeight: 600, color: "#aaa", marginRight: 8 }}>r3e</span>
-      <button onClick={onTogglePrefabs} style={btnStyle}>Prefabs</button>
+      <span style={{ fontSize: 14, fontWeight: 600, color: "#aaa", marginRight: 8 }}>r3e</span>
+      <button onClick={onTogglePrefabs} style={btnStyle}>
+        Prefabs
+      </button>
     </div>
   );
 }

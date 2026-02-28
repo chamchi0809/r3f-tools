@@ -63,8 +63,16 @@ export function MaterialEditor({
       <SectionHeader>Material</SectionHeader>
       <div style={rowStyle}>
         <span style={labelText}>Type</span>
-        <select value={mat.type} onChange={(e) => setType(e.target.value as MaterialType)} style={selectStyle}>
-          {MATERIAL_TYPES.map((t) => <option key={t} value={t}>{MATERIAL_LABELS[t]}</option>)}
+        <select
+          value={mat.type}
+          onChange={(e) => setType(e.target.value as MaterialType)}
+          style={selectStyle}
+        >
+          {MATERIAL_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {MATERIAL_LABELS[t]}
+            </option>
+          ))}
         </select>
       </div>
 

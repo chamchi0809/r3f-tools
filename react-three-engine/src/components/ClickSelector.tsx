@@ -29,9 +29,7 @@ export function ClickSelector({ transformDragging }: { transformDragging: boolea
       raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
 
       const { objects } = useSceneStore.getState();
-      const meshTargets = Array.from(objects.values()).filter(
-        (o) => o instanceof THREE.Mesh,
-      );
+      const meshTargets = Array.from(objects.values()).filter((o) => o instanceof THREE.Mesh);
       const hits = raycaster.intersectObjects(meshTargets, true);
       if (hits.length === 0) {
         sceneActions.select(null);

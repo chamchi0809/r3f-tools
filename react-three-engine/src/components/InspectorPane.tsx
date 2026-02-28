@@ -4,7 +4,12 @@ import { sceneActions, useSceneStore } from "../store/sceneStore";
 import { useSettingsStore } from "../store/settingsStore";
 import { textInputStyle } from "../styles";
 import { sectionLabel, SectionHeader, Vec3Field } from "./inspector/fields";
-import { fieldRegistry, registerFieldRenderer, type FieldRenderer, type FieldRendererProps } from "./inspector/FieldRegistry";
+import {
+  fieldRegistry,
+  registerFieldRenderer,
+  type FieldRenderer,
+  type FieldRendererProps,
+} from "./inspector/FieldRegistry";
 import { GeometryEditor } from "./inspector/GeometryEditor";
 import { MaterialEditor } from "./inspector/MaterialEditor";
 import { ObjectAutoEditor } from "./inspector/ObjectAutoEditor";
@@ -39,9 +44,7 @@ export function InspectorPane(): React.JSX.Element {
         parseFloat(THREE.MathUtils.radToDeg(obj.rotation.z).toFixed(4)),
       ]
     : [0, 0, 0];
-  const scl: [number, number, number] = obj
-    ? [obj.scale.x, obj.scale.y, obj.scale.z]
-    : [1, 1, 1];
+  const scl: [number, number, number] = obj ? [obj.scale.x, obj.scale.y, obj.scale.z] : [1, 1, 1];
 
   const handleTransform = useCallback(
     (
@@ -62,7 +65,7 @@ export function InspectorPane(): React.JSX.Element {
 
   if (!obj) {
     return (
-      <div style={{ padding: 16, fontSize: 12, color: "#555", textAlign: "center" }}>
+      <div style={{ padding: 16, fontSize: 13, color: "#555", textAlign: "center" }}>
         Select an object to inspect
       </div>
     );
@@ -88,11 +91,11 @@ export function InspectorPane(): React.JSX.Element {
             background: "#1a2d1a",
             border: "1px solid #2d5a2d",
             borderRadius: 4,
-            fontSize: 10,
+            fontSize: 12,
             color: "#6aef6a",
           }}
         >
-          <span style={{ fontSize: 12 }}>⬡</span>
+          <span style={{ fontSize: 13 }}>⬡</span>
           Debug Mode — all fields visible
         </div>
       )}
@@ -121,8 +124,13 @@ export function InspectorPane(): React.JSX.Element {
       {/* Transform */}
       <SectionHeader>Transform</SectionHeader>
       <Vec3Field label="Position" value={pos} onChange={(v) => handleTransform(v, rot, scl)} />
-      <Vec3Field label="Rotation" value={rot} step={1} onChange={(v) => handleTransform(pos, v, scl)} />
-      <Vec3Field label="Scale"    value={scl} onChange={(v) => handleTransform(pos, rot, v)} />
+      <Vec3Field
+        label="Rotation"
+        value={rot}
+        step={1}
+        onChange={(v) => handleTransform(pos, v, scl)}
+      />
+      <Vec3Field label="Scale" value={scl} onChange={(v) => handleTransform(pos, rot, v)} />
 
       {/* Mesh: geometry + material type switchers + auto fields */}
       {isMesh && selectedUUID && (

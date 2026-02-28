@@ -25,12 +25,5 @@ export default defineConfig({
     "@emotion/memoize",
     "dockview",
   ],
-  external: [
-    "react",
-    "react-dom",
-    "@react-three/fiber",
-    "@react-three/drei",
-    "three",
-    "vite",
-  ],
+  external: ["react", "react-dom", "@react-three/fiber", "@react-three/drei", "three", "vite"],
 });

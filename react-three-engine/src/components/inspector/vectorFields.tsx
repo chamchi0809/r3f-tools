@@ -22,8 +22,8 @@ export function Vec3Field({
   step?: number;
 }) {
   const axes = ["X", "Y", "Z"] as const;
-  const [drafts, setDrafts] = useState<[string, string, string]>(() =>
-    value.map((v) => String(parseFloat(v.toFixed(4)))) as [string, string, string]
+  const [drafts, setDrafts] = useState<[string, string, string]>(
+    () => value.map((v) => String(parseFloat(v.toFixed(4)))) as [string, string, string],
   );
   const focused = useRef<number | null>(null);
 
@@ -35,18 +35,27 @@ export function Vec3Field({
 
   return (
     <div style={{ marginBottom: 10 }}>
-      <div style={{ ...sectionLabel, marginBottom: 4, textTransform: "uppercase" as const, letterSpacing: 0.5 }}>
+      <div
+        style={{
+          ...sectionLabel,
+          marginBottom: 4,
+          textTransform: "uppercase" as const,
+          letterSpacing: 0.5,
+        }}
+      >
         {label}
       </div>
       <div style={{ display: "flex", gap: 4 }}>
         {axes.map((axis, i) => (
           <label key={axis} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={{ fontSize: 9, color: "#666", textAlign: "center" }}>{axis}</span>
+            <span style={{ fontSize: 11, color: "#666", textAlign: "center" }}>{axis}</span>
             <input
               type="number"
               value={drafts[i]}
               step={step}
-              onFocus={() => { focused.current = i; }}
+              onFocus={() => {
+                focused.current = i;
+              }}
               onChange={(e) => {
                 const next = [...drafts] as [string, string, string];
                 next[i] = e.target.value;
@@ -90,8 +99,8 @@ export function Vec2Field({
   onChange: (v: [number, number]) => void;
 }) {
   const axes = ["X", "Y"] as const;
-  const [drafts, setDrafts] = useState<[string, string]>(() =>
-    value.map((v) => String(parseFloat(v.toFixed(4)))) as [string, string]
+  const [drafts, setDrafts] = useState<[string, string]>(
+    () => value.map((v) => String(parseFloat(v.toFixed(4)))) as [string, string],
   );
   const focused = useRef<number | null>(null);
 
@@ -103,18 +112,27 @@ export function Vec2Field({
 
   return (
     <div style={{ marginBottom: 10 }}>
-      <div style={{ ...sectionLabel, marginBottom: 4, textTransform: "uppercase" as const, letterSpacing: 0.5 }}>
+      <div
+        style={{
+          ...sectionLabel,
+          marginBottom: 4,
+          textTransform: "uppercase" as const,
+          letterSpacing: 0.5,
+        }}
+      >
         {label}
       </div>
       <div style={{ display: "flex", gap: 4 }}>
         {axes.map((axis, i) => (
           <label key={axis} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={{ fontSize: 9, color: "#666", textAlign: "center" }}>{axis}</span>
+            <span style={{ fontSize: 11, color: "#666", textAlign: "center" }}>{axis}</span>
             <input
               type="number"
               value={drafts[i]}
               step={0.01}
-              onFocus={() => { focused.current = i; }}
+              onFocus={() => {
+                focused.current = i;
+              }}
               onChange={(e) => {
                 const next = [...drafts] as [string, string];
                 next[i] = e.target.value;
@@ -158,31 +176,42 @@ export function Vec4Field({
   onChange: (v: [number, number, number, number]) => void;
 }) {
   const axes = ["X", "Y", "Z", "W"] as const;
-  const [drafts, setDrafts] = useState<[string, string, string, string]>(() =>
-    value.map((v) => String(parseFloat(v.toFixed(4)))) as [string, string, string, string]
+  const [drafts, setDrafts] = useState<[string, string, string, string]>(
+    () => value.map((v) => String(parseFloat(v.toFixed(4)))) as [string, string, string, string],
   );
   const focused = useRef<number | null>(null);
 
   useEffect(() => {
     if (focused.current === null) {
-      setDrafts(value.map((v) => String(parseFloat(v.toFixed(4)))) as [string, string, string, string]);
+      setDrafts(
+        value.map((v) => String(parseFloat(v.toFixed(4)))) as [string, string, string, string],
+      );
     }
   }, [value]);
 
   return (
     <div style={{ marginBottom: 10 }}>
-      <div style={{ ...sectionLabel, marginBottom: 4, textTransform: "uppercase" as const, letterSpacing: 0.5 }}>
+      <div
+        style={{
+          ...sectionLabel,
+          marginBottom: 4,
+          textTransform: "uppercase" as const,
+          letterSpacing: 0.5,
+        }}
+      >
         {label}
       </div>
       <div style={{ display: "flex", gap: 4 }}>
         {axes.map((axis, i) => (
           <label key={axis} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={{ fontSize: 9, color: "#666", textAlign: "center" }}>{axis}</span>
+            <span style={{ fontSize: 11, color: "#666", textAlign: "center" }}>{axis}</span>
             <input
               type="number"
               value={drafts[i]}
               step={0.001}
-              onFocus={() => { focused.current = i; }}
+              onFocus={() => {
+                focused.current = i;
+              }}
               onChange={(e) => {
                 const next = [...drafts] as [string, string, string, string];
                 next[i] = e.target.value;

@@ -25,8 +25,7 @@ void initCustomObjectRegistry();
 
 const Viewport = () => {
   const [transformDragging, setTransformDragging] = useState(false);
-  const [transformMode, setTransformMode] =
-    useState<TransformMode>("translate");
+  const [transformMode, setTransformMode] = useState<TransformMode>("translate");
   const editorMode = useModelingStore((s) => s.editorMode);
   const isModeling = editorMode === "modeling";
   const isBrush = editorMode === "brush";
@@ -51,7 +50,14 @@ const Viewport = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, [isModeling, isBrush]);
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%", cursor: isBrush ? "crosshair" : "default" }}>
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        cursor: isBrush ? "crosshair" : "default",
+      }}
+    >
       <Canvas
         shadows="percentage"
         gl={async (props) => {
@@ -78,7 +84,9 @@ const Viewport = () => {
       </Canvas>
       <ViewportGizmo cameraRef={cameraRef} controlsRef={controlsRef} />
       <EditorModeBar />
-      {!isModeling && !isBrush && <TransformModeBar mode={transformMode} setMode={setTransformMode} />}
+      {!isModeling && !isBrush && (
+        <TransformModeBar mode={transformMode} setMode={setTransformMode} />
+      )}
     </div>
   );
 };

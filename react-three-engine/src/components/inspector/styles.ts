@@ -10,7 +10,7 @@ import { textInputStyle } from "../../styles";
 // ─── Shared style constants ───────────────────────────────────────────────────
 
 export const sectionLabel: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: 12,
   color: "#888",
   textTransform: "uppercase",
   letterSpacing: 1,
@@ -25,7 +25,7 @@ export const rowStyle: React.CSSProperties = {
 };
 
 export const labelText: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: 12,
   color: "#aaa",
   width: 90,
   flexShrink: 0,
@@ -44,7 +44,7 @@ export function SectionHeader({ children }: { children: React.ReactNode }) {
     "div",
     {
       style: {
-        fontSize: 11,
+        fontSize: 12,
         color: "#888",
         textTransform: "uppercase" as const,
         letterSpacing: 1,

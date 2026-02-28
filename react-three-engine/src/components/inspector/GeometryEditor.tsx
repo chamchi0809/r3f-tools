@@ -57,15 +57,23 @@ export function GeometryEditor({
       <SectionHeader>Geometry</SectionHeader>
       <div style={rowStyle}>
         <span style={labelText}>Type</span>
-        <select value={params.type} onChange={(e) => setType(e.target.value as GeometryType)} style={selectStyle}>
-          {GEOMETRY_TYPES.map((t) => <option key={t} value={t}>{t.replace("Geometry", "") || "Buffer"}</option>)}
+        <select
+          value={params.type}
+          onChange={(e) => setType(e.target.value as GeometryType)}
+          style={selectStyle}
+        >
+          {GEOMETRY_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t.replace("Geometry", "") || "Buffer"}
+            </option>
+          ))}
         </select>
       </div>
 
       {params.type === "BufferGeometry" && (
         <div style={rowStyle}>
           <span style={labelText}>Vertices</span>
-          <span style={{ fontSize: 11, color: "#888" }}>
+          <span style={{ fontSize: 12, color: "#888" }}>
             {geo.getAttribute("position") ? geo.getAttribute("position").count : 0}
           </span>
         </div>
@@ -84,8 +92,7 @@ export function GeometryEditor({
             onCommit={onCommit}
             isFieldVisible={isFieldVisible}
           />
-        ))
-      }
+        ))}
     </>
   );
 }

@@ -115,11 +115,7 @@ function buildExtrudedGeometry(pts: THREE.Vector3[], height: number): THREE.Buff
 
   // Bottom face indices (reversed for -Y outward normal from CCW pts)
   for (let i = 0; i < bottomIdx.length; i += 3) {
-    indices.push(
-      botBase + bottomIdx[i + 2],
-      botBase + bottomIdx[i + 1],
-      botBase + bottomIdx[i],
-    );
+    indices.push(botBase + bottomIdx[i + 2], botBase + bottomIdx[i + 1], botBase + bottomIdx[i]);
   }
   // Top face indices
   for (let i = 0; i < topIdx.length; i++) {
@@ -154,11 +150,17 @@ function buildExtrudedGeometry(pts: THREE.Vector3[], height: number): THREE.Buff
   const totalVerts = positions.length / 3;
   const finalNormals = new Float32Array(totalVerts * 3);
   // bottom face normals: -Y
-  for (let i = 0; i < n; i++) { finalNormals[i * 3 + 1] = -1; }
+  for (let i = 0; i < n; i++) {
+    finalNormals[i * 3 + 1] = -1;
+  }
   // top face normals: +Y
-  for (let i = 0; i < n; i++) { finalNormals[(topBase + i) * 3 + 1] = 1; }
+  for (let i = 0; i < n; i++) {
+    finalNormals[(topBase + i) * 3 + 1] = 1;
+  }
   // side normals already computed above
-  for (let i = 0; i < normals.length; i++) { finalNormals[sideBase * 3 + i] = normals[i]; }
+  for (let i = 0; i < normals.length; i++) {
+    finalNormals[sideBase * 3 + i] = normals[i];
+  }
 
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(positions), 3));
@@ -213,10 +215,7 @@ function PreviewLine({
     const g = new THREE.BufferGeometry();
     g.setAttribute(
       "position",
-      new THREE.BufferAttribute(
-        new Float32Array([last.x, last.y, last.z, end.x, end.y, end.z]),
-        3,
-      ),
+      new THREE.BufferAttribute(new Float32Array([last.x, last.y, last.z, end.x, end.y, end.z]), 3),
     );
     return g;
   }, [points, cursor, closingSnap]);
@@ -242,8 +241,12 @@ function CommittedLines({ points }: { points: THREE.Vector3[] }) {
     const pts: number[] = [];
     for (let i = 0; i < points.length - 1; i++) {
       pts.push(
-        points[i].x, points[i].y, points[i].z,
-        points[i + 1].x, points[i + 1].y, points[i + 1].z,
+        points[i].x,
+        points[i].y,
+        points[i].z,
+        points[i + 1].x,
+        points[i + 1].y,
+        points[i + 1].z,
       );
     }
     const g = new THREE.BufferGeometry();
@@ -267,10 +270,7 @@ function VertexDots({ points }: { points: THREE.Vector3[] }) {
       {points.map((p, i) => (
         <mesh key={i} position={[p.x, p.y, p.z]}>
           <sphereGeometry args={[0.05, 8, 8]} />
-          <meshBasicMaterial
-            color={i === 0 ? CLOSE_SNAP_COLOR : POINT_COLOR}
-            depthTest={false}
-          />
+          <meshBasicMaterial color={i === 0 ? CLOSE_SNAP_COLOR : POINT_COLOR} depthTest={false} />
         </mesh>
       ))}
     </>
@@ -298,11 +298,7 @@ function ExtrudePreview({ points, height }: { points: THREE.Vector3[]; height: n
         />
       </mesh>
       <mesh geometry={geo}>
-        <meshBasicMaterial
-          color={EXTRUDE_WIRE_COLOR}
-          wireframe
-          depthTest={false}
-        />
+        <meshBasicMaterial color={EXTRUDE_WIRE_COLOR} wireframe depthTest={false} />
       </mesh>
     </>
   );
@@ -424,7 +420,7 @@ function CursorGizmoDom({
       canvas.style.cursor = prevCursor;
       document.body.removeChild(div);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Update position and SVG every render
@@ -505,7 +501,9 @@ export function BrushOverlay(): React.JSX.Element | null {
     geo.translate(-center.x, -center.y, -center.z);
 
     const normalArr = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) { normalArr[i * 3 + 1] = 1; }
+    for (let i = 0; i < count; i++) {
+      normalArr[i * 3 + 1] = 1;
+    }
     geo.setAttribute("normal", new THREE.BufferAttribute(normalArr, 3));
     geo.computeBoundingSphere();
 
@@ -637,8 +635,17 @@ export function BrushOverlay(): React.JSX.Element | null {
       canvas.removeEventListener("click", onClick);
     };
   }, [
-    points, extrudePoints, extrudeHeight, camera, gl, raycaster,
-    isActive, isPoly3D, commitPolygon, commitExtrude, startExtrude,
+    points,
+    extrudePoints,
+    extrudeHeight,
+    camera,
+    gl,
+    raycaster,
+    isActive,
+    isPoly3D,
+    commitPolygon,
+    commitExtrude,
+    startExtrude,
   ]);
 
   // ── Keyboard: Enter to commit, Escape to cancel ────────────────────────────
@@ -674,16 +681,8 @@ export function BrushOverlay(): React.JSX.Element | null {
         {/* Floor outline of the committed polygon */}
         <CommittedLines points={[...extrudePoints, extrudePoints[0]]} />
         <VertexDots points={extrudePoints} />
-        <HeightLabelDom
-          height={extrudeHeight}
-          screenX={cursorScreen.x}
-          screenY={cursorScreen.y}
-        />
-        <CursorGizmoDom
-          screenX={cursorScreen.x}
-          screenY={cursorScreen.y}
-          variant="extrude"
-        />
+        <HeightLabelDom height={extrudeHeight} screenX={cursorScreen.x} screenY={cursorScreen.y} />
+        <CursorGizmoDom screenX={cursorScreen.x} screenY={cursorScreen.y} variant="extrude" />
       </>
     );
   }
@@ -695,11 +694,7 @@ export function BrushOverlay(): React.JSX.Element | null {
       <CommittedLines points={points} />
       <VertexDots points={points} />
       <PreviewLine points={points} cursor={cursor} closingSnap={closingSnap} />
-      <CursorGizmoDom
-        screenX={cursorScreen.x}
-        screenY={cursorScreen.y}
-        variant={gizmoVariant}
-      />
+      <CursorGizmoDom screenX={cursorScreen.x} screenY={cursorScreen.y} variant={gizmoVariant} />
     </>
   );
 }

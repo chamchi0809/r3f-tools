@@ -27,13 +27,13 @@ export type PropValueType =
   | "number"
   | "boolean"
   | "string"
-  | "color"      // THREE.Color
-  | "vector2"    // THREE.Vector2
-  | "vector3"    // THREE.Vector3
-  | "vector4"    // THREE.Vector4
-  | "euler"      // THREE.Euler
-  | "texture"    // THREE.Texture (texture map slot)
-  | "object"     // inspectable sub-object
+  | "color" // THREE.Color
+  | "vector2" // THREE.Vector2
+  | "vector3" // THREE.Vector3
+  | "vector4" // THREE.Vector4
+  | "euler" // THREE.Euler
+  | "texture" // THREE.Texture (texture map slot)
+  | "object" // inspectable sub-object
   | "unsupported";
 
 export interface PropInfo {
@@ -53,25 +53,55 @@ export interface PropGroup {
 
 const SKIP_KEYS = new Set([
   // identity / internal
-  "uuid", "id", "type",
+  "uuid",
+  "id",
+  "type",
   // managed by transform section
-  "position", "rotation", "scale", "quaternion", "up",
+  "position",
+  "rotation",
+  "scale",
+  "quaternion",
+  "up",
   // matrices (heavy / internal)
-  "matrix", "matrixWorld", "matrixWorldInverse", "projectionMatrix",
-  "projectionMatrixInverse", "normalMatrix",
+  "matrix",
+  "matrixWorld",
+  "matrixWorldInverse",
+  "projectionMatrix",
+  "projectionMatrixInverse",
+  "normalMatrix",
   // parent/children hierarchy
-  "parent", "children",
+  "parent",
+  "children",
   // complex objects / arrays not suitable for editing
-  "layers", "animations", "morphTargetInfluences", "morphTargetDictionary",
-  "geometry", "material", "skeleton", "bindMatrix", "bindMatrixInverse",
+  "layers",
+  "animations",
+  "morphTargetInfluences",
+  "morphTargetDictionary",
+  "geometry",
+  "material",
+  "skeleton",
+  "bindMatrix",
+  "bindMatrixInverse",
   // event system
-  "listeners", "_listeners",
+  "listeners",
+  "_listeners",
   // buffers / heavy data
-  "attributes", "index", "morphAttributes", "morphTargetsRelative",
-  "groups", "drawRange", "boundingBox", "boundingSphere",
+  "attributes",
+  "index",
+  "morphAttributes",
+  "morphTargetsRelative",
+  "groups",
+  "drawRange",
+  "boundingBox",
+  "boundingSphere",
   // render internals
-  "programs", "clippingPlanes", "userData",
-  "extensions", "defines", "uniforms", "glslVersion",
+  "programs",
+  "clippingPlanes",
+  "userData",
+  "extensions",
+  "defines",
+  "uniforms",
+  "glslVersion",
   "iridescenceThicknessRange",
   // shadow sub-object internals (render textures)
   "mapPass",
@@ -81,13 +111,28 @@ const SKIP_KEYS = new Set([
 
 /** Keys that represent texture map slots — null value is still renderable as a TextureField. */
 const TEXTURE_SLOT_KEYS = new Set([
-  "map", "normalMap", "roughnessMap", "metalnessMap", "aoMap",
-  "emissiveMap", "lightMap", "bumpMap", "displacementMap",
-  "alphaMap", "envMap", "gradientMap", "clearcoatMap",
-  "clearcoatNormalMap", "clearcoatRoughnessMap",
-  "transmissionMap", "thicknessMap", "sheenColorMap",
-  "specularIntensityMap", "specularColorMap",
-  "anisotropyMap", "iridescenceMap",
+  "map",
+  "normalMap",
+  "roughnessMap",
+  "metalnessMap",
+  "aoMap",
+  "emissiveMap",
+  "lightMap",
+  "bumpMap",
+  "displacementMap",
+  "alphaMap",
+  "envMap",
+  "gradientMap",
+  "clearcoatMap",
+  "clearcoatNormalMap",
+  "clearcoatRoughnessMap",
+  "transmissionMap",
+  "thicknessMap",
+  "sheenColorMap",
+  "specularIntensityMap",
+  "specularColorMap",
+  "anisotropyMap",
+  "iridescenceMap",
 ]);
 
 function shouldSkipKey(key: string): boolean {
@@ -102,19 +147,19 @@ function shouldSkipKey(key: string): boolean {
 // ─── value type classification ────────────────────────────────────────────────
 
 function classifyValue(value: unknown): PropValueType {
-  if (value instanceof THREE.Color)   return "color";
-  if (value instanceof THREE.Euler)   return "euler";
+  if (value instanceof THREE.Color) return "color";
+  if (value instanceof THREE.Euler) return "euler";
   if (value instanceof THREE.Vector4) return "vector4";
   if (value instanceof THREE.Vector3) return "vector3";
   if (value instanceof THREE.Vector2) return "vector2";
   if (value instanceof THREE.Texture) return "texture";
-  if (typeof value === "number")      return "number";
-  if (typeof value === "boolean")     return "boolean";
-  if (typeof value === "string")      return "string";
+  if (typeof value === "number") return "number";
+  if (typeof value === "boolean") return "boolean";
+  if (typeof value === "string") return "string";
   // Guard: arrays, typed arrays, ArrayBuffer, DOM nodes — never inspectable sub-objects
-  if (Array.isArray(value))           return "unsupported";
-  if (ArrayBuffer.isView(value))      return "unsupported";
-  if (value instanceof ArrayBuffer)   return "unsupported";
+  if (Array.isArray(value)) return "unsupported";
+  if (ArrayBuffer.isView(value)) return "unsupported";
+  if (value instanceof ArrayBuffer) return "unsupported";
   if (typeof window !== "undefined" && value instanceof Element) return "unsupported";
   // Plain object with an inspectable prototype chain → sub-object
   if (value !== null && typeof value === "object") {
@@ -147,10 +192,7 @@ function protoChain(obj: object): Array<{ name: string; proto: object }> {
  * property descriptor for it. This handles getter-defined properties.
  * If not found on any prototype, returns the leaf class name (index 0).
  */
-function findOwnerClass(
-  key: string,
-  chain: Array<{ name: string; proto: object }>,
-): string {
+function findOwnerClass(key: string, chain: Array<{ name: string; proto: object }>): string {
   for (const { name, proto } of chain) {
     if (Object.getOwnPropertyDescriptor(proto, key)) return name;
   }
@@ -283,9 +325,7 @@ export function introspectGeometry(geo: THREE.BufferGeometry, debug = false): Pr
   // Run standard introspection but filter out parameter keys and "parameters" itself
   const raw = introspect(geo, debug);
   for (const group of raw) {
-    const filtered = group.props.filter(
-      (p) => p.key !== "parameters" && !paramKeys.has(p.key),
-    );
+    const filtered = group.props.filter((p) => p.key !== "parameters" && !paramKeys.has(p.key));
     if (filtered.length > 0) {
       groups.push({ className: group.className, props: filtered });
     }

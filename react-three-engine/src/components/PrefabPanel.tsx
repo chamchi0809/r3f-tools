@@ -31,7 +31,10 @@ export function PrefabPanel({
 
   const handleSave = async () => {
     const name = saveName.trim();
-    if (!name) { setStatus("Enter a name first"); return; }
+    if (!name) {
+      setStatus("Enter a name first");
+      return;
+    }
     const data = sceneActions.serialize();
     try {
       const res = await fetch(`${apiBase}/save`, {
@@ -98,16 +101,23 @@ export function PrefabPanel({
         </span>
         <input
           value={saveName}
-          onChange={(e) => { setSaveName(e.target.value); setStatus(null); }}
-          onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+          onChange={(e) => {
+            setSaveName(e.target.value);
+            setStatus(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSave();
+          }}
           placeholder="Prefab name…"
           style={{ ...textInputStyle, width: 160 }}
         />
-        <button onClick={handleSave} style={btnStyle}>Save</button>
-        {status && <span style={{ fontSize: 11, color: "#888" }}>{status}</span>}
+        <button onClick={handleSave} style={btnStyle}>
+          Save
+        </button>
+        {status && <span style={{ fontSize: 12, color: "#888" }}>{status}</span>}
         <button
           onClick={onClose}
-          style={{ ...btnStyle, padding: "2px 8px", fontSize: 11, marginLeft: 4 }}
+          style={{ ...btnStyle, padding: "2px 8px", fontSize: 12, marginLeft: 4 }}
         >
           ✕
         </button>
@@ -125,7 +135,7 @@ export function PrefabPanel({
         }}
       >
         {prefabs.length === 0 && (
-          <div style={{ fontSize: 12, color: "#555", display: "flex", alignItems: "center" }}>
+          <div style={{ fontSize: 13, color: "#555", display: "flex", alignItems: "center" }}>
             No saved prefabs
           </div>
         )}
@@ -140,7 +150,7 @@ export function PrefabPanel({
               border: "1px solid #333",
               borderRadius: 4,
               padding: "8px 10px",
-              fontSize: 12,
+              fontSize: 13,
               color: "#ccc",
               cursor: "pointer",
               display: "flex",
@@ -161,7 +171,7 @@ export function PrefabPanel({
                 whiteSpace: "nowrap",
                 width: "100%",
                 textAlign: "center",
-                fontSize: 11,
+                fontSize: 12,
               }}
             >
               {name}

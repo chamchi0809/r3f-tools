@@ -47,7 +47,11 @@ function getIndices(geo: THREE.BufferGeometry): number[] | null {
 }
 
 /** Build a cylinder geometry between two points for edge hit detection */
-function makeCylinderGeometry(a: THREE.Vector3, b: THREE.Vector3, radius: number): THREE.BufferGeometry {
+function makeCylinderGeometry(
+  a: THREE.Vector3,
+  b: THREE.Vector3,
+  radius: number,
+): THREE.BufferGeometry {
   const direction = new THREE.Vector3().subVectors(b, a);
   const length = direction.length();
   const cylinder = new THREE.CylinderGeometry(radius, radius, length, 8, 1);
@@ -74,7 +78,7 @@ function flushPositions(geo: THREE.BufferGeometry, positions: Float32Array): voi
     geo.setAttribute("position", new THREE.BufferAttribute(positions.slice(), 3));
     // Resize normal/uv stubs to match new vertex count
     geo.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(vertCount * 3), 3));
-    geo.setAttribute("uv",     new THREE.BufferAttribute(new Float32Array(vertCount * 2), 2));
+    geo.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(vertCount * 2), 2));
   }
   geo.computeVertexNormals();
   geo.computeBoundingSphere();
@@ -83,7 +87,10 @@ function flushPositions(geo: THREE.BufferGeometry, positions: Float32Array): voi
 }
 
 /** Collect the unique set of vertex indices covered by a selection. */
-function selectedVertexIndices(elements: SelectedElement[], geo: THREE.BufferGeometry): Set<number> {
+function selectedVertexIndices(
+  elements: SelectedElement[],
+  geo: THREE.BufferGeometry,
+): Set<number> {
   const indices = getIndices(geo);
   const set = new Set<number>();
   for (const el of elements) {
@@ -121,14 +128,22 @@ function expandToColocated(baseSet: Set<number>, positions: Float32Array, eps = 
   // Collect world positions of the base set
   const basePositions: Array<{ x: number; y: number; z: number }> = [];
   for (const vi of baseSet) {
-    basePositions.push({ x: positions[vi * 3], y: positions[vi * 3 + 1], z: positions[vi * 3 + 2] });
+    basePositions.push({
+      x: positions[vi * 3],
+      y: positions[vi * 3 + 1],
+      z: positions[vi * 3 + 2],
+    });
   }
   const eps2 = eps * eps;
   for (let i = 0; i < n; i++) {
     if (expanded.has(i)) continue;
-    const ix = positions[i * 3], iy = positions[i * 3 + 1], iz = positions[i * 3 + 2];
+    const ix = positions[i * 3],
+      iy = positions[i * 3 + 1],
+      iz = positions[i * 3 + 2];
     for (const bp of basePositions) {
-      const dx = ix - bp.x, dy = iy - bp.y, dz = iz - bp.z;
+      const dx = ix - bp.x,
+        dy = iy - bp.y,
+        dz = iz - bp.z;
       if (dx * dx + dy * dy + dz * dz < eps2) {
         expanded.add(i);
         break;
@@ -174,12 +189,21 @@ function VertexDots({
             key={i}
             position={[x, y, z]}
             matrixAutoUpdate
-            onPointerOver={(e) => { e.stopPropagation(); onHover(i); }}
+            onPointerOver={(e) => {
+              e.stopPropagation();
+              onHover(i);
+            }}
             onPointerOut={() => onHover(null)}
-            onClick={(e) => { e.stopPropagation(); onClick(i, e.shiftKey); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick(i, e.shiftKey);
+            }}
           >
             <sphereGeometry args={[VERTEX_RADIUS, 8, 8]} />
-            <meshBasicMaterial color={isSelected ? VERTEX_COLOR_SELECTED : VERTEX_COLOR_DEFAULT} depthTest={false} />
+            <meshBasicMaterial
+              color={isSelected ? VERTEX_COLOR_SELECTED : VERTEX_COLOR_DEFAULT}
+              depthTest={false}
+            />
           </mesh>
         );
       })}
@@ -207,7 +231,9 @@ function EdgeLines({
     const edges: Array<[number, number]> = [];
     if (indices) {
       for (let t = 0; t < indices.length; t += 3) {
-        const a = indices[t], b = indices[t + 1], c = indices[t + 2];
+        const a = indices[t],
+          b = indices[t + 1],
+          c = indices[t + 2];
         edges.push([Math.min(a, b), Math.max(a, b)]);
         edges.push([Math.min(b, c), Math.max(b, c)]);
         edges.push([Math.min(a, c), Math.max(a, c)]);
@@ -228,7 +254,10 @@ function EdgeLines({
   }, [positions, indices]);
 
   const selectedEdgeKeys = useMemo(
-    () => new Set(selectedElements.filter((e) => e.type === "edge").map((e) => `${e.index}_${e.index2}`)),
+    () =>
+      new Set(
+        selectedElements.filter((e) => e.type === "edge").map((e) => `${e.index}_${e.index2}`),
+      ),
     [selectedElements],
   );
 
@@ -240,8 +269,12 @@ function EdgeLines({
     const defPts: number[] = [];
     const selPts: number[] = [];
     for (const [a, b] of edgeSet) {
-      const ax = positions[a * 3], ay = positions[a * 3 + 1], az = positions[a * 3 + 2];
-      const bx = positions[b * 3], by = positions[b * 3 + 1], bz = positions[b * 3 + 2];
+      const ax = positions[a * 3],
+        ay = positions[a * 3 + 1],
+        az = positions[a * 3 + 2];
+      const bx = positions[b * 3],
+        by = positions[b * 3 + 1],
+        bz = positions[b * 3 + 2];
       if (selectedEdgeKeys.has(`${a}_${b}`)) {
         selPts.push(ax, ay, az, bx, by, bz);
       } else {
@@ -271,11 +304,15 @@ function EdgeLines({
     }
     return edgeSet.map(([a, b]) => {
       const key = `${a}_${b}`;
-      const ax = positions[a * 3], ay = positions[a * 3 + 1], az = positions[a * 3 + 2];
-      const bx = positions[b * 3], by = positions[b * 3 + 1], bz = positions[b * 3 + 2];
+      const ax = positions[a * 3],
+        ay = positions[a * 3 + 1],
+        az = positions[a * 3 + 2];
+      const bx = positions[b * 3],
+        by = positions[b * 3 + 1],
+        bz = positions[b * 3 + 2];
       const vecA = new THREE.Vector3(ax, ay, az);
       const vecB = new THREE.Vector3(bx, by, bz);
-      
+
       let g = cache.get(key);
       if (!g) {
         g = makeCylinderGeometry(vecA, vecB, EDGE_HIT_RADIUS);
@@ -304,7 +341,10 @@ function EdgeLines({
         <mesh
           key={key}
           geometry={geo}
-          onClick={(e) => { e.stopPropagation(); onClick(a, b, e.shiftKey); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick(a, b, e.shiftKey);
+          }}
         >
           <meshBasicMaterial visible={false} />
         </mesh>
@@ -337,7 +377,10 @@ function FaceOverlays({
       }, []);
     }
     const count = positions.length / 3;
-    return Array.from({ length: Math.floor(count / 3) }, (_, i) => [i * 3, i * 3 + 1, i * 3 + 2] as [number, number, number]);
+    return Array.from(
+      { length: Math.floor(count / 3) },
+      (_, i) => [i * 3, i * 3 + 1, i * 3 + 2] as [number, number, number],
+    );
   }, [positions, indices]);
 
   const selectedFaceSet = useMemo(
@@ -355,9 +398,15 @@ function FaceOverlays({
     const selPts: number[] = [];
     const selIdx: number[] = [];
     faces.forEach(([a, b, c], faceIdx) => {
-      const ax = positions[a * 3], ay = positions[a * 3 + 1], az = positions[a * 3 + 2];
-      const bx = positions[b * 3], by = positions[b * 3 + 1], bz = positions[b * 3 + 2];
-      const cx = positions[c * 3], cy = positions[c * 3 + 1], cz = positions[c * 3 + 2];
+      const ax = positions[a * 3],
+        ay = positions[a * 3 + 1],
+        az = positions[a * 3 + 2];
+      const bx = positions[b * 3],
+        by = positions[b * 3 + 1],
+        bz = positions[b * 3 + 2];
+      const cx = positions[c * 3],
+        cy = positions[c * 3 + 1],
+        cz = positions[c * 3 + 2];
       if (selectedFaceSet.has(faceIdx)) {
         const base = selPts.length / 3;
         selPts.push(ax, ay, az, bx, by, bz, cx, cy, cz);
@@ -398,10 +447,19 @@ function FaceOverlays({
         g.setIndex([0, 1, 2]);
         cache.set(faceIdx, g);
       }
-      const ax = positions[a * 3], ay = positions[a * 3 + 1], az = positions[a * 3 + 2];
-      const bx = positions[b * 3], by = positions[b * 3 + 1], bz = positions[b * 3 + 2];
-      const cx = positions[c * 3], cy = positions[c * 3 + 1], cz = positions[c * 3 + 2];
-      g.setAttribute("position", new THREE.BufferAttribute(new Float32Array([ax, ay, az, bx, by, bz, cx, cy, cz]), 3));
+      const ax = positions[a * 3],
+        ay = positions[a * 3 + 1],
+        az = positions[a * 3 + 2];
+      const bx = positions[b * 3],
+        by = positions[b * 3 + 1],
+        bz = positions[b * 3 + 2];
+      const cx = positions[c * 3],
+        cy = positions[c * 3 + 1],
+        cz = positions[c * 3 + 2];
+      g.setAttribute(
+        "position",
+        new THREE.BufferAttribute(new Float32Array([ax, ay, az, bx, by, bz, cx, cy, cz]), 3),
+      );
       return { faceIdx, geo: g };
     });
   }, [faces, positions]);
@@ -411,16 +469,31 @@ function FaceOverlays({
   return (
     <>
       <mesh geometry={defaultGeo}>
-        <meshBasicMaterial color={FACE_COLOR_DEFAULT} transparent opacity={0.2} depthTest={false} side={THREE.DoubleSide} />
+        <meshBasicMaterial
+          color={FACE_COLOR_DEFAULT}
+          transparent
+          opacity={0.2}
+          depthTest={false}
+          side={THREE.DoubleSide}
+        />
       </mesh>
       <mesh geometry={selectedGeo}>
-        <meshBasicMaterial color={FACE_COLOR_SELECTED} transparent opacity={0.5} depthTest={false} side={THREE.DoubleSide} />
+        <meshBasicMaterial
+          color={FACE_COLOR_SELECTED}
+          transparent
+          opacity={0.5}
+          depthTest={false}
+          side={THREE.DoubleSide}
+        />
       </mesh>
       {hitGeos.map(({ faceIdx, geo }) => (
         <mesh
           key={faceIdx}
           geometry={geo}
-          onClick={(e) => { e.stopPropagation(); onClick(faceIdx, e.shiftKey); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick(faceIdx, e.shiftKey);
+          }}
         >
           <meshBasicMaterial visible={false} side={THREE.DoubleSide} />
         </mesh>
@@ -548,7 +621,7 @@ function SelectionTransformGizmo({
       // Convert back to mesh local space.
       worldPt.applyMatrix4(invMeshWorld);
 
-      positions[vi * 3]     = worldPt.x;
+      positions[vi * 3] = worldPt.x;
       positions[vi * 3 + 1] = worldPt.y;
       positions[vi * 3 + 2] = worldPt.z;
     }
@@ -594,13 +667,17 @@ export function ModelingOverlay(): React.JSX.Element | null {
 
   // Track Ctrl key for snapping
   useEffect(() => {
-    const onDown = (e: KeyboardEvent) => { if (e.key === "Control") setCtrlHeld(true); };
-    const onUp   = (e: KeyboardEvent) => { if (e.key === "Control") setCtrlHeld(false); };
+    const onDown = (e: KeyboardEvent) => {
+      if (e.key === "Control") setCtrlHeld(true);
+    };
+    const onUp = (e: KeyboardEvent) => {
+      if (e.key === "Control") setCtrlHeld(false);
+    };
     window.addEventListener("keydown", onDown);
-    window.addEventListener("keyup",   onUp);
+    window.addEventListener("keyup", onUp);
     return () => {
       window.removeEventListener("keydown", onDown);
-      window.removeEventListener("keyup",   onUp);
+      window.removeEventListener("keyup", onUp);
     };
   }, []);
 
@@ -640,7 +717,9 @@ export function ModelingOverlay(): React.JSX.Element | null {
         // Remove triangles that reference any removed vertex
         const newTriIndices: number[] = [];
         for (let t = 0; t < oldIndices.length; t += 3) {
-          const a = oldIndices[t], b = oldIndices[t + 1], c = oldIndices[t + 2];
+          const a = oldIndices[t],
+            b = oldIndices[t + 1],
+            c = oldIndices[t + 2];
           if (!toRemove.has(a) && !toRemove.has(b) && !toRemove.has(c)) {
             newTriIndices.push(a, b, c);
           }
@@ -652,11 +731,13 @@ export function ModelingOverlay(): React.JSX.Element | null {
         const remap = new Map<number, number>();
         let newIdx = 0;
         for (let i = 0; i < positions.length / 3; i++) {
-          if (usedVerts.has(i)) { remap.set(i, newIdx++); }
+          if (usedVerts.has(i)) {
+            remap.set(i, newIdx++);
+          }
         }
         const newPositions = new Float32Array(newIdx * 3);
         for (const [oldI, newI] of remap) {
-          newPositions[newI * 3]     = positions[oldI * 3];
+          newPositions[newI * 3] = positions[oldI * 3];
           newPositions[newI * 3 + 1] = positions[oldI * 3 + 1];
           newPositions[newI * 3 + 2] = positions[oldI * 3 + 2];
         }
@@ -689,26 +770,20 @@ export function ModelingOverlay(): React.JSX.Element | null {
     sceneActions.invalidate();
   }, []);
 
-  const handleVertexClick = useCallback(
-    (idx: number, additive: boolean) => {
-      modelingActions.selectElement({ type: "vertex", index: idx }, additive);
-    },
-    [],
-  );
+  const handleVertexClick = useCallback((idx: number, additive: boolean) => {
+    modelingActions.selectElement({ type: "vertex", index: idx }, additive);
+  }, []);
 
-  const handleEdgeClick = useCallback(
-    (a: number, b: number, additive: boolean) => {
-      modelingActions.selectElement({ type: "edge", index: Math.min(a, b), index2: Math.max(a, b) }, additive);
-    },
-    [],
-  );
+  const handleEdgeClick = useCallback((a: number, b: number, additive: boolean) => {
+    modelingActions.selectElement(
+      { type: "edge", index: Math.min(a, b), index2: Math.max(a, b) },
+      additive,
+    );
+  }, []);
 
-  const handleFaceClick = useCallback(
-    (faceIdx: number, additive: boolean) => {
-      modelingActions.selectElement({ type: "face", index: faceIdx }, additive);
-    },
-    [],
-  );
+  const handleFaceClick = useCallback((faceIdx: number, additive: boolean) => {
+    modelingActions.selectElement({ type: "face", index: faceIdx }, additive);
+  }, []);
 
   if (!mesh) return null;
 

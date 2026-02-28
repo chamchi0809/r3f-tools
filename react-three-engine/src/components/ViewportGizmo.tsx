@@ -2,11 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
 import * as THREE from "three/webgpu";
 import { css } from "@emotion/css";
-import {
-  useSettingsStore,
-  settingsActions,
-  DEFAULT_SNAP,
-} from "../store/settingsStore";
+import { useSettingsStore, settingsActions, DEFAULT_SNAP } from "../store/settingsStore";
 
 // ─── Shared animation state (written by DOM, read by R3F loop) ────────────────
 
@@ -75,7 +71,7 @@ const canvasWrapStyle = css`
 
 const labelStyle = css`
   font-family: monospace;
-  font-size: 10px;
+  font-size: 12px;
   color: #bbb;
   cursor: pointer;
   pointer-events: auto;
@@ -100,7 +96,7 @@ const snapPanelStyle = css`
   gap: 4px;
   min-width: 130px;
   font-family: monospace;
-  font-size: 10px;
+  font-size: 12px;
   color: #ccc;
   user-select: none;
   align-self: flex-end;
@@ -120,7 +116,7 @@ const snapInputStyle = css`
   border-radius: 3px;
   color: #eee;
   font-family: monospace;
-  font-size: 10px;
+  font-size: 12px;
   padding: 1px 3px;
   text-align: right;
   &:focus {
@@ -148,7 +144,7 @@ const resetBtnStyle = css`
   border-radius: 3px;
   color: #aaa;
   font-family: monospace;
-  font-size: 9px;
+  font-size: 11px;
   padding: 1px 4px;
   cursor: pointer;
   &:hover {
@@ -173,9 +169,7 @@ function SnapSettingsPanel() {
           <input
             type="checkbox"
             checked={snap.enabled}
-            onChange={(e) =>
-              settingsActions.setSnap({ enabled: e.target.checked })
-            }
+            onChange={(e) => settingsActions.setSnap({ enabled: e.target.checked })}
             style={{ accentColor: "#f0a020", cursor: "pointer" }}
           />
           <span style={{ color: "#eee", fontWeight: "bold" }}>Snap</span>
@@ -200,8 +194,7 @@ function SnapSettingsPanel() {
           value={snap.translateStep}
           onChange={(e) =>
             settingsActions.setSnap({
-              translateStep:
-                parseFloat(e.target.value) || DEFAULT_SNAP.translateStep,
+              translateStep: parseFloat(e.target.value) || DEFAULT_SNAP.translateStep,
             })
           }
           onMouseDown={(e) => e.stopPropagation()}
@@ -334,9 +327,7 @@ export const ViewportGizmoAnimator: React.FC<{
       );
       const t = 1 - Math.pow(1 - progress, 3); // ease-out cubic
 
-      camera.position
-        .copy(gizmoState.startPosition)
-        .lerp(gizmoState.targetPosition, t);
+      camera.position.copy(gizmoState.startPosition).lerp(gizmoState.targetPosition, t);
 
       if (controlsRef.current) {
         camera.lookAt(controlsRef.current.target);
@@ -367,9 +358,7 @@ export const ViewportGizmo: React.FC<{
       if (!camera || !controls) return;
 
       const dist = camera.position.distanceTo(controls.target);
-      const newPos = controls.target
-        .clone()
-        .add(dir.clone().multiplyScalar(dist));
+      const newPos = controls.target.clone().add(dir.clone().multiplyScalar(dist));
 
       gizmoState.startPosition.copy(camera.position);
       gizmoState.targetPosition.copy(newPos);
@@ -394,9 +383,7 @@ export const ViewportGizmo: React.FC<{
       camera.updateProjectionMatrix();
       gizmoState.startPosition.copy(camera.position);
       const dir = camera.position.clone().sub(controls.target).normalize();
-      gizmoState.targetPosition
-        .copy(controls.target)
-        .add(dir.multiplyScalar(dist * 50));
+      gizmoState.targetPosition.copy(controls.target).add(dir.multiplyScalar(dist * 50));
       gizmoState.startTime = performance.now();
       gizmoState.animating = true;
     } else {
@@ -405,9 +392,7 @@ export const ViewportGizmo: React.FC<{
       camera.updateProjectionMatrix();
       gizmoState.startPosition.copy(camera.position);
       const dir = camera.position.clone().sub(controls.target).normalize();
-      gizmoState.targetPosition
-        .copy(controls.target)
-        .add(dir.multiplyScalar(dist / 50));
+      gizmoState.targetPosition.copy(controls.target).add(dir.multiplyScalar(dist / 50));
       gizmoState.startTime = performance.now();
       gizmoState.animating = true;
     }
@@ -453,7 +438,7 @@ export const ViewportGizmo: React.FC<{
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 8,
+              fontSize: 10,
               fontWeight: "bold",
               fontFamily: "sans-serif",
               color: "white",

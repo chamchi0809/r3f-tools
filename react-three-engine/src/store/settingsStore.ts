@@ -119,14 +119,11 @@ export const useSettingsStore = create<SettingsState>()(
         }
       },
 
-      resetHiddenFields: () =>
-        set({ hiddenFields: new Set(DEFAULT_HIDDEN_FIELDS) }),
+      resetHiddenFields: () => set({ hiddenFields: new Set(DEFAULT_HIDDEN_FIELDS) }),
 
-      setSnap: (patch) =>
-        set((s) => ({ snap: { ...s.snap, ...patch } })),
+      setSnap: (patch) => set((s) => ({ snap: { ...s.snap, ...patch } })),
 
-      resetSnap: () =>
-        set({ snap: { ...DEFAULT_SNAP } }),
+      resetSnap: () => set({ snap: { ...DEFAULT_SNAP } }),
     }),
     {
       name: "react-three-engine:settings",
@@ -142,8 +139,7 @@ export const useSettingsStore = create<SettingsState>()(
         ...current,
         ...(persisted as object),
         hiddenFields: new Set(
-          (persisted as Partial<PersistedSettings>).hiddenFields ??
-            DEFAULT_HIDDEN_FIELDS,
+          (persisted as Partial<PersistedSettings>).hiddenFields ?? DEFAULT_HIDDEN_FIELDS,
         ),
         snap: {
           ...DEFAULT_SNAP,
@@ -187,7 +183,10 @@ export const settingsActions: {
 // ─── Derived snap helpers ─────────────────────────────────────────────────────
 
 /** Returns the active TransformControls snap values given Ctrl key state. */
-export function resolveSnapProps(snap: SnapSettings, ctrlHeld: boolean): {
+export function resolveSnapProps(
+  snap: SnapSettings,
+  ctrlHeld: boolean,
+): {
   translationSnap: number | null;
   rotationSnap: number | null;
   scaleSnap: number | null;

@@ -9,7 +9,9 @@ import * as THREE from "three/webgpu";
 import { editorConfig } from "virtual:react-three-engine/config";
 import { rowStyle, labelText } from "./styles";
 
-interface TextureEntry { path: string; }
+interface TextureEntry {
+  path: string;
+}
 
 export function TextureField({
   label,
@@ -25,16 +27,17 @@ export function TextureField({
   const [loading, setLoading] = useState(false);
   const { apiBase } = editorConfig;
 
-  const thumbUrl = value instanceof THREE.Texture
-    ? (value.image as HTMLImageElement | undefined)?.src ?? null
-    : null;
+  const thumbUrl =
+    value instanceof THREE.Texture
+      ? ((value.image as HTMLImageElement | undefined)?.src ?? null)
+      : null;
 
   const openModal = async () => {
     setOpen(true);
     setLoading(true);
     try {
       const res = await fetch(`${apiBase}/textures`);
-      if (res.ok) setTextures(await res.json() as TextureEntry[]);
+      if (res.ok) setTextures((await res.json()) as TextureEntry[]);
     } finally {
       setLoading(false);
     }
@@ -56,17 +59,27 @@ export function TextureField({
     <>
       <div style={rowStyle}>
         <span style={labelText}>{label}</span>
-        <div style={{
-          width: 32, height: 32, flexShrink: 0,
-          background: thumbUrl ? `url(${thumbUrl}) center/cover` : "#222",
-          border: "1px solid #333", borderRadius: 2,
-        }} />
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            flexShrink: 0,
+            background: thumbUrl ? `url(${thumbUrl}) center/cover` : "#222",
+            border: "1px solid #333",
+            borderRadius: 2,
+          }}
+        />
         <button
           onClick={openModal}
           style={{
-            fontSize: 10, padding: "2px 6px", background: "#2a2a2a",
-            border: "1px solid #444", borderRadius: 3, color: "#ccc",
-            cursor: "pointer", flexShrink: 0,
+            fontSize: 12,
+            padding: "2px 6px",
+            background: "#2a2a2a",
+            border: "1px solid #444",
+            borderRadius: 3,
+            color: "#ccc",
+            cursor: "pointer",
+            flexShrink: 0,
           }}
         >
           Set…
@@ -75,9 +88,14 @@ export function TextureField({
           <button
             onClick={() => onChange(null)}
             style={{
-              fontSize: 10, padding: "2px 6px", background: "#2a1a1a",
-              border: "1px solid #553", borderRadius: 3, color: "#f88",
-              cursor: "pointer", flexShrink: 0,
+              fontSize: 12,
+              padding: "2px 6px",
+              background: "#2a1a1a",
+              border: "1px solid #553",
+              borderRadius: 3,
+              color: "#f88",
+              cursor: "pointer",
+              flexShrink: 0,
             }}
           >
             ✕
@@ -88,27 +106,36 @@ export function TextureField({
         <div
           onClick={() => setOpen(false)}
           style={{
-            position: "fixed", inset: 0, zIndex: 9999,
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
             background: "rgba(0,0,0,0.7)",
-            display: "flex", alignItems: "center", justifyContent: "center",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: "#1a1a1a", border: "1px solid #333",
-              borderRadius: 6, padding: 16, width: 480, maxHeight: 480,
-              overflowY: "auto", display: "flex", flexDirection: "column", gap: 10,
+              background: "#1a1a1a",
+              border: "1px solid #333",
+              borderRadius: 6,
+              padding: 16,
+              width: 480,
+              maxHeight: 480,
+              overflowY: "auto",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
             }}
           >
-            <div style={{ fontSize: 12, color: "#aaa", marginBottom: 4 }}>
+            <div style={{ fontSize: 13, color: "#aaa", marginBottom: 4 }}>
               Pick texture — <em style={{ color: "#555" }}>{label}</em>
             </div>
-            {loading && <div style={{ fontSize: 11, color: "#555" }}>Loading…</div>}
+            {loading && <div style={{ fontSize: 12, color: "#555" }}>Loading…</div>}
             {!loading && textures.length === 0 && (
-              <div style={{ fontSize: 11, color: "#555" }}>
-                No images found in publicDir.
-              </div>
+              <div style={{ fontSize: 12, color: "#555" }}>No images found in publicDir.</div>
             )}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {textures.map((t) => (
@@ -117,9 +144,15 @@ export function TextureField({
                   onClick={() => pick(t.path)}
                   title={t.path}
                   style={{
-                    background: "#111", border: "1px solid #333",
-                    borderRadius: 3, padding: 2, cursor: "pointer",
-                    display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                    background: "#111",
+                    border: "1px solid #333",
+                    borderRadius: 3,
+                    padding: 2,
+                    cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 3,
                   }}
                 >
                   <img
@@ -127,7 +160,16 @@ export function TextureField({
                     alt={t.path}
                     style={{ width: 64, height: 64, objectFit: "cover", display: "block" }}
                   />
-                  <span style={{ fontSize: 9, color: "#666", maxWidth: 64, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: "#666",
+                      maxWidth: 64,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {t.path.split("/").pop()}
                   </span>
                 </button>
@@ -136,9 +178,14 @@ export function TextureField({
             <button
               onClick={() => setOpen(false)}
               style={{
-                alignSelf: "flex-end", fontSize: 11, padding: "3px 10px",
-                background: "#222", border: "1px solid #444", borderRadius: 3,
-                color: "#aaa", cursor: "pointer",
+                alignSelf: "flex-end",
+                fontSize: 12,
+                padding: "3px 10px",
+                background: "#222",
+                border: "1px solid #444",
+                borderRadius: 3,
+                color: "#aaa",
+                cursor: "pointer",
               }}
             >
               Cancel

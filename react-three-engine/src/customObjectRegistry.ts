@@ -64,8 +64,7 @@ export function makeCustomObject(kind: string): import("three").Object3D | null 
   // Support both a factory function `() => new Foo()` and a bare class constructor `Foo`.
   // ES classes are non-callable without `new`; detect by checking the prototype descriptor.
   const isClass =
-    typeof f === "function" &&
-    Object.getOwnPropertyDescriptor(f, "prototype")?.writable === false;
+    typeof f === "function" && Object.getOwnPropertyDescriptor(f, "prototype")?.writable === false;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return isClass ? new (f as any)() : (f as () => import("three").Object3D)();
 }

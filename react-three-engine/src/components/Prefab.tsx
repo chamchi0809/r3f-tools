@@ -2,14 +2,16 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three/webgpu";
 import { editorConfig } from "virtual:react-three-engine/config";
 import type { ThreeElements } from "@react-three/fiber";
-import { makeObject, buildMaterial, buildGeometry, applySerializedObject } from "../store/sceneStore";
+import {
+  makeObject,
+  buildMaterial,
+  buildGeometry,
+  applySerializedObject,
+} from "../store/sceneStore";
 import type { SerializedObject } from "../store/sceneStore";
 import type { PrefabTypeRegistry, PrefabRef } from "../prefabTypes";
 
-export type PrefabProps<K extends string = string> = Omit<
-  ThreeElements["group"],
-  "id" | "ref"
-> & {
+export type PrefabProps<K extends string = string> = Omit<ThreeElements["group"], "id" | "ref"> & {
   id: K;
   ref?: React.Ref<PrefabRef<K>>;
 };
@@ -44,16 +46,8 @@ export function Prefab<K extends keyof PrefabTypeRegistry & string>({
   ref,
   ...groupProps
 }: PrefabProps<K>): React.ReactElement | null;
-export function Prefab({
-  id,
-  ref,
-  ...groupProps
-}: PrefabProps<string>): React.ReactElement | null;
-export function Prefab({
-  id,
-  ref,
-  ...groupProps
-}: PrefabProps<string>): React.ReactElement | null {
+export function Prefab({ id, ref, ...groupProps }: PrefabProps<string>): React.ReactElement | null;
+export function Prefab({ id, ref, ...groupProps }: PrefabProps<string>): React.ReactElement | null {
   const { apiBase, prefabUrls } = editorConfig;
   const [nodes, setNodes] = useState<SerializedObject[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,8 +58,7 @@ export function Prefab({
       if (typeof ref === "function") {
         ref(groupRef.current as PrefabRef<string>);
       } else {
-        (ref as React.MutableRefObject<THREE.Group | null>).current =
-          groupRef.current;
+        (ref as React.MutableRefObject<THREE.Group | null>).current = groupRef.current;
       }
     }
   });
@@ -94,8 +87,7 @@ export function Prefab({
         if (!cancelled) setNodes(data);
       })
       .catch((err: unknown) => {
-        if (!cancelled)
-          setError(err instanceof Error ? err.message : String(err));
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
       });
     return () => {
       cancelled = true;
