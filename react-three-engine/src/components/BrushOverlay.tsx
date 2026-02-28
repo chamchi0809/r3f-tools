@@ -22,7 +22,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three/webgpu";
 import { sceneActions } from "../store/sceneStore";
-import { useModelingStore } from "../store/modelingStore";
+import { useModelingStore, modelingActions } from "../store/modelingStore";
+import { useSettingsStore, snapToGrid } from "../store/settingsStore";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -354,8 +355,91 @@ function HeightLabelDom({
   return null;
 }
 
-// ─── Main brush overlay ───────────────────────────────────────────────────────
+// ─── Cursor gizmo DOM overlay ─────────────────────────────────────────────────
 
+type GizmoVariant = "crosshair" | "snap" | "extrude";
+
+function buildGizmoSvg(variant: GizmoVariant): string {
+  switch (variant) {
+    case "snap":
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" stroke="#44ff88" stroke-width="1.5" fill="none"/>
+        <circle cx="12" cy="12" r="3" fill="#44ff88"/>
+      </svg>`;
+    case "extrude":
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+        <line x1="12" y1="2" x2="12" y2="22" stroke="#88aaff" stroke-width="1.5"/>
+        <polygon points="12,1 8,7 16,7" fill="#88aaff"/>
+        <polygon points="12,23 8,17 16,17" fill="#88aaff"/>
+        <circle cx="12" cy="12" r="2.5" fill="#88aaff"/>
+      </svg>`;
+    case "crosshair":
+    default:
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+        <line x1="12" y1="1" x2="12" y2="11" stroke="#f0a020" stroke-width="1.5"/>
+        <line x1="12" y1="13" x2="12" y2="23" stroke="#f0a020" stroke-width="1.5"/>
+        <line x1="1" y1="12" x2="11" y2="12" stroke="#f0a020" stroke-width="1.5"/>
+        <line x1="13" y1="12" x2="23" y2="12" stroke="#f0a020" stroke-width="1.5"/>
+        <circle cx="12" cy="12" r="2.5" fill="#f0a020"/>
+      </svg>`;
+  }
+}
+
+/**
+ * DOM overlay that follows the mouse and renders an SVG gizmo.
+ * Also hides the native cursor on the canvas while mounted.
+ */
+function CursorGizmoDom({
+  screenX,
+  screenY,
+  variant,
+}: {
+  screenX: number;
+  screenY: number;
+  variant: GizmoVariant;
+}) {
+  const { gl } = useThree();
+  const elRef = useRef<HTMLDivElement | null>(null);
+  const variantRef = useRef<GizmoVariant>(variant);
+  variantRef.current = variant;
+
+  // Mount: create div, hide native cursor
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const prevCursor = canvas.style.cursor;
+    canvas.style.cursor = "none";
+
+    const div = document.createElement("div");
+    Object.assign(div.style, {
+      position: "fixed",
+      zIndex: "9998",
+      pointerEvents: "none",
+      transform: "translate(-50%, -50%)",
+      userSelect: "none",
+    });
+    document.body.appendChild(div);
+    elRef.current = div;
+
+    return () => {
+      canvas.style.cursor = prevCursor;
+      document.body.removeChild(div);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Update position and SVG every render
+  useEffect(() => {
+    if (!elRef.current) return;
+    const rect = gl.domElement.getBoundingClientRect();
+    elRef.current.style.left = `${rect.left + screenX}px`;
+    elRef.current.style.top = `${rect.top + screenY}px`;
+    elRef.current.innerHTML = buildGizmoSvg(variant);
+  });
+
+  return null;
+}
+
+// ─── Main brush overlay ───────────────────────────────────────────────────────
 export function BrushOverlay(): React.JSX.Element | null {
   const brushType = useModelingStore((s) => s.brushType);
   const { camera, gl } = useThree();
@@ -387,7 +471,19 @@ export function BrushOverlay(): React.JSX.Element | null {
     setClosingSnap(false);
     setExtrudePoints(null);
     setExtrudeHeight(0);
+    modelingActions.setBrushPhase(1);
+    modelingActions.setBrushPointCount(0);
   }, [brushType]);
+
+  // ── Sync brushPhase and brushPointCount to store ───────────────────────────
+  useEffect(() => {
+    const phase: 1 | 2 = extrudePoints !== null ? 2 : 1;
+    modelingActions.setBrushPhase(phase);
+  }, [extrudePoints]);
+
+  useEffect(() => {
+    modelingActions.setBrushPointCount(points.length);
+  }, [points.length]);
 
   // ── Commit flat polygon (polygon brush) ───────────────────────────────────
   const commitPolygon = useCallback((pts: THREE.Vector3[]) => {
@@ -468,7 +564,17 @@ export function BrushOverlay(): React.JSX.Element | null {
       // Phase 1: project to floor
       const ndcX = (sx / rect.width) * 2 - 1;
       const ndcY = -(sy / rect.height) * 2 + 1;
-      const hit = projectToFloor(new THREE.Vector2(ndcX, ndcY), camera, raycaster);
+      let hit = projectToFloor(new THREE.Vector2(ndcX, ndcY), camera, raycaster);
+      if (hit) {
+        const snap = useSettingsStore.getState().snap;
+        if (snap.enabled && e.ctrlKey) {
+          hit = new THREE.Vector3(
+            snapToGrid(hit.x, snap.brushStep),
+            hit.y,
+            snapToGrid(hit.z, snap.brushStep),
+          );
+        }
+      }
       setCursor(hit);
 
       if (hit && points.length >= 3) {
@@ -493,7 +599,17 @@ export function BrushOverlay(): React.JSX.Element | null {
       // Phase 1 click
       const ndcX = (sx / rect.width) * 2 - 1;
       const ndcY = -(sy / rect.height) * 2 + 1;
-      const hit = projectToFloor(new THREE.Vector2(ndcX, ndcY), camera, raycaster);
+      let hit = projectToFloor(new THREE.Vector2(ndcX, ndcY), camera, raycaster);
+      if (hit) {
+        const snap = useSettingsStore.getState().snap;
+        if (snap.enabled && e.ctrlKey) {
+          hit = new THREE.Vector3(
+            snapToGrid(hit.x, snap.brushStep),
+            hit.y,
+            snapToGrid(hit.z, snap.brushStep),
+          );
+        }
+      }
       if (!hit) return;
 
       setPoints((prev) => {
@@ -563,16 +679,27 @@ export function BrushOverlay(): React.JSX.Element | null {
           screenX={cursorScreen.x}
           screenY={cursorScreen.y}
         />
+        <CursorGizmoDom
+          screenX={cursorScreen.x}
+          screenY={cursorScreen.y}
+          variant="extrude"
+        />
       </>
     );
   }
 
   // ── Phase 1 render (polygon drawing) ──────────────────────────────────────
+  const gizmoVariant: GizmoVariant = closingSnap ? "snap" : "crosshair";
   return (
     <>
       <CommittedLines points={points} />
       <VertexDots points={points} />
       <PreviewLine points={points} cursor={cursor} closingSnap={closingSnap} />
+      <CursorGizmoDom
+        screenX={cursorScreen.x}
+        screenY={cursorScreen.y}
+        variant={gizmoVariant}
+      />
     </>
   );
 }

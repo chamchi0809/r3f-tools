@@ -1,6 +1,6 @@
 import { TransformControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import * as THREE from "three/webgpu";
 import {
   makeObject,
@@ -10,6 +10,7 @@ import {
   useSceneStore,
   type SerializedObject,
 } from "../store/sceneStore";
+import { useSettingsStore, resolveSnapProps } from "../store/settingsStore";
 import { ClickSelector } from "./ClickSelector";
 
 type TransformMode = "translate" | "rotate" | "scale";
@@ -54,6 +55,8 @@ export function SceneContent({
   isModeling: boolean;
 }): React.JSX.Element {
   const { scene } = useThree();
+  const snap = useSettingsStore((s) => s.snap);
+  const [ctrlHeld, setCtrlHeld] = useState(false);
   const pendingAdd = useSceneStore((s) => s.pendingAdd);
   const pendingRemove = useSceneStore((s) => s.pendingRemove);
   const pendingDeserialize = useSceneStore((s) => s.pendingDeserialize);
@@ -61,6 +64,17 @@ export function SceneContent({
 
   useFrame(() => {});
   useFrame(() => {});
+
+  useEffect(() => {
+    const onDown = (e: KeyboardEvent) => { if (e.key === "Control") setCtrlHeld(true); };
+    const onUp   = (e: KeyboardEvent) => { if (e.key === "Control") setCtrlHeld(false); };
+    window.addEventListener("keydown", onDown);
+    window.addEventListener("keyup",   onUp);
+    return () => {
+      window.removeEventListener("keydown", onDown);
+      window.removeEventListener("keyup",   onUp);
+    };
+  }, []);
 
   useEffect(() => {
     if (!pendingAdd) return;
@@ -134,6 +148,7 @@ export function SceneContent({
         <TransformControls
           object={selectedObj}
           mode={transformMode}
+          {...resolveSnapProps(snap, ctrlHeld)}
           onMouseDown={() => onTransformDrag(true)}
           onMouseUp={() => {
             onTransformDrag(false);

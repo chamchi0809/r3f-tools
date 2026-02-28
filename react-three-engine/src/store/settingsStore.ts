@@ -14,6 +14,29 @@ import { DEFAULT_HIDDEN_FIELDS } from "../constants/defaultHiddenFields";
  */
 export type FieldKey = string;
 
+// ─── Snap Settings ────────────────────────────────────────────────────────────
+
+export interface SnapSettings {
+  /** Master toggle: Ctrl key enables snapping when true */
+  enabled: boolean;
+  /** Translation snap step in world units (e.g. 1.0) */
+  translateStep: number;
+  /** Rotation snap step in degrees (e.g. 15). Stored as degrees, converted to radians when passed to TransformControls. */
+  rotateDeg: number;
+  /** Scale snap step (e.g. 0.1 = 10% increments) */
+  scaleStep: number;
+  /** Brush vertex placement snap step in world units */
+  brushStep: number;
+}
+
+export const DEFAULT_SNAP: SnapSettings = {
+  enabled: true,
+  translateStep: 1.0,
+  rotateDeg: 15,
+  scaleStep: 0.25,
+  brushStep: 0.5,
+};
+
 // ─── State ────────────────────────────────────────────────────────────────────
 
 interface SettingsState {
@@ -29,6 +52,9 @@ interface SettingsState {
    */
   debugMode: boolean;
 
+  /** Snap configuration. Ctrl activates snapping when enabled=true. */
+  snap: SnapSettings;
+
   // ─── actions ──────────────────────────────────────────────────────────────
 
   setDebugMode: (enabled: boolean) => void;
@@ -42,6 +68,11 @@ interface SettingsState {
   toggleField: (key: FieldKey) => void;
   /** Reset hidden fields to DEFAULT_HIDDEN_FIELDS. */
   resetHiddenFields: () => void;
+
+  /** Update any subset of snap settings. */
+  setSnap: (patch: Partial<SnapSettings>) => void;
+  /** Reset snap settings to defaults. */
+  resetSnap: () => void;
 }
 
 // ─── Serialization helpers ────────────────────────────────────────────────────
@@ -50,6 +81,7 @@ interface SettingsState {
 interface PersistedSettings {
   hiddenFields: FieldKey[];
   debugMode: boolean;
+  snap: SnapSettings;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -59,6 +91,7 @@ export const useSettingsStore = create<SettingsState>()(
     (set, get) => ({
       hiddenFields: new Set(DEFAULT_HIDDEN_FIELDS),
       debugMode: false,
+      snap: { ...DEFAULT_SNAP },
 
       setDebugMode: (enabled) => set({ debugMode: enabled }),
       toggleDebugMode: () => set((s) => ({ debugMode: !s.debugMode })),
@@ -88,6 +121,12 @@ export const useSettingsStore = create<SettingsState>()(
 
       resetHiddenFields: () =>
         set({ hiddenFields: new Set(DEFAULT_HIDDEN_FIELDS) }),
+
+      setSnap: (patch) =>
+        set((s) => ({ snap: { ...s.snap, ...patch } })),
+
+      resetSnap: () =>
+        set({ snap: { ...DEFAULT_SNAP } }),
     }),
     {
       name: "react-three-engine:settings",
@@ -96,6 +135,7 @@ export const useSettingsStore = create<SettingsState>()(
       partialize: (state): PersistedSettings => ({
         hiddenFields: [...state.hiddenFields],
         debugMode: state.debugMode,
+        snap: state.snap,
       }),
       // Rehydrate: convert the JSON array back to a Set.
       merge: (persisted, current) => ({
@@ -105,6 +145,10 @@ export const useSettingsStore = create<SettingsState>()(
           (persisted as Partial<PersistedSettings>).hiddenFields ??
             DEFAULT_HIDDEN_FIELDS,
         ),
+        snap: {
+          ...DEFAULT_SNAP,
+          ...((persisted as Partial<PersistedSettings>).snap ?? {}),
+        },
       }),
     },
   ),
@@ -120,6 +164,8 @@ export const settingsActions: {
   toggleField: (key: FieldKey) => void;
   resetHiddenFields: () => void;
   isFieldVisible: (className: string, propKey: string) => boolean;
+  setSnap: (patch: Partial<SnapSettings>) => void;
+  resetSnap: () => void;
 } = {
   setDebugMode: (enabled) => useSettingsStore.getState().setDebugMode(enabled),
   toggleDebugMode: () => useSettingsStore.getState().toggleDebugMode(),
@@ -134,4 +180,31 @@ export const settingsActions: {
     if (hiddenFields.has(propKey)) return false;
     return true;
   },
+  setSnap: (patch) => useSettingsStore.getState().setSnap(patch),
+  resetSnap: () => useSettingsStore.getState().resetSnap(),
 };
+
+// ─── Derived snap helpers ─────────────────────────────────────────────────────
+
+/** Returns the active TransformControls snap values given Ctrl key state. */
+export function resolveSnapProps(snap: SnapSettings, ctrlHeld: boolean): {
+  translationSnap: number | null;
+  rotationSnap: number | null;
+  scaleSnap: number | null;
+} {
+  if (!snap.enabled || !ctrlHeld) {
+    return { translationSnap: null, rotationSnap: null, scaleSnap: null };
+  }
+  return {
+    translationSnap: snap.translateStep,
+    rotationSnap: (snap.rotateDeg * Math.PI) / 180,
+    scaleSnap: snap.scaleStep,
+  };
+}
+
+/** Snap a world-space value to grid. */
+export function snapToGrid(value: number, step: number): number {
+  return Math.round(value / step) * step;
+}
+
+void THREE; // keep import for any future THREE-typed defaults

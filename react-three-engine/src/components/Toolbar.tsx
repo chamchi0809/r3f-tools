@@ -81,12 +81,78 @@ const BRUSH_TYPES: { type: BrushType; label: string; disabled?: boolean }[] = [
   { type: "slope",   label: "Slope Brush", disabled: true },
 ];
 
+// ─── Brush instruction panel ────────────────────────────────────────────────────────
+
+function getInstructionLines(
+  brushType: BrushType,
+  brushPhase: 1 | 2,
+  brushPointCount: number,
+): string[] {
+  if (brushPhase === 2) {
+    // Poly3D extrude phase
+    return [
+      "Move mouse up/down to set height",
+      "Click or Enter to confirm · Esc to cancel",
+    ];
+  }
+  // Phase 1 — polygon drawing (polygon or poly3d)
+  if (brushPointCount === 0) {
+    return ["Click to place vertices"];
+  }
+  const lines = ["Click to add vertex"];
+  if (brushPointCount >= 3) {
+    lines.push("Click first point or Enter to close");
+  }
+  lines.push("Esc to cancel");
+  return lines;
+}
+
+function BrushInstructionPanel({
+  brushType,
+  brushPhase,
+  brushPointCount,
+}: {
+  brushType: BrushType;
+  brushPhase: 1 | 2;
+  brushPointCount: number;
+}) {
+  const lines = getInstructionLines(brushType, brushPhase, brushPointCount);
+  return (
+    <div
+      style={{
+        background: "#1e1e1ecc",
+        border: "1px solid #444",
+        borderRadius: 6,
+        padding: "5px 10px",
+        backdropFilter: "blur(4px)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
+      }}
+    >
+      {lines.map((line, i) => (
+        <span
+          key={i}
+          style={{
+            fontSize: 10,
+            color: i === 0 ? "#ccc" : "#888",
+            fontFamily: "monospace",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {line}
+        </span>
+      ))}
+    </div>
+  );
+}
 export function EditorModeBar(): React.JSX.Element {
   const editorMode    = useModelingStore((s) => s.editorMode);
   const selectionMode = useModelingStore((s) => s.selectionMode);
   const transformMode = useModelingStore((s) => s.transformMode);
   const brushType     = useModelingStore((s) => s.brushType);
-
+  const brushPhase    = useModelingStore((s) => s.brushPhase);
+  const brushPointCount = useModelingStore((s) => s.brushPointCount);
   return (
     <div
       style={{
@@ -203,38 +269,46 @@ export function EditorModeBar(): React.JSX.Element {
 
       {/* Brush sub-controls */}
       {editorMode === "brush" && (
-        <div
-          style={{
-            background: "#1e1e1ecc",
-            border: "1px solid #444",
-            borderRadius: 6,
-            display: "flex",
-            gap: 2,
-            padding: 3,
-            backdropFilter: "blur(4px)",
-          }}
-        >
-          {BRUSH_TYPES.map(({ type, label, disabled }) => (
-            <button
-              key={type}
-              onClick={() => !disabled && modelingActions.setBrushType(type)}
-              disabled={disabled}
-              title={disabled ? "Coming soon" : label}
-              style={{
-                ...btnStyle,
-                background: brushType === type ? "#7a2d5f" : "transparent",
-                color: disabled ? "#555" : (brushType === type ? "#fff" : "#888"),
-                fontSize: 11,
-                padding: "3px 10px",
-                border: "none",
-                cursor: disabled ? "not-allowed" : "pointer",
-                opacity: disabled ? 0.4 : 1,
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <>
+          <div
+            style={{
+              background: "#1e1e1ecc",
+              border: "1px solid #444",
+              borderRadius: 6,
+              display: "flex",
+              gap: 2,
+              padding: 3,
+              backdropFilter: "blur(4px)",
+            }}
+          >
+            {BRUSH_TYPES.map(({ type, label, disabled }) => (
+              <button
+                key={type}
+                onClick={() => !disabled && modelingActions.setBrushType(type)}
+                disabled={disabled}
+                title={disabled ? "Coming soon" : label}
+                style={{
+                  ...btnStyle,
+                  background: brushType === type ? "#7a2d5f" : "transparent",
+                  color: disabled ? "#555" : (brushType === type ? "#fff" : "#888"),
+                  fontSize: 11,
+                  padding: "3px 10px",
+                  border: "none",
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  opacity: disabled ? 0.4 : 1,
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {/* Instruction hint panel */}
+          <BrushInstructionPanel
+            brushType={brushType}
+            brushPhase={brushPhase}
+            brushPointCount={brushPointCount}
+          />
+        </>
       )}
     </div>
   );

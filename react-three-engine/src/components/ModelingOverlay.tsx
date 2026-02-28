@@ -9,7 +9,7 @@
  *   - G/R/S hotkeys to switch transform mode; Tab exits to Object Mode
  */
 import { TransformControls } from "@react-three/drei";
-import React, { useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useEffect, useRef, useMemo, useCallback, useState } from "react";
 import * as THREE from "three/webgpu";
 import { useSceneStore, sceneActions } from "../store/sceneStore";
 import {
@@ -19,6 +19,7 @@ import {
   type SelectedElement,
   type ModelingTransformMode,
 } from "../store/modelingStore";
+import { useSettingsStore, resolveSnapProps } from "../store/settingsStore";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -448,13 +449,16 @@ function SelectionTransformGizmo({
   transformMode,
   onTransformStart,
   onTransformEnd,
+  ctrlHeld,
 }: {
   mesh: THREE.Mesh;
   selectedElements: SelectedElement[];
   transformMode: ModelingTransformMode;
   onTransformStart: () => void;
   onTransformEnd: () => void;
+  ctrlHeld: boolean;
 }) {
+  const snap = useSettingsStore((s) => s.snap);
   // We don't need useThree here — drei's TransformControls auto-disables OrbitControls.
 
   // Pivot object lives for the lifetime of this component instance.
@@ -566,6 +570,7 @@ function SelectionTransformGizmo({
       <TransformControls
         object={pivotRef}
         mode={transformMode}
+        {...resolveSnapProps(snap, ctrlHeld)}
         onMouseDown={handleMouseDown}
         onObjectChange={handleChange}
         onMouseUp={handleMouseUp}
@@ -583,8 +588,21 @@ export function ModelingOverlay(): React.JSX.Element | null {
   const selectedElements = useModelingStore((s) => s.selectedElements);
   const selectionMode = useModelingStore((s) => s.selectionMode);
   const transformMode = useModelingStore((s) => s.transformMode);
+  const [ctrlHeld, setCtrlHeld] = useState(false);
 
   void version; // force re-render on geometry changes
+
+  // Track Ctrl key for snapping
+  useEffect(() => {
+    const onDown = (e: KeyboardEvent) => { if (e.key === "Control") setCtrlHeld(true); };
+    const onUp   = (e: KeyboardEvent) => { if (e.key === "Control") setCtrlHeld(false); };
+    window.addEventListener("keydown", onDown);
+    window.addEventListener("keyup",   onUp);
+    return () => {
+      window.removeEventListener("keydown", onDown);
+      window.removeEventListener("keyup",   onUp);
+    };
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -724,6 +742,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
           transformMode={transformMode}
           onTransformStart={handleTransformStart}
           onTransformEnd={handleTransformEnd}
+          ctrlHeld={ctrlHeld}
         />
       )}
     </>

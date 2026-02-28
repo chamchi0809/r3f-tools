@@ -1,6 +1,6 @@
 [
   {
-    "uuid": "6d49cb56-5896-4fcf-aac7-0224184777df",
+    "uuid": "32e4725d-1970-4b1b-983d-9be22b8468f5",
     "name": "Mesh",
     "kind": "mesh",
     "position": [
@@ -42,7 +42,7 @@
     }
   },
   {
-    "uuid": "65ed5574-2f0c-49d5-aa6f-45ff05f08727",
+    "uuid": "34c0be93-09b7-45f1-ad4f-fae5b05feedb",
     "name": "PointLight",
     "kind": "pointLight",
     "position": [
@@ -81,7 +81,7 @@
     }
   },
   {
-    "uuid": "fdd35671-5dd7-4eb4-b54d-5722ef08b3f5",
+    "uuid": "29ed6f4b-eb43-434f-816c-91637bad9dd5",
     "name": "Sprite2D",
     "kind": "sprite2D",
     "position": [
@@ -127,7 +127,7 @@
     }
   },
   {
-    "uuid": "e28e3eb0-1fd5-4f0c-a434-ecaf420aba81",
+    "uuid": "0dc9c744-a04a-4bb7-a411-a445e207ec9b",
     "name": "Mesh",
     "kind": "mesh",
     "position": [
@@ -203,7 +203,7 @@
     }
   },
   {
-    "uuid": "60593b95-b9af-4f63-9b08-51d8e98d2ebf",
+    "uuid": "f4ec73bf-a376-4b78-b56e-103e062dff41",
     "name": "Mesh",
     "kind": "mesh",
     "position": [
@@ -247,6 +247,73 @@
         3,
         1,
         2
+      ]
+    },
+    "material": {
+      "type": "MeshStandardMaterial",
+      "color": "#888888",
+      "opacity": 1,
+      "transparent": false,
+      "wireframe": false,
+      "side": 2,
+      "flatShading": false,
+      "emissive": "#000000",
+      "emissiveIntensity": 1,
+      "roughness": 1,
+      "metalness": 0
+    }
+  },
+  {
+    "uuid": "7cce34ac-c016-43e3-8e01-d719084b7dba",
+    "name": "Mesh",
+    "kind": "mesh",
+    "position": [
+      0.8472263813018799,
+      -1.0606678893388335,
+      -0.8580119609832764
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "castShadow": false,
+    "receiveShadow": false,
+    "children": [],
+    "geometry": {
+      "type": "BufferGeometry",
+      "vertices": [
+        -4.012001991271973,
+        0,
+        0.49490344524383545,
+        -2.7470502853393555,
+        0,
+        5.666550636291504,
+        1.1134538650512695,
+        0,
+        6.619180679321289,
+        4.012001991271973,
+        0,
+        -0.18215107917785645,
+        0.4581320285797119,
+        0,
+        -6.619180679321289
+      ],
+      "indices": [
+        1,
+        4,
+        0,
+        4,
+        2,
+        3,
+        2,
+        4,
+        1
       ]
     },
     "material": {

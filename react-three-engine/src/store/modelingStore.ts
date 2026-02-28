@@ -22,6 +22,10 @@ interface ModelingState {
   selectionMode: SelectionMode;
   transformMode: ModelingTransformMode;
   brushType: BrushType;
+  /** 1 = drawing polygon, 2 = extruding (poly3D only) */
+  brushPhase: 1 | 2;
+  /** Number of polygon vertices placed so far in brush phase 1 */
+  brushPointCount: number;
   /** Indices of selected sub-elements in the active mesh geometry */
   selectedElements: SelectedElement[];
 
@@ -29,6 +33,8 @@ interface ModelingState {
   setSelectionMode: (mode: SelectionMode) => void;
   setTransformMode: (mode: ModelingTransformMode) => void;
   setBrushType: (type: BrushType) => void;
+  setBrushPhase: (phase: 1 | 2) => void;
+  setBrushPointCount: (count: number) => void;
   selectElement: (el: SelectedElement, additive: boolean) => void;
   clearSelection: () => void;
 }
@@ -40,6 +46,8 @@ export const useModelingStore = create<ModelingState>((set) => ({
   selectionMode: "vertex",
   transformMode: "translate",
   brushType: "polygon",
+  brushPhase: 1,
+  brushPointCount: 0,
   selectedElements: [],
 
   setEditorMode: (mode) =>
@@ -52,7 +60,13 @@ export const useModelingStore = create<ModelingState>((set) => ({
     set({ transformMode: mode }),
 
   setBrushType: (type) =>
-    set({ brushType: type }),
+    set({ brushType: type, brushPhase: 1, brushPointCount: 0 }),
+
+  setBrushPhase: (phase) =>
+    set({ brushPhase: phase }),
+
+  setBrushPointCount: (count) =>
+    set({ brushPointCount: count }),
 
   selectElement: (el, additive) =>
     set((s) => {
@@ -79,6 +93,8 @@ export const modelingActions = {
   setSelectionMode: (mode: SelectionMode) => useModelingStore.getState().setSelectionMode(mode),
   setTransformMode: (mode: ModelingTransformMode) => useModelingStore.getState().setTransformMode(mode),
   setBrushType: (type: BrushType) => useModelingStore.getState().setBrushType(type),
+  setBrushPhase: (phase: 1 | 2) => useModelingStore.getState().setBrushPhase(phase),
+  setBrushPointCount: (count: number) => useModelingStore.getState().setBrushPointCount(count),
   selectElement: (el: SelectedElement, additive = false) => useModelingStore.getState().selectElement(el, additive),
   clearSelection: () => useModelingStore.getState().clearSelection(),
 };

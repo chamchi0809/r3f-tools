@@ -2,6 +2,11 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
 import * as THREE from "three/webgpu";
 import { css } from "@emotion/css";
+import {
+  useSettingsStore,
+  settingsActions,
+  DEFAULT_SNAP,
+} from "../store/settingsStore";
 
 // ─── Shared animation state (written by DOM, read by R3F loop) ────────────────
 
@@ -19,9 +24,9 @@ const AXES = [
   { id: "+x", label: "X", color: "#e8394a", dir: new THREE.Vector3(1, 0, 0) },
   { id: "+y", label: "Y", color: "#7ecf00", dir: new THREE.Vector3(0, 1, 0) },
   { id: "+z", label: "Z", color: "#2b8fff", dir: new THREE.Vector3(0, 0, 1) },
-  { id: "-x", label: "",  color: "#6b1520", dir: new THREE.Vector3(-1, 0, 0) },
-  { id: "-y", label: "",  color: "#2a5200", dir: new THREE.Vector3(0, -1, 0) },
-  { id: "-z", label: "",  color: "#0a2d66", dir: new THREE.Vector3(0, 0, -1) },
+  { id: "-x", label: "", color: "#6b1520", dir: new THREE.Vector3(-1, 0, 0) },
+  { id: "-y", label: "", color: "#2a5200", dir: new THREE.Vector3(0, -1, 0) },
+  { id: "-z", label: "", color: "#0a2d66", dir: new THREE.Vector3(0, 0, -1) },
 ];
 
 // Radius of the gizmo circle in pixels
@@ -77,8 +82,182 @@ const labelStyle = css`
   background: rgba(0, 0, 0, 0.42);
   padding: 2px 8px;
   border-radius: 4px;
-  &:hover { color: #fff; }
+  &:hover {
+    color: #fff;
+  }
 `;
+
+// ─── Snap Settings Panel ─────────────────────────────────────────────────────
+
+const snapPanelStyle = css`
+  pointer-events: auto;
+  background: rgba(30, 30, 30, 0.85);
+  border: 1px solid #444;
+  border-radius: 5px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 130px;
+  font-family: monospace;
+  font-size: 10px;
+  color: #ccc;
+  user-select: none;
+  align-self: flex-end;
+`;
+
+const snapRowStyle = css`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+`;
+
+const snapInputStyle = css`
+  width: 44px;
+  background: #111;
+  border: 1px solid #555;
+  border-radius: 3px;
+  color: #eee;
+  font-family: monospace;
+  font-size: 10px;
+  padding: 1px 3px;
+  text-align: right;
+  &:focus {
+    outline: 1px solid #888;
+  }
+`;
+
+const snapLabelStyle = css`
+  color: #aaa;
+  flex: 1;
+`;
+
+const snapHeaderStyle = css`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #333;
+  padding-bottom: 3px;
+  margin-bottom: 2px;
+`;
+
+const resetBtnStyle = css`
+  background: none;
+  border: 1px solid #555;
+  border-radius: 3px;
+  color: #aaa;
+  font-family: monospace;
+  font-size: 9px;
+  padding: 1px 4px;
+  cursor: pointer;
+  &:hover {
+    color: #fff;
+    border-color: #888;
+  }
+`;
+
+function SnapSettingsPanel() {
+  const snap = useSettingsStore((s) => s.snap);
+  return (
+    <div className={snapPanelStyle}>
+      <div className={snapHeaderStyle}>
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={snap.enabled}
+            onChange={(e) =>
+              settingsActions.setSnap({ enabled: e.target.checked })
+            }
+            style={{ accentColor: "#f0a020", cursor: "pointer" }}
+          />
+          <span style={{ color: "#eee", fontWeight: "bold" }}>Snap</span>
+        </label>
+        <button
+          className={resetBtnStyle}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            settingsActions.resetSnap();
+          }}
+        >
+          reset
+        </button>
+      </div>
+      <div className={snapRowStyle}>
+        <span className={snapLabelStyle}>Translate</span>
+        <input
+          className={snapInputStyle}
+          type="number"
+          min={0.01}
+          step={0.1}
+          value={snap.translateStep}
+          onChange={(e) =>
+            settingsActions.setSnap({
+              translateStep:
+                parseFloat(e.target.value) || DEFAULT_SNAP.translateStep,
+            })
+          }
+          onMouseDown={(e) => e.stopPropagation()}
+        />
+      </div>
+      <div className={snapRowStyle}>
+        <span className={snapLabelStyle}>Rotate °</span>
+        <input
+          className={snapInputStyle}
+          type="number"
+          min={1}
+          step={5}
+          value={snap.rotateDeg}
+          onChange={(e) =>
+            settingsActions.setSnap({
+              rotateDeg: parseFloat(e.target.value) || DEFAULT_SNAP.rotateDeg,
+            })
+          }
+          onMouseDown={(e) => e.stopPropagation()}
+        />
+      </div>
+      <div className={snapRowStyle}>
+        <span className={snapLabelStyle}>Scale</span>
+        <input
+          className={snapInputStyle}
+          type="number"
+          min={0.01}
+          step={0.05}
+          value={snap.scaleStep}
+          onChange={(e) =>
+            settingsActions.setSnap({
+              scaleStep: parseFloat(e.target.value) || DEFAULT_SNAP.scaleStep,
+            })
+          }
+          onMouseDown={(e) => e.stopPropagation()}
+        />
+      </div>
+      <div className={snapRowStyle}>
+        <span className={snapLabelStyle}>Brush</span>
+        <input
+          className={snapInputStyle}
+          type="number"
+          min={0.01}
+          step={0.25}
+          value={snap.brushStep}
+          onChange={(e) =>
+            settingsActions.setSnap({
+              brushStep: parseFloat(e.target.value) || DEFAULT_SNAP.brushStep,
+            })
+          }
+          onMouseDown={(e) => e.stopPropagation()}
+        />
+      </div>
+    </div>
+  );
+}
 
 // ─── R3F Animator ─────────────────────────────────────────────────────────────
 
@@ -109,7 +288,7 @@ export const ViewportGizmoAnimator: React.FC<{
     // ── 2. Update DOM imperatively (no React state = no re-render) ───────────
     // Sort axes back-to-front for z-index
     const sorted = AXES.slice().sort(
-      (a, b) => axisScreenState[a.id].depth - axisScreenState[b.id].depth
+      (a, b) => axisScreenState[a.id].depth - axisScreenState[b.id].depth,
     );
 
     const cx = GIZMO_R + DOT_R + 2; // center of canvas wrap in px
@@ -241,7 +420,9 @@ export const ViewportGizmo: React.FC<{
         {AXES.filter((a) => a.id.startsWith("+")).map((axis) => (
           <div
             key={`line-${axis.id}`}
-            ref={(el) => { lineDomRefs[axis.id] = el; }}
+            ref={(el) => {
+              lineDomRefs[axis.id] = el;
+            }}
             style={{
               position: "absolute",
               height: "2px",
@@ -256,7 +437,9 @@ export const ViewportGizmo: React.FC<{
         {AXES.map((axis) => (
           <div
             key={axis.id}
-            ref={(el) => { axisDomRefs[axis.id] = el; }}
+            ref={(el) => {
+              axisDomRefs[axis.id] = el;
+            }}
             onMouseDown={(e) => {
               e.stopPropagation();
               handleAxisClick(axis.dir);
@@ -303,6 +486,7 @@ export const ViewportGizmo: React.FC<{
       <div className={labelStyle} onMouseDown={handleToggleOrtho}>
         {isOrtho ? "Ortho" : "Persp"}
       </div>
+      <SnapSettingsPanel />
     </div>
   );
 };
