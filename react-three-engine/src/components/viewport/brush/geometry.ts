@@ -54,8 +54,9 @@ export function buildExtrudedGeometry(pts: THREE.Vector3[], height: number): THR
   if (signedArea < 0) pts = [...pts].reverse();
   const n = pts.length;
   const h = Math.abs(height);
-  const yTop = FLOOR_Y + (height >= 0 ? h : 0);
-  const yBot = FLOOR_Y + (height >= 0 ? 0 : -h);
+  const baseY = pts.length > 0 ? pts[0].y : FLOOR_Y;
+  const yTop = baseY + (height >= 0 ? h : 0);
+  const yBot = baseY + (height >= 0 ? 0 : -h);
 
   const pos: number[] = [];
   const idx: number[] = [];
@@ -103,28 +104,31 @@ export function buildExtrudedGeometry(pts: THREE.Vector3[], height: number): THR
   return geo;
 }
 
-/** Build 4 CCW rectangle corners on the floor plane from two diagonal corners. */
-export function rectPointsFromCorners(a: THREE.Vector3, b: THREE.Vector3): THREE.Vector3[] {
+/** Build 4 CCW rectangle corners on the given horizontal plane from two diagonal corners.
+ *  If planeY is omitted, the Y of corner `a` is used (so existing hit points keep their Y). */
+export function rectPointsFromCorners(a: THREE.Vector3, b: THREE.Vector3, planeY?: number): THREE.Vector3[] {
+  const y = planeY ?? a.y;
   const minX = Math.min(a.x, b.x);
   const maxX = Math.max(a.x, b.x);
   const minZ = Math.min(a.z, b.z);
   const maxZ = Math.max(a.z, b.z);
   return [
-    new THREE.Vector3(minX, FLOOR_Y, minZ),
-    new THREE.Vector3(maxX, FLOOR_Y, minZ),
-    new THREE.Vector3(maxX, FLOOR_Y, maxZ),
-    new THREE.Vector3(minX, FLOOR_Y, maxZ),
+    new THREE.Vector3(minX, y, minZ),
+    new THREE.Vector3(maxX, y, minZ),
+    new THREE.Vector3(maxX, y, maxZ),
+    new THREE.Vector3(minX, y, maxZ),
   ];
 }
 
-/** Project NDC → floor plane (Y = FLOOR_Y) using raycasting. */
+/** Project NDC → horizontal plane at planeY (default 0) using raycasting. */
 export function projectToFloor(
   ndc: THREE.Vector2,
   camera: THREE.Camera,
   raycaster: THREE.Raycaster,
+  planeY = 0,
 ): THREE.Vector3 | null {
   raycaster.setFromCamera(ndc, camera);
-  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -FLOOR_Y);
+  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -planeY);
   const hit = new THREE.Vector3();
   const result = raycaster.ray.intersectPlane(plane, hit);
   return result ? hit.clone() : null;
@@ -169,6 +173,7 @@ export function buildStairGeometry(
   const stepW = totalExtent / stepCount;
   const stepH = Math.abs(height) / stepCount;
   const totalH = Math.abs(height);
+  const baseY = pts.length > 0 ? pts[0].y : FLOOR_Y;
 
   /** Map a profile (high, y) coordinate to world XYZ at perpendicular offset p. */
   function toWorld(high: number, y: number, perp: number): [number, number, number] {
@@ -179,14 +184,14 @@ export function buildStairGeometry(
   // Viewed from the low end: stairs ascend to the right.
   // The polygon traces: bottom-left → bottom-right → top-right → staircase back left.
   const profile: [number, number][] = [];
-  profile.push([minHigh, FLOOR_Y]);            // bottom-left (back-bottom)
-  profile.push([maxHigh, FLOOR_Y]);            // bottom-right (front-bottom)
-  profile.push([maxHigh, FLOOR_Y + totalH]);   // top-right (top of last step)
+  profile.push([minHigh, baseY]);            // bottom-left (back-bottom)
+  profile.push([maxHigh, baseY]);            // bottom-right (front-bottom)
+  profile.push([maxHigh, baseY + totalH]);   // top-right (top of last step)
   // Staircase descending left: step N-1 down to step 0
   for (let i = stepCount - 1; i >= 0; i--) {
-    profile.push([minHigh + i * stepW, FLOOR_Y + (i + 1) * stepH]); // tread (left edge)
+    profile.push([minHigh + i * stepW, baseY + (i + 1) * stepH]); // tread (left edge)
     if (i > 0) {
-      profile.push([minHigh + i * stepW, FLOOR_Y + i * stepH]);      // riser (bottom)
+      profile.push([minHigh + i * stepW, baseY + i * stepH]);      // riser (bottom)
     }
   }
   // Implicit closing edge: last profile point → profile[0], forming the back wall.

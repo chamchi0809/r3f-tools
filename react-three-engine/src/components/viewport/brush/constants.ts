@@ -7,3 +7,5 @@ export const CLOSE_SNAP_COLOR = "#44ff88";
 export const EXTRUDE_PREVIEW_COLOR = "#5588ff";
 export const EXTRUDE_WIRE_COLOR = "#88aaff";
 export const HEIGHT_SENSITIVITY = 0.01; // world units per pixel of vertical mouse movement
+export const BASE_PLANE_STEP = 0.5;   // world units per scroll tick / arrow key press
+export const BASE_PLANE_COLOR = "#44aaff";

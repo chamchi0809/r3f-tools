@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import * as THREE from "three/webgpu";
 import {
+  BASE_PLANE_COLOR,
   CLOSE_SNAP_COLOR,
   EXTRUDE_PREVIEW_COLOR,
   EXTRUDE_WIRE_COLOR,
@@ -87,6 +88,24 @@ export function VertexDots({ points }: { points: THREE.Vector3[] }) {
         </mesh>
       ))}
     </>
+  );
+}
+
+// ─── Base plane transparent mesh ──────────────────────────────────────────────
+
+/** Large transparent horizontal plane shown at basePlaneY before first point is placed. */
+export function BasePlaneMesh({ y }: { y: number }) {
+  return (
+    <mesh position={[0, y, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[200, 200]} />
+      <meshBasicMaterial
+        color={BASE_PLANE_COLOR}
+        transparent
+        opacity={0.08}
+        side={THREE.DoubleSide}
+        depthTest={false}
+      />
+    </mesh>
   );
 }
 

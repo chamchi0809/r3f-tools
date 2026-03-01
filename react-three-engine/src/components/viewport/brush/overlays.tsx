@@ -2,6 +2,53 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three/webgpu";
 
+// ─── Base plane Y label DOM overlay ───────────────────────────────────────────
+
+export function BasePlaneYLabelDom({
+  y,
+  screenX,
+  screenY,
+}: {
+  y: number;
+  screenX: number;
+  screenY: number;
+}) {
+  const { gl } = useThree();
+  const elRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const div = document.createElement("div");
+    Object.assign(div.style, {
+      position: "fixed",
+      zIndex: "9999",
+      pointerEvents: "none",
+      background: "rgba(0,0,0,0.65)",
+      color: "#44aaff",
+      fontFamily: "monospace",
+      fontSize: "12px",
+      padding: "2px 6px",
+      borderRadius: "3px",
+      whiteSpace: "nowrap",
+      userSelect: "none",
+    });
+    document.body.appendChild(div);
+    elRef.current = div;
+    return () => {
+      document.body.removeChild(div);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!elRef.current) return;
+    const rect = gl.domElement.getBoundingClientRect();
+    elRef.current.style.left = `${rect.left + screenX + 14}px`;
+    elRef.current.style.top = `${rect.top + screenY - 24}px`;
+    elRef.current.textContent = `Y: ${y.toFixed(2)}  (↑↓ / scroll to adjust)`;
+  });
+
+  return null;
+}
+
 // ─── Height label DOM overlay ─────────────────────────────────────────────────
 
 export function HeightLabelDom({
@@ -256,8 +303,9 @@ export function BrushBoundingBoxGizmo({
 
     const hasH = height !== undefined;
     const h = hasH ? height! : 0;
-    const yBot = Math.min(0, h);
-    const yTop = Math.max(0, h);
+    const baseY = points.length > 0 ? points[0].y : 0;
+    const yBot = baseY + Math.min(0, h);
+    const yTop = baseY + Math.max(0, h);
     const cx = (minX + maxX) / 2;
     const cy = (yBot + yTop) / 2;
     const cz = (minZ + maxZ) / 2;

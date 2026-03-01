@@ -4,10 +4,11 @@ import * as THREE from "three/webgpu";
 import { sceneActions } from "../../../store/sceneStore";
 import { modelingActions } from "../../../store/modelingStore";
 import { useSettingsStore, snapToGrid } from "../../../store/settingsStore";
-import { EXTRUDE_PREVIEW_COLOR, EXTRUDE_WIRE_COLOR, FLOOR_Y, HEIGHT_SENSITIVITY } from "./constants";
+import { BASE_PLANE_STEP, EXTRUDE_PREVIEW_COLOR, EXTRUDE_WIRE_COLOR, FLOOR_Y, HEIGHT_SENSITIVITY } from "./constants";
 import { projectToFloor, rectPointsFromCorners } from "./geometry";
-import { CommittedLines, VertexDots } from "./primitives";
+import { BasePlaneMesh, CommittedLines, VertexDots } from "./primitives";
 import {
+  BasePlaneYLabelDom,
   BrushBoundingBoxGizmo,
   CursorGizmoDom,
   DistanceLabelDom,
@@ -129,8 +130,9 @@ function buildSlopeGeometry(
   );
 
   // B[i] = bottom corner, T[i] = top corner (same XZ, different Y).
-  const B = pts.map((p) => new THREE.Vector3(p.x, FLOOR_Y, p.z));
-  const T = pts.map((p, i) => new THREE.Vector3(p.x, FLOOR_Y + topY[i], p.z));
+  const baseY = pts.length > 0 ? pts[0].y : FLOOR_Y;
+  const B = pts.map((p) => new THREE.Vector3(p.x, baseY, p.z));
+  const T = pts.map((p, i) => new THREE.Vector3(p.x, baseY + topY[i], p.z));
 
   const pos: number[] = [];
   const idx: number[] = [];
@@ -255,6 +257,7 @@ export function SlopeBrushOverlay(): React.JSX.Element {
   const { camera, gl } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
 
+  const [basePlaneY, setBasePlaneY] = useState(0);
   const [phase, setPhase] = useState<1 | 2 | 3 | 4>(1);
   const [startPoint, setStartPoint] = useState<THREE.Vector3 | null>(null);
   const [cursorFloor, setCursorFloor] = useState<THREE.Vector3 | null>(null);
@@ -316,7 +319,7 @@ export function SlopeBrushOverlay(): React.JSX.Element {
       const sy = e.clientY - rect.top;
       const ndcX = (sx / rect.width) * 2 - 1;
       const ndcY = -(sy / rect.height) * 2 + 1;
-      let hit = projectToFloor(new THREE.Vector2(ndcX, ndcY), camera, raycaster);
+      let hit = projectToFloor(new THREE.Vector2(ndcX, ndcY), camera, raycaster, basePlaneY);
       if (hit) {
         const snap = useSettingsStore.getState().snap;
         if (snap.enabled && e.ctrlKey) {
@@ -412,9 +415,9 @@ export function SlopeBrushOverlay(): React.JSX.Element {
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("click", onClick);
     };
-  }, [phase, startPoint, cursorFloor, rectPoints, selectedDirIdx, height, highDir, camera, gl, raycaster, commitSlope]);
+  }, [phase, startPoint, cursorFloor, rectPoints, selectedDirIdx, height, highDir, basePlaneY, camera, gl, raycaster, commitSlope]);
 
-  // Keyboard: Enter to commit (phase 4), Escape to cancel
+  // Keyboard: Enter to commit (phase 4), Escape to cancel, ArrowUp/Down for base plane (phase 1)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).tagName === "INPUT") return;
@@ -422,17 +425,34 @@ export function SlopeBrushOverlay(): React.JSX.Element {
         reset();
       } else if (e.key === "Enter" && phase === 4 && rectPoints) {
         commitSlope(rectPoints, height, highDir);
+      } else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && phase === 1) {
+        e.preventDefault();
+        const delta = e.key === "ArrowUp" ? BASE_PLANE_STEP : -BASE_PLANE_STEP;
+        setBasePlaneY((prev) => prev + delta);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [phase, rectPoints, height, highDir, commitSlope, reset]);
 
+  // Mouse wheel: adjust base plane Y (only in phase 1)
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const onWheel = (e: WheelEvent) => {
+      if (phase !== 1) return;
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -BASE_PLANE_STEP : BASE_PLANE_STEP;
+      setBasePlaneY((prev) => prev + delta);
+    };
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", onWheel);
+  }, [gl, phase]);
+
   // Phase 4: height setting (direction locked)
   if (phase === 4 && rectPoints) {
     const cx = (rectPoints[0].x + rectPoints[2].x) / 2;
     const cz = (rectPoints[0].z + rectPoints[2].z) / 2;
-    const center = new THREE.Vector3(cx, FLOOR_Y, cz);
+    const center = new THREE.Vector3(cx, rectPoints[0].y, cz);
     const w = Math.abs(rectPoints[2].x - rectPoints[0].x);
     const d = Math.abs(rectPoints[2].z - rectPoints[0].z);
     const radius = Math.sqrt(w * w + d * d) / 2;
@@ -453,7 +473,7 @@ export function SlopeBrushOverlay(): React.JSX.Element {
   if (phase === 3 && rectPoints) {
     const cx = (rectPoints[0].x + rectPoints[2].x) / 2;
     const cz = (rectPoints[0].z + rectPoints[2].z) / 2;
-    const center = new THREE.Vector3(cx, FLOOR_Y, cz);
+    const center = new THREE.Vector3(cx, rectPoints[0].y, cz);
     const w = Math.abs(rectPoints[2].x - rectPoints[0].x);
     const d = Math.abs(rectPoints[2].z - rectPoints[0].z);
     const radius = Math.sqrt(w * w + d * d) / 2;
@@ -493,6 +513,12 @@ export function SlopeBrushOverlay(): React.JSX.Element {
     );
   }
 
-  // Phase 1: waiting for first click
-  return <CursorGizmoDom screenX={cursorScreen.x} screenY={cursorScreen.y} variant="crosshair" />;
+  // Phase 1: waiting for first click — show base plane + cursor gizmo
+  return (
+    <>
+      <BasePlaneMesh y={basePlaneY} />
+      <BasePlaneYLabelDom y={basePlaneY} screenX={cursorScreen.x} screenY={cursorScreen.y} />
+      <CursorGizmoDom screenX={cursorScreen.x} screenY={cursorScreen.y} variant="crosshair" />
+    </>
+  );
 }

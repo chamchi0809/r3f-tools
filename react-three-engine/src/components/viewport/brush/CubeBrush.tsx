@@ -4,10 +4,11 @@ import * as THREE from "three/webgpu";
 import { sceneActions } from "../../../store/sceneStore";
 import { modelingActions } from "../../../store/modelingStore";
 import { useSettingsStore, snapToGrid } from "../../../store/settingsStore";
-import { HEIGHT_SENSITIVITY, EXTRUDE_WIRE_COLOR } from "./constants";
+import { BASE_PLANE_STEP, HEIGHT_SENSITIVITY, EXTRUDE_WIRE_COLOR } from "./constants";
 import { buildExtrudedGeometry, projectToFloor, rectPointsFromCorners } from "./geometry";
-import { CommittedLines, ExtrudePreview, VertexDots } from "./primitives";
+import { BasePlaneMesh, CommittedLines, ExtrudePreview, VertexDots } from "./primitives";
 import {
+  BasePlaneYLabelDom,
   BrushBoundingBoxGizmo,
   CursorGizmoDom,
   DistanceLabelDom,
@@ -52,6 +53,7 @@ export function CubeBrushOverlay(): React.JSX.Element {
   const { camera, gl } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
 
+  const [basePlaneY, setBasePlaneY] = useState(0);
   const [phase, setPhase] = useState<1 | 2 | 3>(1);
   const [startPoint, setStartPoint] = useState<THREE.Vector3 | null>(null);
   const [cursorFloor, setCursorFloor] = useState<THREE.Vector3 | null>(null);
@@ -102,7 +104,7 @@ export function CubeBrushOverlay(): React.JSX.Element {
       const sy = e.clientY - rect.top;
       const ndcX = (sx / rect.width) * 2 - 1;
       const ndcY = -(sy / rect.height) * 2 + 1;
-      let hit = projectToFloor(new THREE.Vector2(ndcX, ndcY), camera, raycaster);
+      let hit = projectToFloor(new THREE.Vector2(ndcX, ndcY), camera, raycaster, basePlaneY);
       if (hit) {
         const snap = useSettingsStore.getState().snap;
         if (snap.enabled && e.ctrlKey) {
@@ -172,9 +174,9 @@ export function CubeBrushOverlay(): React.JSX.Element {
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("click", onClick);
     };
-  }, [phase, startPoint, cursorFloor, rectPoints, height, camera, gl, raycaster, commitCube]);
+  }, [phase, startPoint, cursorFloor, rectPoints, height, basePlaneY, camera, gl, raycaster, commitCube]);
 
-  // Keyboard: Enter to commit, Escape to cancel
+  // Keyboard: Enter to commit, Escape to cancel, ArrowUp/Down to adjust base plane (phase 1)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).tagName === "INPUT") return;
@@ -186,11 +188,28 @@ export function CubeBrushOverlay(): React.JSX.Element {
         setHeight(0);
       } else if (e.key === "Enter" && phase === 3 && rectPoints) {
         commitCube(rectPoints, height);
+      } else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && phase === 1) {
+        e.preventDefault();
+        const delta = e.key === "ArrowUp" ? BASE_PLANE_STEP : -BASE_PLANE_STEP;
+        setBasePlaneY((prev) => prev + delta);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [phase, rectPoints, height, commitCube]);
+
+  // Mouse wheel: adjust base plane Y (only in phase 1)
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const onWheel = (e: WheelEvent) => {
+      if (phase !== 1) return;
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -BASE_PLANE_STEP : BASE_PLANE_STEP;
+      setBasePlaneY((prev) => prev + delta);
+    };
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", onWheel);
+  }, [gl, phase]);
 
   // Phase 3: extrude height preview
   if (phase === 3 && rectPoints) {
@@ -225,8 +244,12 @@ export function CubeBrushOverlay(): React.JSX.Element {
     );
   }
 
-  // Phase 1: waiting for first click — just show cursor gizmo
+  // Phase 1: waiting for first click — show base plane + cursor gizmo
   return (
-    <CursorGizmoDom screenX={cursorScreen.x} screenY={cursorScreen.y} variant="crosshair" />
+    <>
+      <BasePlaneMesh y={basePlaneY} />
+      <BasePlaneYLabelDom y={basePlaneY} screenX={cursorScreen.x} screenY={cursorScreen.y} />
+      <CursorGizmoDom screenX={cursorScreen.x} screenY={cursorScreen.y} variant="crosshair" />
+    </>
   );
 }

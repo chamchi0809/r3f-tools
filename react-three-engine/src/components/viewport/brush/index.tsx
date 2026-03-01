@@ -4,10 +4,10 @@ import * as THREE from "three/webgpu";
 import { sceneActions } from "../../../store/sceneStore";
 import { useModelingStore, modelingActions } from "../../../store/modelingStore";
 import { useSettingsStore, snapToGrid } from "../../../store/settingsStore";
-import { HEIGHT_SENSITIVITY, SNAP_RADIUS_PX } from "./constants";
+import { BASE_PLANE_STEP, HEIGHT_SENSITIVITY, SNAP_RADIUS_PX } from "./constants";
 import { buildExtrudedGeometry, projectToFloor, triangulatePolygon, worldToScreenDist } from "./geometry";
-import { CommittedLines, ExtrudePreview, PreviewLine, VertexDots } from "./primitives";
-import { BrushBoundingBoxGizmo, CursorGizmoDom, DistanceLabelDom, GizmoVariant, HeightLabelDom } from "./overlays";
+import { BasePlaneMesh, CommittedLines, ExtrudePreview, PreviewLine, VertexDots } from "./primitives";
+import { BasePlaneYLabelDom, BrushBoundingBoxGizmo, CursorGizmoDom, DistanceLabelDom, GizmoVariant, HeightLabelDom } from "./overlays";
 import { CubeBrushOverlay } from "./CubeBrush";
 import { SlopeBrushOverlay } from "./SlopeBrush";
 import { StairBrushOverlay } from "./StairBrush";
@@ -16,6 +16,9 @@ import { StairBrushOverlay } from "./StairBrush";
 export function BrushOverlay(): React.JSX.Element | null {
   const brushType = useModelingStore((s) => s.brushType);
   const { camera, gl, controls } = useThree();
+
+  // ── Base plane Y (adjustable before first point is placed) ────────────────
+  const [basePlaneY, setBasePlaneY] = useState(0);
 
   // ── Shared polygon-draw state ──────────────────────────────────────────────
   const [points, setPoints] = useState<THREE.Vector3[]>([]);
@@ -44,6 +47,7 @@ export function BrushOverlay(): React.JSX.Element | null {
     setClosingSnap(false);
     setExtrudePoints(null);
     setExtrudeHeight(0);
+    setBasePlaneY(0);
     modelingActions.setBrushPhase(1);
     modelingActions.setBrushPointCount(0);
   }, [brushType]);
@@ -190,10 +194,10 @@ export function BrushOverlay(): React.JSX.Element | null {
         return;
       }
 
-      // Phase 1: project to floor
+      // Phase 1: project to base plane
       const ndcX = (sx / rect.width) * 2 - 1;
       const ndcY = -(sy / rect.height) * 2 + 1;
-      let hit = projectToFloor(new THREE.Vector2(ndcX, ndcY), camera, raycaster);
+      let hit = projectToFloor(new THREE.Vector2(ndcX, ndcY), camera, raycaster, basePlaneY);
       if (hit) {
         const snap = useSettingsStore.getState().snap;
         if (snap.enabled && e.ctrlKey) {
@@ -229,7 +233,7 @@ export function BrushOverlay(): React.JSX.Element | null {
       // Phase 1 click
       const ndcX = (sx / rect.width) * 2 - 1;
       const ndcY = -(sy / rect.height) * 2 + 1;
-      let hit = projectToFloor(new THREE.Vector2(ndcX, ndcY), camera, raycaster);
+      let hit = projectToFloor(new THREE.Vector2(ndcX, ndcY), camera, raycaster, basePlaneY);
       if (hit) {
         const snap = useSettingsStore.getState().snap;
         if (snap.enabled && e.ctrlKey) {
@@ -270,6 +274,7 @@ export function BrushOverlay(): React.JSX.Element | null {
     points,
     extrudePoints,
     extrudeHeight,
+    basePlaneY,
     camera,
     gl,
     raycaster,
@@ -297,11 +302,29 @@ export function BrushOverlay(): React.JSX.Element | null {
         setClosingSnap(false);
         setExtrudePoints(null);
         setExtrudeHeight(0);
+      } else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && points.length === 0 && extrudePoints === null) {
+        e.preventDefault();
+        const delta = e.key === "ArrowUp" ? BASE_PLANE_STEP : -BASE_PLANE_STEP;
+        setBasePlaneY((prev) => prev + delta);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [points, extrudePoints, extrudeHeight, isActive, commitPolygon, commitExtrude]);
+
+  // ── Mouse wheel: adjust base plane Y (only before first point is placed) ──
+  useEffect(() => {
+    if (!isActive) return;
+    const canvas = gl.domElement;
+    const onWheel = (e: WheelEvent) => {
+      if (points.length > 0 || extrudePoints !== null) return;
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -BASE_PLANE_STEP : BASE_PLANE_STEP;
+      setBasePlaneY((prev) => prev + delta);
+    };
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", onWheel);
+  }, [gl, isActive, points.length, extrudePoints]);
 
   // Dedicated components — must be placed after all shared hooks above
   if (brushType === "cube") return <CubeBrushOverlay />;
@@ -327,8 +350,13 @@ export function BrushOverlay(): React.JSX.Element | null {
 
   // ── Phase 1 render (polygon drawing) ──────────────────────────────────────
   const gizmoVariant: GizmoVariant = closingSnap ? "snap" : "crosshair";
+  const noPointsYet = points.length === 0;
   return (
     <>
+      {noPointsYet && <BasePlaneMesh y={basePlaneY} />}
+      {noPointsYet && (
+        <BasePlaneYLabelDom y={basePlaneY} screenX={cursorScreen.x} screenY={cursorScreen.y} />
+      )}
       <CommittedLines points={points} />
       <VertexDots points={points} />
       <PreviewLine points={points} cursor={cursor} closingSnap={closingSnap} />
