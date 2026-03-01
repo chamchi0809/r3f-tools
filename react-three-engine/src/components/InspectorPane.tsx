@@ -13,6 +13,7 @@ import {
 import { GeometryEditor } from "./inspector/GeometryEditor";
 import { MaterialEditor } from "./inspector/MaterialEditor";
 import { ObjectAutoEditor } from "./inspector/ObjectAutoEditor";
+import { TagEditor } from "./inspector/TagEditor";
 
 // ─── Main inspector ───────────────────────────────────────────────────────────
 
@@ -131,6 +132,14 @@ export function InspectorPane(): React.JSX.Element {
         onChange={(v) => handleTransform(pos, v, scl)}
       />
       <Vec3Field label="Scale" value={scl} onChange={(v) => handleTransform(pos, rot, v)} />
+
+      {/* Tags */}
+      {selectedUUID && (
+        <>
+          <SectionHeader>Tags</SectionHeader>
+          <TagEditor uuid={selectedUUID} />
+        </>
+      )}
 
       {/* Mesh: geometry + material type switchers + auto fields */}
       {isMesh && selectedUUID && (

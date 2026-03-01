@@ -9,6 +9,7 @@ import {
   applySerializedObject,
 } from "../store/sceneStore";
 import type { SerializedObject } from "../store/sceneStore";
+import { useTagStore } from "../store/tagStore";
 import type { PrefabTypeRegistry, PrefabRef } from "../prefabTypes";
 
 export type PrefabProps<K extends string = string> = Omit<ThreeElements["group"], "id" | "ref"> & {
@@ -59,20 +60,29 @@ export function Prefab({ id, ref, ...groupProps }: PrefabProps<any>): React.Reac
     const group = groupRef.current;
     const handle = group
       ? Object.assign(group, {
-          find(name: string) {
-            return group.getObjectByName(name);
-          },
-          typedFind(name: string) {
-            return group.getObjectByName(name);
-          },
-        }) as PrefabRef<string>
+        find(name: string) {
+          return group.getObjectByName(name);
+        },
+        typedFind(name: string) {
+          return group.getObjectByName(name);
+        },
+        findWithTag(tag: string) {
+          const objectTags = useTagStore.getState().objectTags;
+          const results: THREE.Object3D[] = [];
+          group.traverse((obj) => {
+            const tags = objectTags.get(obj.uuid);
+            if (tags && tags.has(tag)) results.push(obj);
+          });
+          return results;
+        },
+      }) as PrefabRef<string>
       : null;
     if (typeof ref === "function") {
       ref(handle);
     } else {
       (ref as React.MutableRefObject<PrefabRef<string> | null>).current = handle;
     }
-  });
+  }, [ref, nodes]);
 
   useEffect(() => {
     let cancelled = false;

@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import { sceneActions, useSceneStore, type ObjectKind, type SceneNode } from "../store/sceneStore";
+import { useTagStore } from "../store/tagStore";
 import { loadGltfFile } from "../gltfLoader";
 import { btnStyle } from "../styles";
 import { getCustomObjectKinds } from "../customObjectRegistry";
@@ -55,6 +56,7 @@ function HierarchyNode({
   selectedUUID: string | null;
   nodes: Map<string, SceneNode>;
 }) {
+  const tags = useTagStore((s) => s.objectTags.get(node.uuid));
   const isSelected = node.uuid === selectedUUID;
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.childUUIDs.length > 0;
@@ -102,6 +104,31 @@ function HierarchyNode({
         >
           {node.name || node.kind}
         </span>
+        {tags && tags.size > 0 && (
+          <span style={{ display: "flex", gap: 3, flexShrink: 0, marginLeft: 4 }}>
+            {Array.from(tags).map((t) => (
+              <span
+                key={t}
+                title={t}
+                style={{
+                  fontSize: 9,
+                  padding: "1px 5px",
+                  borderRadius: 3,
+                  background: "#1e3a2f",
+                  border: "1px solid #2a5a40",
+                  color: "#80e0a0",
+                  lineHeight: 1.6,
+                  maxWidth: 60,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                #{t}
+              </span>
+            ))}
+          </span>
+        )}
       </div>
       {expanded &&
         node.childUUIDs.map((childUUID) => {

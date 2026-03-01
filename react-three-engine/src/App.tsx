@@ -9,6 +9,7 @@ import { HierarchyPane } from "./components/HierarchyPane";
 import { InspectorPane } from "./components/InspectorPane";
 import { SettingsPane } from "./components/SettingsPane";
 import { PrefabPanel } from "./components/PrefabPanel";
+import { TagsPane } from "./components/TagsPane";
 import { SceneContent } from "./components/SceneContent";
 import { EditorModeBar, type TransformMode } from "./components/Toolbar";
 
@@ -160,6 +161,16 @@ export default function App(): React.JSX.Element {
             },
           });
           e.api.addPanel({
+            id: "tags",
+            title: "Tags",
+            component: "tags",
+            tabComponent: "default",
+            position: {
+              referencePanel: "inspector",
+              direction: "within",
+            },
+          });
+          e.api.addPanel({
             id: "prefabs",
             title: "Prefabs",
             component: "prefabs",
@@ -174,6 +185,7 @@ export default function App(): React.JSX.Element {
           viewport: Viewport,
           inspector: InspectorPane,
           settings: SettingsPane,
+          tags: TagsPane,
           prefabs: () => (
             <PrefabPanel
               onClose={() => {}}

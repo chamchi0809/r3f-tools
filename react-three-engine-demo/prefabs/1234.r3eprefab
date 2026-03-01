@@ -1,6 +1,6 @@
 [
   {
-    "uuid": "865700b1-9923-486a-973d-224da45386b4",
+    "uuid": "5b35af0f-106c-4522-8e42-00bbab02793e",
     "name": "Scene",
     "kind": "group",
     "position": [
@@ -22,7 +22,7 @@
     "receiveShadow": false,
     "children": [
       {
-        "uuid": "cf7cc2e8-54eb-4ce0-a880-b9a358c68e0f",
+        "uuid": "a0a4b40e-dc15-462a-b82d-5a777f26038d",
         "name": "Map",
         "kind": "mesh",
         "position": [
@@ -3467,7 +3467,7 @@
         }
       },
       {
-        "uuid": "f8446aba-4414-4b53-acd4-94ffe9c186b9",
+        "uuid": "c32ebd65-c94a-4982-9899-f6a98a3b1aed",
         "name": "door1-1",
         "kind": "mesh",
         "position": [
@@ -7008,7 +7008,7 @@
         }
       },
       {
-        "uuid": "525f0bec-bb65-42fe-a423-8b4739295bb6",
+        "uuid": "330d3bec-512a-4731-b851-bb45f5cbe411",
         "name": "door1-2",
         "kind": "mesh",
         "position": [
@@ -10549,7 +10549,7 @@
         }
       },
       {
-        "uuid": "f67b7278-e067-444e-87f3-4e17cda744d4",
+        "uuid": "874f4a59-69b5-4bcf-bf50-2cf615d7f77b",
         "name": "door2-2",
         "kind": "mesh",
         "position": [
@@ -14090,7 +14090,7 @@
         }
       },
       {
-        "uuid": "365d06b6-67c2-4870-b89d-20fdc2affbaa",
+        "uuid": "075f4596-76ac-485f-b5ef-920e33e8abd5",
         "name": "door2-1",
         "kind": "mesh",
         "position": [
@@ -17631,11 +17631,11 @@
         }
       },
       {
-        "uuid": "ad7b215d-950d-4319-bed0-2bdd20947bd3",
+        "uuid": "d9b161ee-2a8f-49ac-bba4-5e985b56dffd",
         "name": "door3-1",
         "kind": "mesh",
         "position": [
-          -3.014657735824585,
+          -3.0217476850660603,
           1.0500000715255737,
           0.7799999713897705
         ],
@@ -21169,10 +21169,13 @@
           "emissiveIntensity": 1,
           "roughness": 0.5,
           "metalness": 0
-        }
+        },
+        "tags": [
+          "door"
+        ]
       },
       {
-        "uuid": "51b2099d-eeb3-419f-a290-e1d0639d84df",
+        "uuid": "989d01c2-c9ef-45be-a5be-55e8b87a400d",
         "name": "door3-2",
         "kind": "mesh",
         "position": [
@@ -24713,7 +24716,7 @@
         }
       },
       {
-        "uuid": "8101c290-6dce-4d3f-bce3-2050dcb1db80",
+        "uuid": "54b387a6-e959-4e4b-b8d4-f1209383419e",
         "name": "door4-1",
         "kind": "mesh",
         "position": [
@@ -28254,7 +28257,7 @@
         }
       },
       {
-        "uuid": "ad7fdff6-44ec-44ac-a7d5-06baa1aea740",
+        "uuid": "be68d3ba-1fdd-4ccc-9971-f59eb465c6b5",
         "name": "door4-2",
         "kind": "mesh",
         "position": [
@@ -31795,7 +31798,7 @@
         }
       },
       {
-        "uuid": "9b43119b-5e33-464f-b87d-58584934d631",
+        "uuid": "fc3ab00f-a582-49fd-bac9-262a05c6062e",
         "name": "door5-5",
         "kind": "mesh",
         "position": [
@@ -35336,7 +35339,7 @@
         }
       },
       {
-        "uuid": "feb6271e-b5a8-4072-a281-e9c63137b5bc",
+        "uuid": "5c982b97-bfbc-473e-bff4-dce7fab29536",
         "name": "door5-2",
         "kind": "mesh",
         "position": [
@@ -38877,7 +38880,7 @@
         }
       },
       {
-        "uuid": "14e5a964-2be1-4f4c-a403-e96babd1d3e8",
+        "uuid": "43247d0a-b5c6-43bd-8675-bf93038019dc",
         "name": "door5-4",
         "kind": "mesh",
         "position": [
@@ -42418,7 +42421,7 @@
         }
       },
       {
-        "uuid": "dfd4f2e7-3a87-479d-bbc9-3577c16598fa",
+        "uuid": "eaa12c2d-15d3-4079-9ee6-c87b5deaf530",
         "name": "door5-3",
         "kind": "mesh",
         "position": [

@@ -39,10 +39,19 @@ export type PrefabObjectNames<K extends string> = K extends keyof PrefabTypeRegi
     : string
   : string;
 
+/** Extracts the tag names union for a given prefab id. Falls back to `string`. */
+export type PrefabTags<K extends string> = K extends keyof PrefabTypeRegistry
+  ? PrefabTypeRegistry[K] extends { tags: infer T }
+    ? T
+    : string
+  : string;
+
 /** The ref handle exposed on `<Prefab>`. Extends the root Group type with find helpers. */
 export type PrefabRef<K extends string> = PrefabRootType<K> & {
   /** Search the entire prefab hierarchy for an object with the given name. */
   find(name: string): THREE.Object3D | undefined;
   /** Like `find`, but the name is constrained to known object names in the prefab. */
   typedFind(name: PrefabObjectNames<K>): THREE.Object3D | undefined;
+  /** Find all objects in the prefab hierarchy that have the given tag attached. */
+  findWithTag(tag: PrefabTags<K>): THREE.Object3D[];
 };

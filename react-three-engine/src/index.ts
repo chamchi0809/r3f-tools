@@ -9,7 +9,7 @@ export {
 } from "./vitePlugin";
 export { default as App } from "./App";
 export { prefabRegistry, type ScenePrefab } from "./prefabs/registry";
-export { useSceneStore, sceneActions, useModelingStore, modelingActions } from "./store";
+export { useSceneStore, sceneActions, useModelingStore, modelingActions, useTagStore, tagActions } from "./store";
 export type {
   ObjectKind,
   BuiltinObjectKind,
@@ -22,10 +22,11 @@ export type {
   EditorMode,
   SelectionMode,
   SelectedElement,
+  TagName,
 } from "./store";
 export { TEXTURE_MAP_SLOTS } from "./store";
 export { Prefab, type PrefabProps } from "./components";
-export type { PrefabTypeRegistry, PrefabRef, PrefabRootType, PrefabObjectNames } from "./prefabTypes";
+export type { PrefabTypeRegistry, PrefabRef, PrefabRootType, PrefabObjectNames, PrefabTags } from "./prefabTypes";
 export type {
   CustomObjectKindRegistry,
   CustomObjectKind,

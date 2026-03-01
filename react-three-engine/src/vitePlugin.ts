@@ -428,6 +428,7 @@ type SerializedObjectKind =
 interface RawNode {
   kind: SerializedObjectKind;
   name?: string;
+  tags?: string[];
   children: RawNode[];
 }
 
@@ -452,6 +453,15 @@ function collectNames(node: RawNode, out: Set<string>): void {
   if (node.name && node.name.trim() !== "") out.add(node.name);
   for (const child of node.children) collectNames(child, out);
 }
+/** Recursively collect every non-empty tag from a node and its descendants. */
+function collectTags(node: RawNode, out: Set<string>): void {
+  if (node.tags) {
+    for (const t of node.tags) {
+      if (t.trim() !== "") out.add(t.trim());
+    }
+  }
+  for (const child of node.children) collectTags(child, out);
+}
 
 function generatePrefabsDts(saveDir: string, ext: string): string {
   let files: string[] = [];
@@ -475,11 +485,19 @@ function generatePrefabsDts(saveDir: string, ext: string): string {
               .map((n) => JSON.stringify(n))
               .join(" | ")
           : "never";
+      const tagSet = new Set<string>();
+      for (const node of raw) collectTags(node, tagSet);
+      const tagsType =
+        tagSet.size > 0
+          ? Array.from(tagSet)
+              .map((t) => JSON.stringify(t))
+              .join(" | ")
+          : "never";
       entries.push(
-        `    ${JSON.stringify(name)}: { root: ${rootType}; names: ${namesType} };`,
+        `    ${JSON.stringify(name)}: { root: ${rootType}; names: ${namesType}; tags: ${tagsType} };`,
       );
     } catch {
-      entries.push(`    ${JSON.stringify(name)}: { root: import("three").Group; names: never };`);
+      entries.push(`    ${JSON.stringify(name)}: { root: import("three").Group; names: never; tags: never };`);
     }
   }
   const body = entries.length > 0 ? entries.join("\n") : "";

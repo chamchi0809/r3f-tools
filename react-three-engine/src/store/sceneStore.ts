@@ -1,3 +1,4 @@
+import { tagActions, useTagStore } from "./tagStore";
 import { create, type StoreApi } from "zustand";
 import { type UseBoundStore } from "zustand/react";
 import * as THREE from "three/webgpu";
@@ -670,6 +671,8 @@ export interface SerializedObject {
   shadowProps?: SerializedShadow;
   cameraProps?: CameraProps;
   children: SerializedObject[];
+  /** Tags attached to this object (tag names). */
+  tags?: string[];
 }
 
 export interface SceneNode {
@@ -828,6 +831,9 @@ function serializeObject(
   if (obj instanceof THREE.PerspectiveCamera) {
     node.cameraProps = readCameraProps(obj);
   }
+  // Tags
+  const objTagSet = useTagStore.getState().objectTags.get(obj.uuid);
+  if (objTagSet && objTagSet.size > 0) node.tags = Array.from(objTagSet);
   return node;
 }
 
@@ -857,6 +863,10 @@ export function applySerializedObject(obj: THREE.Object3D, node: SerializedObjec
     if (cp.filmOffset !== undefined) obj.filmOffset = cp.filmOffset;
     if (cp.focus !== undefined) obj.focus = cp.focus;
     obj.updateProjectionMatrix();
+  }
+  // Restore tags
+  if (node.tags && node.tags.length > 0) {
+    tagActions.setObjectTags(obj.uuid, node.tags);
   }
 }
 
@@ -941,6 +951,8 @@ export const useSceneStore: UseBoundStore<StoreApi<SceneState>> = create<SceneSt
         }
 
         const selectedUUID = s.selectedUUID === uuid ? null : s.selectedUUID;
+        // Clean up tags for this object
+        tagActions.clearObjectTags(uuid);
         return { nodes, objects, rootUUIDs, selectedUUID, version: s.version + 1 };
       });
     },

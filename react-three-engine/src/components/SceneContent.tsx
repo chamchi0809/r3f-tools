@@ -1,4 +1,4 @@
-import { TransformControls } from "@react-three/drei";
+import { Html, TransformControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three/webgpu";
@@ -11,6 +11,7 @@ import {
   type SerializedObject,
 } from "../store/sceneStore";
 import { useSettingsStore, resolveSnapProps } from "../store/settingsStore";
+import { useTagStore } from "../store/tagStore";
 import { ClickSelector } from "./ClickSelector";
 
 type TransformMode = "translate" | "rotate" | "scale";
@@ -67,6 +68,86 @@ function SelectionOutline({ selectedObj }: { selectedObj: THREE.Mesh }) {
   }, [selectedObj, selectedObj.geometry]);
 
   return null;
+}
+
+// ─── Tag gizmos ───────────────────────────────────────────────────────────────
+
+const _worldPos = new THREE.Vector3();
+
+function TagGizmoLabel({ obj, tags }: { obj: THREE.Object3D; tags: Set<string> }) {
+  const groupRef = useRef<THREE.Group>(null);
+
+  // Compute label offset above the object once.
+  const yOffset = useMemo(() => {
+    const box = new THREE.Box3().setFromObject(obj);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    return Math.max(size.y * 0.5 + 0.15, 0.45);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [obj]);
+
+  // Track the object's world position every frame.
+  useFrame(() => {
+    if (!groupRef.current) return;
+    obj.getWorldPosition(_worldPos);
+    groupRef.current.position.copy(_worldPos);
+  });
+
+  return (
+    <group ref={groupRef}>
+      <Html
+        position={[0, yOffset, 0]}
+        center
+        zIndexRange={[10, 11]}
+        style={{ pointerEvents: "none", userSelect: "none" }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+          {Array.from(tags).map((t) => (
+            <span
+              key={t}
+              style={{
+                fontSize: 9,
+                padding: "1px 6px",
+                borderRadius: 3,
+                background: "rgba(20,48,35,0.88)",
+                border: "1px solid #2a5a40",
+                color: "#80e0a0",
+                lineHeight: 1.6,
+                whiteSpace: "nowrap",
+                backdropFilter: "blur(2px)",
+              }}
+            >
+              #{t}
+            </span>
+          ))}
+        </div>
+      </Html>
+    </group>
+  );
+}
+
+function TagGizmos() {
+  const objectTags = useTagStore((s) => s.objectTags);
+  const objects = useSceneStore((s) => s.objects);
+
+  const entries = useMemo(() => {
+    const result: { obj: THREE.Object3D; tags: Set<string> }[] = [];
+    for (const [uuid, tags] of objectTags) {
+      if (tags.size === 0) continue;
+      const obj = objects.get(uuid);
+      if (!obj) continue;
+      result.push({ obj, tags });
+    }
+    return result;
+  }, [objectTags, objects]);
+
+  return (
+    <>
+      {entries.map(({ obj, tags }) => (
+        <TagGizmoLabel key={obj.uuid} obj={obj} tags={tags} />
+      ))}
+    </>
+  );
 }
 
 export function SceneContent({
@@ -211,6 +292,7 @@ export function SceneContent({
       {selectedObj instanceof THREE.Mesh && !isModeling && (
         <SelectionOutline selectedObj={selectedObj} />
       )}
+      <TagGizmos />
     </>
   );
 }
