@@ -136,6 +136,7 @@ export function CubeBrushOverlay(): React.JSX.Element {
     };
 
     const onClick = (e: MouseEvent) => {
+      if (e.shiftKey) return; // Shift held = camera pan mode
       const rect = canvas.getBoundingClientRect();
       const sy = e.clientY - rect.top;
 

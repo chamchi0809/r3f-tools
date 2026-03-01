@@ -6,7 +6,7 @@ export type EditorMode = "object" | "modeling" | "brush";
 export type SelectionMode = "vertex" | "edge" | "face";
 export type ModelingTransformMode = "translate" | "rotate" | "scale";
 export type ModelingTool = "select" | "add";
-export type BrushType = "polygon" | "poly3d" | "cube" | "slope";
+export type BrushType = "polygon" | "poly3d" | "cube" | "slope" | "stair";
 
 /** A selected sub-element index within the active mesh's BufferGeometry. */
 export interface SelectedElement {

@@ -34,9 +34,22 @@ const Viewport = () => {
   const editorMode = useModelingStore((s) => s.editorMode);
   const isModeling = editorMode === "modeling";
   const isBrush = editorMode === "brush";
+  const [shiftHeld, setShiftHeld] = useState(false);
 
   const cameraRef = useRef<THREE.Camera | null>(null);
   const controlsRef = useRef<any>(null);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Shift") setShiftHeld(true); };
+    const onKeyUp = (e: KeyboardEvent) => { if (e.key === "Shift") setShiftHeld(false); };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, []);
+
 
   // G/R/S + Delete shortcuts for object mode
   useEffect(() => {
@@ -60,7 +73,7 @@ const Viewport = () => {
         position: "relative",
         width: "100%",
         height: "100%",
-        cursor: isBrush ? "crosshair" : "default",
+        cursor: isBrush ? (shiftHeld ? "grab" : "crosshair") : "default",
       }}
     >
       <Canvas

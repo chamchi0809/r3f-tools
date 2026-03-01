@@ -130,6 +130,123 @@ export function projectToFloor(
   return result ? hit.clone() : null;
 }
 
+/**
+ * Build a staircase BufferGeometry from a 4-corner floor rectangle, height,
+ * a cardinal direction (highDir), and a step count.
+ * The staircase ascends from the "low" end (opposite highDir) to the "high"
+ * end (in highDir direction) in `stepCount` equal steps.
+ *
+ * Implemented as a profile extrusion: the side-profile polygon (CCW in the
+ * highDir–Y plane) is triangulated for end caps, then every profile edge is
+ * extruded along perpDir to form the swept faces.
+ */
+export function buildStairGeometry(
+  pts: THREE.Vector3[],
+  height: number,
+  highDir: THREE.Vector2,
+  stepCount: number,
+): THREE.BufferGeometry {
+  if (pts.length < 4 || stepCount < 1 || Math.abs(height) < 0.001) {
+    return new THREE.BufferGeometry();
+  }
+
+  const cx = (pts[0].x + pts[2].x) / 2;
+  const cz = (pts[0].z + pts[2].z) / 2;
+  const dlen = Math.sqrt(highDir.x ** 2 + highDir.y ** 2);
+  const dx = dlen > 1e-5 ? highDir.x / dlen : 1;
+  const dz = dlen > 1e-5 ? highDir.y / dlen : 0;
+  const px = -dz; // perpendicular direction in XZ
+  const pz = dx;
+
+  const highDots = pts.map((p) => dx * (p.x - cx) + dz * (p.z - cz));
+  const perpDots = pts.map((p) => px * (p.x - cx) + pz * (p.z - cz));
+  const minHigh = Math.min(...highDots);
+  const maxHigh = Math.max(...highDots);
+  const minPerp = Math.min(...perpDots);
+  const maxPerp = Math.max(...perpDots);
+
+  const totalExtent = maxHigh - minHigh;
+  const stepW = totalExtent / stepCount;
+  const stepH = Math.abs(height) / stepCount;
+  const totalH = Math.abs(height);
+
+  /** Map a profile (high, y) coordinate to world XYZ at perpendicular offset p. */
+  function toWorld(high: number, y: number, perp: number): [number, number, number] {
+    return [cx + high * dx + perp * px, y, cz + high * dz + perp * pz];
+  }
+
+  // ── Side-profile polygon (CCW in (high, y) space) ─────────────────────────
+  // Viewed from the low end: stairs ascend to the right.
+  // The polygon traces: bottom-left → bottom-right → top-right → staircase back left.
+  const profile: [number, number][] = [];
+  profile.push([minHigh, FLOOR_Y]);            // bottom-left (back-bottom)
+  profile.push([maxHigh, FLOOR_Y]);            // bottom-right (front-bottom)
+  profile.push([maxHigh, FLOOR_Y + totalH]);   // top-right (top of last step)
+  // Staircase descending left: step N-1 down to step 0
+  for (let i = stepCount - 1; i >= 0; i--) {
+    profile.push([minHigh + i * stepW, FLOOR_Y + (i + 1) * stepH]); // tread (left edge)
+    if (i > 0) {
+      profile.push([minHigh + i * stepW, FLOOR_Y + i * stepH]);      // riser (bottom)
+    }
+  }
+  // Implicit closing edge: last profile point → profile[0], forming the back wall.
+
+  const n = profile.length;
+  const pos: number[] = [];
+  const idx: number[] = [];
+
+  function tri(
+    ax: number, ay: number, az: number,
+    bx: number, by: number, bz: number,
+    cx2: number, cy2: number, cz2: number,
+  ) {
+    const base = pos.length / 3;
+    pos.push(ax, ay, az, bx, by, bz, cx2, cy2, cz2);
+    idx.push(base, base + 1, base + 2);
+  }
+
+  // ── End caps (triangulated profile) ────────────────────────────────────────
+  // triangulateShape returns CCW triangles whose normal points in +perpDir.
+  const profileVec2 = profile.map(([h, y]) => new THREE.Vector2(h, y));
+  const rawTris = THREE.ShapeUtils.triangulateShape(profileVec2, []);
+  for (const [a, b, c] of rawTris) {
+    const [ah, ay] = profile[a];
+    const [bh, by2] = profile[b];
+    const [ch, cy2] = profile[c];
+    // minPerp cap: face outward in −perpDir → reversed winding
+    const wA = toWorld(ah, ay, minPerp);
+    const wB = toWorld(bh, by2, minPerp);
+    const wC = toWorld(ch, cy2, minPerp);
+    tri(wA[0], wA[1], wA[2], wC[0], wC[1], wC[2], wB[0], wB[1], wB[2]);
+    // maxPerp cap: face outward in +perpDir → as-is winding
+    const wA2 = toWorld(ah, ay, maxPerp);
+    const wB2 = toWorld(bh, by2, maxPerp);
+    const wC2 = toWorld(ch, cy2, maxPerp);
+    tri(wA2[0], wA2[1], wA2[2], wB2[0], wB2[1], wB2[2], wC2[0], wC2[1], wC2[2]);
+  }
+
+  // ── Swept faces (each profile edge extruded along perpDir) ─────────────────
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const [hi, yi] = profile[i];
+    const [hj, yj] = profile[j];
+    const A = toWorld(hi, yi, minPerp);
+    const B = toWorld(hj, yj, minPerp);
+    const C = toWorld(hj, yj, maxPerp);
+    const D = toWorld(hi, yi, maxPerp);
+    tri(A[0], A[1], A[2], B[0], B[1], B[2], C[0], C[1], C[2]);
+    tri(A[0], A[1], A[2], C[0], C[1], C[2], D[0], D[1], D[2]);
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
+  geo.setAttribute("uv", new THREE.BufferAttribute(new Float32Array((pos.length / 3) * 2), 2));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  geo.computeBoundingSphere();
+  return geo;
+}
+
 /** Return pixel distance from a world point to screen coords. */
 export function worldToScreenDist(
   world: THREE.Vector3,

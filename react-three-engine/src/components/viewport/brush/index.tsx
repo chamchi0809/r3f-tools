@@ -10,11 +10,12 @@ import { CommittedLines, ExtrudePreview, PreviewLine, VertexDots } from "./primi
 import { BrushBoundingBoxGizmo, CursorGizmoDom, DistanceLabelDom, GizmoVariant, HeightLabelDom } from "./overlays";
 import { CubeBrushOverlay } from "./CubeBrush";
 import { SlopeBrushOverlay } from "./SlopeBrush";
+import { StairBrushOverlay } from "./StairBrush";
 
 // ─── Main brush overlay ───────────────────────────────────────────────────────
 export function BrushOverlay(): React.JSX.Element | null {
   const brushType = useModelingStore((s) => s.brushType);
-  const { camera, gl } = useThree();
+  const { camera, gl, controls } = useThree();
 
   // ── Shared polygon-draw state ──────────────────────────────────────────────
   const [points, setPoints] = useState<THREE.Vector3[]>([]);
@@ -56,6 +57,57 @@ export function BrushOverlay(): React.JSX.Element | null {
   useEffect(() => {
     modelingActions.setBrushPointCount(points.length);
   }, [points.length]);
+
+  // ── Shift+drag: pan camera (works for all brush types) ────────────────────
+  useEffect(() => {
+    const canvas = gl.domElement;
+    let isPanning = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (!e.shiftKey || e.button !== 0) return;
+      isPanning = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      canvas.setPointerCapture(e.pointerId);
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!isPanning) return;
+      if (!e.shiftKey) { isPanning = false; return; }
+      const deltaX = e.clientX - lastX;
+      const deltaY = e.clientY - lastY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+
+      // Pan matching OrbitControls perspective formula
+      const cam = camera as THREE.PerspectiveCamera;
+      const orbitTarget = (controls as any)?.target as THREE.Vector3 | undefined;
+      const distance = orbitTarget
+        ? camera.position.distanceTo(orbitTarget)
+        : 10;
+      const scale = 2 * Math.tan((cam.fov * Math.PI) / 360) * distance / canvas.clientHeight;
+
+      const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+      const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+      const pan = right.multiplyScalar(-deltaX * scale).addScaledVector(up, deltaY * scale);
+
+      camera.position.add(pan);
+      if (orbitTarget) orbitTarget.add(pan);
+    };
+
+    const onPointerUp = () => { isPanning = false; };
+
+    canvas.addEventListener("pointerdown", onPointerDown);
+    canvas.addEventListener("pointermove", onPointerMove);
+    canvas.addEventListener("pointerup", onPointerUp);
+    return () => {
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerup", onPointerUp);
+    };
+  }, [camera, gl, controls]);
 
   // ── Commit flat polygon (polygon brush) ───────────────────────────────────
   const commitPolygon = useCallback((pts: THREE.Vector3[]) => {
@@ -163,6 +215,7 @@ export function BrushOverlay(): React.JSX.Element | null {
     };
 
     const onClick = (e: MouseEvent) => {
+      if (e.shiftKey) return; // Shift held = camera pan mode
       const rect = canvas.getBoundingClientRect();
       const sx = e.clientX - rect.left;
       const sy = e.clientY - rect.top;
@@ -253,6 +306,7 @@ export function BrushOverlay(): React.JSX.Element | null {
   // Dedicated components — must be placed after all shared hooks above
   if (brushType === "cube") return <CubeBrushOverlay />;
   if (brushType === "slope") return <SlopeBrushOverlay />;
+  if (brushType === "stair") return <StairBrushOverlay />;
 
   if (!isActive) return null;
 

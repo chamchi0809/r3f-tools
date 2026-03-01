@@ -43,6 +43,7 @@ const BRUSH_TYPES: { type: BrushType; label: string; disabled?: boolean }[] = [
   { type: "poly3d", label: "Poly3D Brush" },
   { type: "cube", label: "Cube Brush" },
   { type: "slope", label: "Slope Brush" },
+  { type: "stair", label: "Stair Brush" },
 ];
 
 // ─── Brush instruction panel ────────────────────────────────────────────────────────
@@ -52,6 +53,18 @@ function getInstructionLines(
   brushPhase: 1 | 2,
   brushPointCount: number,
 ): string[] {
+  if (brushType === "stair") {
+    if (brushPhase === 2) {
+      return ["Move mouse up/down to set height", "Click or Enter to confirm · Esc to cancel"];
+    }
+    if (brushPointCount === 3) {
+      return ["Move mouse to pick stair direction · Scroll to set step count", "Click to confirm · Esc to cancel"];
+    }
+    if (brushPointCount === 1) {
+      return ["Move mouse to set rectangle size", "Click to confirm · Esc to cancel"];
+    }
+    return ["Click to place starting corner"];
+  }
   if (brushType === "slope") {
     if (brushPhase === 2) {
       return ["Move mouse up/down to set height", "Click or Enter to confirm · Esc to cancel"];
