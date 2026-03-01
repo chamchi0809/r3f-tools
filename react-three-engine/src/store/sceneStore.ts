@@ -327,7 +327,7 @@ export interface SerializedMaterial {
   /** Texture map URLs keyed by slot name (e.g. "map", "normalMap"). */
   maps?: Partial<Record<TextureMapSlot, string>>;
   /** THREE.Side value (FrontSide=0, BackSide=1, DoubleSide=2). Defaults to FrontSide. */
-  side?: number;
+  side?: THREE.Side;
 }
 
 /** All texture map slot names exposed by the texture picker. */
@@ -724,7 +724,6 @@ interface SceneState {
   deserialize: (nodes: SerializedObject[]) => void;
   setLightProps: (uuid: string, props: Partial<LightProps>) => void;
   setCameraProps: (uuid: string, props: Partial<CameraProps>) => void;
-  setCameraProps: (uuid: string, props: Partial<CameraProps>) => void;
   addGltf: (root: THREE.Object3D) => void;
   clearPendingGltf: () => void;
 }
@@ -1101,11 +1100,6 @@ export const sceneActions: {
     parentUUID?: string | null,
   ) => void;
   addGltf: (root: THREE.Object3D) => void;
-  addMeshWithGeometry: (
-    geo: THREE.BufferGeometry,
-    position?: THREE.Vector3,
-    parentUUID?: string | null,
-  ) => void;
 } = {
   addObject: (kind, parentUUID) => useSceneStore.getState().addObject(kind, parentUUID),
   addMeshWithGeometry: (geo, position, parentUUID) =>

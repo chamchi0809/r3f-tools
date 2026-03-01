@@ -57,8 +57,6 @@ export function reactThreeEnginePlugin(options: ReactThreeEnginePluginOptions = 
   let apiBase: string;
   let isBuild = false;
 
-  const prefabRefIds = new Map<string, string>();
-  let prefabUrls: Record<string, string> | null = null;
   let dtsAbsPath: string | null = null;
   let resolvedPublicDir: string | null = null;
 
@@ -108,31 +106,6 @@ export function reactThreeEnginePlugin(options: ReactThreeEnginePluginOptions = 
       if (!resolvedSavePath) return;
       dtsAbsPath = path.join(resolvedSavePath, "prefabs.d.ts");
       writePrefabsDts(resolvedSavePath, PREFAB_EXT, dtsAbsPath);
-      if (!isBuild) return;
-      prefabRefIds.clear();
-      prefabUrls = null;
-      let files: string[] = [];
-      try {
-        files = fs.readdirSync(resolvedSavePath).filter((f) => f.endsWith(PREFAB_EXT));
-      } catch {
-        return;
-      }
-      for (const file of files) {
-        const name = file.slice(0, -PREFAB_EXT.length);
-        const filePath = path.join(resolvedSavePath, file);
-        const source = fs.readFileSync(filePath);
-        const refId = this.emitFile({ type: "asset", name: file, source });
-        prefabRefIds.set(name, refId);
-      }
-    },
-
-    generateBundle() {
-      if (!isBuild || prefabRefIds.size === 0) return;
-      const urls: Record<string, string> = {};
-      for (const [name, refId] of prefabRefIds) {
-        urls[name] = `/${this.getFileName(refId)}`;
-      }
-      prefabUrls = urls;
     },
 
     resolveId(id) {
@@ -147,10 +120,43 @@ export function reactThreeEnginePlugin(options: ReactThreeEnginePluginOptions = 
         return generateCustomObjectsModule(customObjects, projectRoot);
       }
       if (id === resolvedVirtualConfigId) {
+        if (isBuild && resolvedSavePath) {
+          // Emit each prefab file as a Rollup asset and reference it via
+          // import.meta.ROLLUP_FILE_URL_<refId>, which Rollup rewrites to the
+          // correct hashed, base-aware URL at render time — avoiding the
+          // race condition where load() runs before generateBundle().
+          let files: string[] = [];
+          try {
+            files = fs.readdirSync(resolvedSavePath).filter((f) => f.endsWith(PREFAB_EXT));
+          } catch {
+            files = [];
+          }
+          if (files.length > 0) {
+            const entries: string[] = [];
+            for (const file of files) {
+              const name = file.slice(0, -PREFAB_EXT.length);
+              const filePath = path.join(resolvedSavePath, file);
+              const source = fs.readFileSync(filePath);
+              const refId = this.emitFile({ type: "asset", name: file, source });
+              entries.push(`  ${JSON.stringify(name)}: import.meta.ROLLUP_FILE_URL_${refId}`);
+            }
+            const baseConfig = {
+              savePath: savePath ?? null,
+              apiBase,
+              publicDir: resolvedPublicDir ?? null,
+            };
+            return [
+              `const _base = ${JSON.stringify(baseConfig)};`,
+              `export const editorConfig = { ..._base, prefabUrls: {`,
+              entries.join(",\n"),
+              `} };`,
+            ].join("\n");
+          }
+        }
         const config = {
           savePath: savePath ?? null,
           apiBase,
-          prefabUrls: prefabUrls ?? null,
+          prefabUrls: null,
           publicDir: resolvedPublicDir ?? null,
         };
         return `export const editorConfig = ${JSON.stringify(config)};\n`;
