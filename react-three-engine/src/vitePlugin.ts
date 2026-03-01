@@ -421,6 +421,7 @@ type SerializedObjectKind =
 
 interface RawNode {
   kind: SerializedObjectKind;
+  name?: string;
   children: RawNode[];
 }
 
@@ -440,6 +441,12 @@ function nodeToType(node: RawNode): string {
   return `Omit<${threeType}, "children"> & { children: [${childTypes}] }`;
 }
 
+/** Recursively collect every non-empty `name` from a node and its descendants. */
+function collectNames(node: RawNode, out: Set<string>): void {
+  if (node.name && node.name.trim() !== "") out.add(node.name);
+  for (const child of node.children) collectNames(child, out);
+}
+
 function generatePrefabsDts(saveDir: string, ext: string): string {
   let files: string[] = [];
   try {
@@ -453,10 +460,20 @@ function generatePrefabsDts(saveDir: string, ext: string): string {
     try {
       const raw = JSON.parse(fs.readFileSync(path.join(saveDir, file), "utf-8")) as RawNode[];
       const childTypes = raw.map(nodeToType).join(", ");
-      const groupType = `Omit<import("three").Group, "children"> & { children: [${childTypes}] }`;
-      entries.push(`    ${JSON.stringify(name)}: ${groupType};`);
+      const rootType = `Omit<import("three").Group, "children"> & { children: [${childTypes}] }`;
+      const nameSet = new Set<string>();
+      for (const node of raw) collectNames(node, nameSet);
+      const namesType =
+        nameSet.size > 0
+          ? Array.from(nameSet)
+              .map((n) => JSON.stringify(n))
+              .join(" | ")
+          : "never";
+      entries.push(
+        `    ${JSON.stringify(name)}: { root: ${rootType}; names: ${namesType} };`,
+      );
     } catch {
-      entries.push(`    ${JSON.stringify(name)}: import("three").Group;`);
+      entries.push(`    ${JSON.stringify(name)}: { root: import("three").Group; names: never };`);
     }
   }
   const body = entries.length > 0 ? entries.join("\n") : "";

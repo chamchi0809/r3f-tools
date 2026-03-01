@@ -5,7 +5,7 @@ function App() {
   return (
     <Canvas>
       <ambientLight />
-      <Prefab id="1234" ref={(el) => console.log(el?.children[0])} />
+      <Prefab id="1234" ref={(el) => console.log(el?.typedFind("door5-5"))} />
     </Canvas>
   );
 }

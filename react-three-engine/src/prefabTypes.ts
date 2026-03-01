@@ -6,21 +6,43 @@ import type * as THREE from "three";
  * `<Prefab id="..." ref={...} />`.
  *
  * Each key is a prefab file stem (e.g. `"test-prefab"`).
- * Each value is a `THREE.Group` subtype whose `children` tuple reflects the
- * root-level objects saved in the prefab file.
+ * Each value is an object with:
+ *   - `root`: a `THREE.Group` subtype whose `children` tuple reflects the
+ *     root-level objects saved in the prefab file.
+ *   - `names`: a string union of every named object in the prefab hierarchy.
  *
  * @example
  * // auto-generated prefabs/prefabs.d.ts
  * declare module "react-three-engine" {
  *   interface PrefabTypeRegistry {
- *     "test-prefab": import("three").Group & { children: [import("three").Mesh] };
+ *     "test-prefab": {
+ *       root: import("three").Group & { children: [import("three").Mesh] };
+ *       names: "Mesh";
+ *     };
  *   }
  * }
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface PrefabTypeRegistry {}
 
-/** Resolves the ref type for a given prefab id. Falls back to `THREE.Group`. */
-export type PrefabRef<K extends string> = K extends keyof PrefabTypeRegistry
-  ? PrefabTypeRegistry[K]
+/** Extracts the root Group type for a given prefab id. Falls back to `THREE.Group`. */
+export type PrefabRootType<K extends string> = K extends keyof PrefabTypeRegistry
+  ? PrefabTypeRegistry[K] extends { root: infer R }
+    ? R
+    : THREE.Group
   : THREE.Group;
+
+/** Extracts the object names union for a given prefab id. Falls back to `string`. */
+export type PrefabObjectNames<K extends string> = K extends keyof PrefabTypeRegistry
+  ? PrefabTypeRegistry[K] extends { names: infer N }
+    ? N
+    : string
+  : string;
+
+/** The ref handle exposed on `<Prefab>`. Extends the root Group type with find helpers. */
+export type PrefabRef<K extends string> = PrefabRootType<K> & {
+  /** Search the entire prefab hierarchy for an object with the given name. */
+  find(name: string): THREE.Object3D | undefined;
+  /** Like `find`, but the name is constrained to known object names in the prefab. */
+  typedFind(name: PrefabObjectNames<K>): THREE.Object3D | undefined;
+};

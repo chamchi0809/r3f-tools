@@ -46,20 +46,31 @@ export function Prefab<K extends keyof PrefabTypeRegistry & string>({
   ref,
   ...groupProps
 }: PrefabProps<K>): React.ReactElement | null;
-export function Prefab({ id, ref, ...groupProps }: PrefabProps<string>): React.ReactElement | null;
-export function Prefab({ id, ref, ...groupProps }: PrefabProps<string>): React.ReactElement | null {
+export function Prefab<K extends string>({ id, ref, ...groupProps }: PrefabProps<K>): React.ReactElement | null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function Prefab({ id, ref, ...groupProps }: PrefabProps<any>): React.ReactElement | null {
   const { apiBase, prefabUrls } = editorConfig;
   const [nodes, setNodes] = useState<SerializedObject[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const groupRef = useRef<THREE.Group>(null);
 
   useEffect(() => {
-    if (ref) {
-      if (typeof ref === "function") {
-        ref(groupRef.current as PrefabRef<string>);
-      } else {
-        (ref as React.MutableRefObject<THREE.Group | null>).current = groupRef.current;
-      }
+    if (!ref) return;
+    const group = groupRef.current;
+    const handle = group
+      ? Object.assign(group, {
+          find(name: string) {
+            return group.getObjectByName(name);
+          },
+          typedFind(name: string) {
+            return group.getObjectByName(name);
+          },
+        }) as PrefabRef<string>
+      : null;
+    if (typeof ref === "function") {
+      ref(handle);
+    } else {
+      (ref as React.MutableRefObject<PrefabRef<string> | null>).current = handle;
     }
   });
 
