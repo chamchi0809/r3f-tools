@@ -51,3 +51,4 @@ export {
   introspectMaterial,
   introspectGeometry,
 } from "./components/objectInspector";
+export { loadGltfFile } from "./gltfLoader";

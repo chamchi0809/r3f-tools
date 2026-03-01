@@ -86,6 +86,7 @@ export function SceneContent({
   const pendingAdd = useSceneStore((s) => s.pendingAdd);
   const pendingRemove = useSceneStore((s) => s.pendingRemove);
   const pendingDeserialize = useSceneStore((s) => s.pendingDeserialize);
+  const pendingGltf = useSceneStore((s) => s.pendingGltf);
   const selectedUUID = useSceneStore((s) => s.selectedUUID);
 
   useFrame(() => {});
@@ -162,6 +163,31 @@ export function SceneContent({
       addDeserializedSubtree(scene, serialized, scene, null);
     }
   }, [pendingDeserialize, scene]);
+
+  useEffect(() => {
+    if (!pendingGltf) return;
+    useSceneStore.getState().clearPendingGltf();
+    // Recursively register all GLTF scene objects into the store.
+    const registerGltfSubtree = (
+      obj: THREE.Object3D,
+      parentUUID: string | null,
+    ) => {
+      if (!obj.name) obj.name = obj.type;
+      // Detect kind for registration
+      let kind: import("../store/sceneStore").ObjectKind = "group";
+      if (obj instanceof THREE.Mesh) kind = "mesh";
+      else if (obj instanceof THREE.AmbientLight) kind = "ambientLight";
+      else if (obj instanceof THREE.DirectionalLight) kind = "directionalLight";
+      else if (obj instanceof THREE.PointLight) kind = "pointLight";
+      else if (obj instanceof THREE.PerspectiveCamera) kind = "perspectiveCamera";
+      useSceneStore.getState().registerObject(obj, kind, parentUUID);
+      for (const child of obj.children) {
+        registerGltfSubtree(child, obj.uuid);
+      }
+    };
+    scene.add(pendingGltf);
+    registerGltfSubtree(pendingGltf, null);
+  }, [pendingGltf, scene]);
 
   const selectedObj = selectedUUID
     ? (useSceneStore.getState().objects.get(selectedUUID) ?? null)

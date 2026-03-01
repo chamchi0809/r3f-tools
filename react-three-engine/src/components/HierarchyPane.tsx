@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { sceneActions, useSceneStore, type ObjectKind, type SceneNode } from "../store/sceneStore";
+import { loadGltfFile } from "../gltfLoader";
 import { btnStyle } from "../styles";
 import { getCustomObjectKinds } from "../customObjectRegistry";
 import { useModelingStore } from "../store/modelingStore";
@@ -126,6 +127,7 @@ export function HierarchyPane(): React.JSX.Element {
   const editorMode = useModelingStore((s) => s.editorMode);
   const isModeling = editorMode === "modeling";
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAdd = (kind: ObjectKind) => {
     if (isModeling) return;
@@ -137,6 +139,26 @@ export function HierarchyPane(): React.JSX.Element {
     if (isModeling || !selectedUUID) return;
     sceneActions.removeObject(selectedUUID);
   };
+
+  const handleImportGltf = () => {
+    if (isModeling) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset so the same file can be re-imported
+    e.target.value = "";
+    loadGltfFile(file)
+      .then((gltf) => {
+        sceneActions.addGltf(gltf.scene);
+      })
+      .catch((err: unknown) => {
+        console.error("[r3e] GLTF import failed:", err);
+      });
+  };
+
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -237,6 +259,24 @@ export function HierarchyPane(): React.JSX.Element {
         >
           🗑
         </button>
+        <button
+          onClick={handleImportGltf}
+          title="Import GLTF / GLB"
+          style={{
+            ...btnStyle,
+            opacity: isModeling ? 0.3 : 1,
+            cursor: isModeling ? "not-allowed" : "pointer",
+          }}
+        >
+          Import GLTF
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".gltf,.glb"
+          style={{ display: "none" }}
+          onChange={handleFileChange}
+        />
       </div>
       <div
         style={{ flex: 1, overflowY: "auto", padding: "4px 4px" }}

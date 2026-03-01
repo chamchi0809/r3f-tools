@@ -693,6 +693,7 @@ interface SceneState {
   } | null;
   pendingRemove: string | null;
   pendingDeserialize: SerializedObject[] | null;
+  pendingGltf: THREE.Object3D | null;
   invalidate: () => void;
   select: (uuid: string | null) => void;
   addObject: (kind: ObjectKind, parentUUID?: string | null) => void;
@@ -723,6 +724,9 @@ interface SceneState {
   deserialize: (nodes: SerializedObject[]) => void;
   setLightProps: (uuid: string, props: Partial<LightProps>) => void;
   setCameraProps: (uuid: string, props: Partial<CameraProps>) => void;
+  setCameraProps: (uuid: string, props: Partial<CameraProps>) => void;
+  addGltf: (root: THREE.Object3D) => void;
+  clearPendingGltf: () => void;
 }
 
 export function makeObject(kind: ObjectKind): THREE.Object3D {
@@ -867,6 +871,7 @@ export const useSceneStore: UseBoundStore<StoreApi<SceneState>> = create<SceneSt
     pendingAdd: null,
     pendingRemove: null,
     pendingDeserialize: null,
+    pendingGltf: null,
 
     invalidate: () => set((s) => ({ version: s.version + 1 })),
 
@@ -1060,6 +1065,12 @@ export const useSceneStore: UseBoundStore<StoreApi<SceneState>> = create<SceneSt
       obj.updateProjectionMatrix();
       invalidate();
     },
+
+    addGltf: (root) => {
+      set({ pendingGltf: root });
+    },
+
+    clearPendingGltf: () => set({ pendingGltf: null }),
   }),
 );
 
@@ -1089,6 +1100,12 @@ export const sceneActions: {
     position?: THREE.Vector3,
     parentUUID?: string | null,
   ) => void;
+  addGltf: (root: THREE.Object3D) => void;
+  addMeshWithGeometry: (
+    geo: THREE.BufferGeometry,
+    position?: THREE.Vector3,
+    parentUUID?: string | null,
+  ) => void;
 } = {
   addObject: (kind, parentUUID) => useSceneStore.getState().addObject(kind, parentUUID),
   addMeshWithGeometry: (geo, position, parentUUID) =>
@@ -1108,4 +1125,5 @@ export const sceneActions: {
   setLightProps: (uuid, props) => useSceneStore.getState().setLightProps(uuid, props),
   setCameraProps: (uuid, props) => useSceneStore.getState().setCameraProps(uuid, props),
   invalidate: () => useSceneStore.getState().invalidate(),
+  addGltf: (root) => useSceneStore.getState().addGltf(root),
 };
