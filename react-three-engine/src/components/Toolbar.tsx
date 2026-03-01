@@ -6,6 +6,7 @@ import {
   type EditorMode,
   type SelectionMode,
   type ModelingTransformMode,
+  type ModelingTool,
   type BrushType,
 } from "../store/modelingStore";
 
@@ -30,6 +31,11 @@ const MODELING_TRANSFORM_MODES: { mode: ModelingTransformMode; label: string; ho
   { mode: "translate", label: "Move", hotkey: "G" },
   { mode: "rotate", label: "Rotate", hotkey: "R" },
   { mode: "scale", label: "Scale", hotkey: "S" },
+];
+
+const MODELING_TOOLS: { tool: ModelingTool; label: string }[] = [
+  { tool: "select", label: "Select" },
+  { tool: "add", label: "Add" },
 ];
 
 const BRUSH_TYPES: { type: BrushType; label: string; disabled?: boolean }[] = [
@@ -132,6 +138,7 @@ export function EditorModeBar({
   const editorMode = useModelingStore((s) => s.editorMode);
   const selectionMode = useModelingStore((s) => s.selectionMode);
   const modelingTransformMode = useModelingStore((s) => s.transformMode);
+  const modelingTool = useModelingStore((s) => s.modelingTool);
   const brushType = useModelingStore((s) => s.brushType);
   const brushPhase = useModelingStore((s) => s.brushPhase);
   const brushPointCount = useModelingStore((s) => s.brushPointCount);
@@ -253,6 +260,39 @@ export function EditorModeBar({
               </button>
             ))}
           </div>
+
+          {/* Tool (Select / Add) — only in vertex mode */}
+          {selectionMode === "vertex" && (
+            <div
+              style={{
+                background: "#1e1e1ecc",
+                border: "1px solid #444",
+                borderRadius: 6,
+                display: "flex",
+                gap: 2,
+                padding: 3,
+                backdropFilter: "blur(4px)",
+              }}
+            >
+              {MODELING_TOOLS.map(({ tool, label }) => (
+                <button
+                  key={tool}
+                  onClick={() => modelingActions.setModelingTool(tool)}
+                  title={label}
+                  style={{
+                    ...btnStyle,
+                    background: modelingTool === tool ? "#2d7a5f" : "transparent",
+                    color: modelingTool === tool ? "#fff" : "#888",
+                    fontSize: 13,
+                    padding: "3px 10px",
+                    border: "none",
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Transform mode (G / R / S) */}
           <div

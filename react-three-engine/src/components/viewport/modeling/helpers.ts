@@ -82,6 +82,133 @@ export function selectedVertexIndices(
 }
 
 /**
+ * Split a triangle at a given edge, inserting a new vertex p at index pIdx.
+ * Preserves winding order. Returns two replacement triangles.
+ */
+export function splitTriangleAtEdge(
+  tri: [number, number, number],
+  a: number,
+  b: number,
+  pIdx: number,
+): [[number, number, number], [number, number, number]] {
+  const [v0, v1, v2] = tri;
+  if ((v0 === a && v1 === b) || (v0 === b && v1 === a)) {
+    const [from, to] = v0 === a ? [a, b] : [b, a];
+    return [[from, pIdx, v2], [pIdx, to, v2]];
+  } else if ((v1 === a && v2 === b) || (v1 === b && v2 === a)) {
+    const [from, to] = v1 === a ? [a, b] : [b, a];
+    return [[v0, from, pIdx], [v0, pIdx, to]];
+  } else {
+    // edge is v2–v0 in winding order
+    const [from, to] = v2 === a ? [a, b] : [b, a];
+    return [[to, v1, pIdx], [pIdx, v1, from]];
+  }
+}
+
+/**
+ * Insert a new vertex on edge (a, b) by projecting localPoint onto the edge segment.
+ * Every triangle sharing that edge is split into two.
+ */
+export function addVertexOnEdge(
+  geo: THREE.BufferGeometry,
+  a: number,
+  b: number,
+  localPoint: THREE.Vector3,
+): void {
+  const positions = getPositions(geo);
+  const indices = getIndices(geo);
+  if (!indices) return;
+
+  // Project localPoint onto the edge line segment
+  const pa = new THREE.Vector3(positions[a * 3], positions[a * 3 + 1], positions[a * 3 + 2]);
+  const pb = new THREE.Vector3(positions[b * 3], positions[b * 3 + 1], positions[b * 3 + 2]);
+  const edge = new THREE.Vector3().subVectors(pb, pa);
+  const t = Math.max(0.01, Math.min(0.99, localPoint.clone().sub(pa).dot(edge) / edge.lengthSq()));
+  const p = pa.clone().addScaledVector(edge, t);
+
+  // Append the new vertex
+  const pIdx = positions.length / 3;
+  const newPositions = new Float32Array(positions.length + 3);
+  newPositions.set(positions);
+  newPositions[positions.length] = p.x;
+  newPositions[positions.length + 1] = p.y;
+  newPositions[positions.length + 2] = p.z;
+
+  // Build co-located groups for a and b so split-vertex geometries
+  // (e.g. BoxGeometry) where each face has its own copy of the shared
+  // edge vertices are handled correctly. Without this, only the one
+  // face whose indices literally match a/b gets split; all other faces
+  // sharing the same geometric edge are left detached.
+  const eps2 = 1e-10;
+  const aGroup = new Set<number>([a]);
+  const bGroup = new Set<number>([b]);
+  for (let i = 0; i < newPositions.length / 3; i++) {
+    const ix = newPositions[i * 3], iy = newPositions[i * 3 + 1], iz = newPositions[i * 3 + 2];
+    const dax = ix - pa.x, day = iy - pa.y, daz = iz - pa.z;
+    if (dax * dax + day * day + daz * daz < eps2) aGroup.add(i);
+    const dbx = ix - pb.x, dby = iy - pb.y, dbz = iz - pb.z;
+    if (dbx * dbx + dby * dby + dbz * dbz < eps2) bGroup.add(i);
+  }
+
+  // Rebuild index buffer, splitting every triangle that contains any
+  // co-located pair of (a-group vertex, b-group vertex).
+  const newIndices: number[] = [];
+  for (let ti = 0; ti < indices.length; ti += 3) {
+    const v0 = indices[ti], v1 = indices[ti + 1], v2 = indices[ti + 2];
+    // Find which vertex in this triangle belongs to aGroup and which to bGroup
+    const vA = aGroup.has(v0) ? v0 : aGroup.has(v1) ? v1 : aGroup.has(v2) ? v2 : -1;
+    const vB = bGroup.has(v0) ? v0 : bGroup.has(v1) ? v1 : bGroup.has(v2) ? v2 : -1;
+    if (vA !== -1 && vB !== -1 && vA !== vB) {
+      const [t1, t2] = splitTriangleAtEdge([v0, v1, v2], vA, vB, pIdx);
+      newIndices.push(...t1, ...t2);
+    } else {
+      newIndices.push(v0, v1, v2);
+    }
+  }
+
+  geo.setIndex(new THREE.BufferAttribute(new Uint32Array(newIndices), 1));
+  flushPositions(geo, newPositions);
+}
+
+/**
+ * Insert a new vertex on a face by splitting the triangle into three (triangle fan).
+ */
+export function addVertexOnFace(
+  geo: THREE.BufferGeometry,
+  faceIdx: number,
+  localPoint: THREE.Vector3,
+): void {
+  const positions = getPositions(geo);
+  const indices = getIndices(geo);
+  if (!indices) return;
+
+  const a = indices[faceIdx * 3];
+  const b = indices[faceIdx * 3 + 1];
+  const c = indices[faceIdx * 3 + 2];
+
+  // Append the new vertex
+  const pIdx = positions.length / 3;
+  const newPositions = new Float32Array(positions.length + 3);
+  newPositions.set(positions);
+  newPositions[positions.length] = localPoint.x;
+  newPositions[positions.length + 1] = localPoint.y;
+  newPositions[positions.length + 2] = localPoint.z;
+
+  // Replace the target face with a triangle fan (a,b,p), (b,c,p), (c,a,p)
+  const newIndices: number[] = [];
+  for (let ti = 0; ti < indices.length; ti += 3) {
+    if (ti === faceIdx * 3) {
+      newIndices.push(a, b, pIdx, b, c, pIdx, c, a, pIdx);
+    } else {
+      newIndices.push(indices[ti], indices[ti + 1], indices[ti + 2]);
+    }
+  }
+
+  geo.setIndex(new THREE.BufferAttribute(new Uint32Array(newIndices), 1));
+  flushPositions(geo, newPositions);
+}
+
+/**
  * Expand a set of vertex indices to include ALL position-buffer entries that
  * are co-located (within epsilon) with any vertex already in the set.
  *

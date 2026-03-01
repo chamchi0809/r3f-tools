@@ -9,11 +9,17 @@ export function EdgeLines({
   selectedElements,
   selectionMode,
   onClick,
+  addMode = false,
+  onAddVertex,
+  onAddVertexHover,
 }: {
   mesh: THREE.Mesh;
   selectedElements: SelectedElement[];
   selectionMode: SelectionMode;
   onClick: (a: number, b: number, additive: boolean) => void;
+  addMode?: boolean;
+  onAddVertex?: (a: number, b: number, point: THREE.Vector3) => void;
+  onAddVertexHover?: (a: number, b: number, point: THREE.Vector3 | null) => void;
 }) {
   const positions = getPositions(mesh.geometry);
   const indices = getIndices(mesh.geometry);
@@ -118,7 +124,7 @@ export function EdgeLines({
     });
   }, [edgeSet, positions]);
 
-  if (selectionMode !== "edge") return null;
+  if (selectionMode !== "edge" && !addMode) return null;
 
   return (
     <>
@@ -134,8 +140,14 @@ export function EdgeLines({
           geometry={geo}
           onClick={(e) => {
             e.stopPropagation();
-            onClick(a, b, e.shiftKey);
+            if (addMode) {
+              onAddVertex?.(a, b, e.point);
+            } else {
+              onClick(a, b, e.shiftKey);
+            }
           }}
+          onPointerMove={addMode ? (e) => { e.stopPropagation(); onAddVertexHover?.(a, b, e.point); } : undefined}
+          onPointerLeave={addMode ? (e) => { e.stopPropagation(); onAddVertexHover?.(a, b, null); } : undefined}
         >
           <meshBasicMaterial visible={false} />
         </mesh>

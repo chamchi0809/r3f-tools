@@ -9,11 +9,17 @@ export function FaceOverlays({
   selectedElements,
   selectionMode,
   onClick,
+  addMode = false,
+  onAddVertex,
+  onAddVertexHover,
 }: {
   mesh: THREE.Mesh;
   selectedElements: SelectedElement[];
   selectionMode: SelectionMode;
   onClick: (faceIdx: number, additive: boolean) => void;
+  addMode?: boolean;
+  onAddVertex?: (faceIdx: number, point: THREE.Vector3) => void;
+  onAddVertexHover?: (faceIdx: number, point: THREE.Vector3 | null) => void;
 }) {
   const positions = getPositions(mesh.geometry);
   const indices = getIndices(mesh.geometry);
@@ -113,7 +119,7 @@ export function FaceOverlays({
     });
   }, [faces, positions]);
 
-  if (selectionMode !== "face") return null;
+  if (selectionMode !== "face" && !addMode) return null;
 
   return (
     <>
@@ -141,8 +147,14 @@ export function FaceOverlays({
           geometry={geo}
           onClick={(e) => {
             e.stopPropagation();
-            onClick(faceIdx, e.shiftKey);
+            if (addMode) {
+              onAddVertex?.(faceIdx, e.point);
+            } else {
+              onClick(faceIdx, e.shiftKey);
+            }
           }}
+          onPointerMove={addMode ? (e) => { e.stopPropagation(); onAddVertexHover?.(faceIdx, e.point); } : undefined}
+          onPointerLeave={addMode ? (e) => { e.stopPropagation(); onAddVertexHover?.(faceIdx, null); } : undefined}
         >
           <meshBasicMaterial visible={false} side={THREE.DoubleSide} />
         </mesh>

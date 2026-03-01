@@ -5,6 +5,7 @@ import { create } from "zustand";
 export type EditorMode = "object" | "modeling" | "brush";
 export type SelectionMode = "vertex" | "edge" | "face";
 export type ModelingTransformMode = "translate" | "rotate" | "scale";
+export type ModelingTool = "select" | "add";
 export type BrushType = "polygon" | "poly3d" | "cube" | "slope";
 
 /** A selected sub-element index within the active mesh's BufferGeometry. */
@@ -32,6 +33,8 @@ interface ModelingState {
   setEditorMode: (mode: EditorMode) => void;
   setSelectionMode: (mode: SelectionMode) => void;
   setTransformMode: (mode: ModelingTransformMode) => void;
+  modelingTool: ModelingTool;
+  setModelingTool: (tool: ModelingTool) => void;
   setBrushType: (type: BrushType) => void;
   setBrushPhase: (phase: 1 | 2) => void;
   setBrushPointCount: (count: number) => void;
@@ -45,6 +48,7 @@ export const useModelingStore = create<ModelingState>((set) => ({
   editorMode: "object",
   selectionMode: "vertex",
   transformMode: "translate",
+  modelingTool: "select",
   brushType: "polygon",
   brushPhase: 1,
   brushPointCount: 0,
@@ -55,6 +59,8 @@ export const useModelingStore = create<ModelingState>((set) => ({
   setSelectionMode: (mode) => set({ selectionMode: mode, selectedElements: [] }),
 
   setTransformMode: (mode) => set({ transformMode: mode }),
+
+  setModelingTool: (tool) => set({ modelingTool: tool }),
 
   setBrushType: (type) => set({ brushType: type, brushPhase: 1, brushPointCount: 0 }),
 
@@ -87,6 +93,7 @@ export const modelingActions = {
   setSelectionMode: (mode: SelectionMode) => useModelingStore.getState().setSelectionMode(mode),
   setTransformMode: (mode: ModelingTransformMode) =>
     useModelingStore.getState().setTransformMode(mode),
+  setModelingTool: (tool: ModelingTool) => useModelingStore.getState().setModelingTool(tool),
   setBrushType: (type: BrushType) => useModelingStore.getState().setBrushType(type),
   setBrushPhase: (phase: 1 | 2) => useModelingStore.getState().setBrushPhase(phase),
   setBrushPointCount: (count: number) => useModelingStore.getState().setBrushPointCount(count),

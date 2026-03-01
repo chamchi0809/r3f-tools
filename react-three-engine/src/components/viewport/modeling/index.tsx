@@ -13,13 +13,15 @@ import {
   useModelingStore,
   modelingActions,
 } from "../../../store/modelingStore";
-import { getPositions, getIndices, selectedVertexIndices, flushPositions } from "./helpers";
+import { getPositions, getIndices, selectedVertexIndices, flushPositions, addVertexOnEdge, addVertexOnFace } from "./helpers";
 import { BoundingBoxGizmo } from "./BoundingBoxGizmo";
 import { VertexHoverGizmo } from "./VertexHoverGizmo";
 import { VertexDots } from "./VertexDots";
 import { EdgeLines } from "./EdgeLines";
 import { FaceOverlays } from "./FaceOverlays";
 import { SelectionTransformGizmo } from "./SelectionTransformGizmo";
+import { AddVertexPreviewGizmo } from "./AddVertexPreviewGizmo";
+import type { AddVertexHitType } from "./AddVertexPreviewGizmo";
 
 export function ModelingOverlay(): React.JSX.Element | null {
   const selectedUUID = useSceneStore((s) => s.selectedUUID);
@@ -28,8 +30,10 @@ export function ModelingOverlay(): React.JSX.Element | null {
   const selectedElements = useModelingStore((s) => s.selectedElements);
   const selectionMode = useModelingStore((s) => s.selectionMode);
   const transformMode = useModelingStore((s) => s.transformMode);
+  const modelingTool = useModelingStore((s) => s.modelingTool);
   const [ctrlHeld, setCtrlHeld] = useState(false);
   const [hoveredVertexIdx, setHoveredVertexIdx] = useState<number | null>(null);
+  const [addVertexPreview, setAddVertexPreview] = useState<{ point: THREE.Vector3; hitType: AddVertexHitType } | null>(null);
 
   void version; // force re-render on geometry changes
 
@@ -169,6 +173,42 @@ export function ModelingOverlay(): React.JSX.Element | null {
     modelingActions.selectElement({ type: "face", index: faceIdx }, additive);
   }, []);
 
+  const addMode = modelingTool === "add" && selectionMode === "vertex";
+
+  const handleAddVertexOnEdge = useCallback(
+    (a: number, b: number, worldPoint: THREE.Vector3) => {
+      if (!mesh) return;
+      const localPoint = mesh.worldToLocal(worldPoint.clone());
+      addVertexOnEdge(mesh.geometry, a, b, localPoint);
+      sceneActions.invalidate();
+    },
+    [mesh],
+  );
+
+  const handleAddVertexOnFace = useCallback(
+    (faceIdx: number, worldPoint: THREE.Vector3) => {
+      if (!mesh) return;
+      const localPoint = mesh.worldToLocal(worldPoint.clone());
+      addVertexOnFace(mesh.geometry, faceIdx, localPoint);
+      sceneActions.invalidate();
+    },
+    [mesh],
+  );
+
+  const handleAddVertexEdgeHover = useCallback(
+    (_a: number, _b: number, point: THREE.Vector3 | null) => {
+      setAddVertexPreview(point ? { point, hitType: "edge" } : null);
+    },
+    [],
+  );
+
+  const handleAddVertexFaceHover = useCallback(
+    (_faceIdx: number, point: THREE.Vector3 | null) => {
+      setAddVertexPreview(point ? { point, hitType: "face" } : null);
+    },
+    [],
+  );
+
   if (!mesh) return null;
 
   return (
@@ -197,14 +237,27 @@ export function ModelingOverlay(): React.JSX.Element | null {
           selectedElements={selectedElements}
           selectionMode={selectionMode}
           onClick={handleEdgeClick}
+          addMode={addMode}
+          onAddVertex={handleAddVertexOnEdge}
+          onAddVertexHover={handleAddVertexEdgeHover}
         />
         <FaceOverlays
           mesh={mesh}
           selectedElements={selectedElements}
           selectionMode={selectionMode}
           onClick={handleFaceClick}
+          addMode={addMode}
+          onAddVertex={handleAddVertexOnFace}
+          onAddVertexHover={handleAddVertexFaceHover}
         />
       </group>
+      {/* Add-vertex preview gizmo — shows where new vertex will land + edge/face label */}
+      {addMode && addVertexPreview && (
+        <AddVertexPreviewGizmo
+          worldPoint={addVertexPreview.point}
+          hitType={addVertexPreview.hitType}
+        />
+      )}
       {selectedElements.length > 0 && (
         <SelectionTransformGizmo
           mesh={mesh}
