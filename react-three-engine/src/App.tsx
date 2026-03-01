@@ -11,7 +11,6 @@ import { SettingsPane } from "./components/SettingsPane";
 import { PrefabPanel } from "./components/PrefabPanel";
 import { SceneContent } from "./components/SceneContent";
 import { EditorModeBar, type TransformMode } from "./components/Toolbar";
-import { ModelingOverlay } from "./components/ModelingOverlay";
 
 import { useModelingStore } from "./store/modelingStore";
 import { sceneActions, useSceneStore } from "./store/sceneStore";
@@ -22,6 +21,7 @@ import {
   ViewportGizmoAnimator,
 } from "./components/ViewportGizmo";
 import { BrushOverlay } from "./components/viewport/brush";
+import { ModelingOverlay } from "./components/viewport/modeling";
 
 // Initialise the custom object registry as early as possible so that the
 // Hierarchy pane can show custom kinds as soon as the editor mounts.
