@@ -1,0 +1,9 @@
+export const SNAP_RADIUS_PX = 12; // pixels — snap to first vertex to close polygon
+export const FLOOR_Y = 0;
+export const POINT_COLOR = "#f0a020";
+export const LINE_COLOR = "#f0a020";
+export const PREVIEW_COLOR = "#ffffff";
+export const CLOSE_SNAP_COLOR = "#44ff88";
+export const EXTRUDE_PREVIEW_COLOR = "#5588ff";
+export const EXTRUDE_WIRE_COLOR = "#88aaff";
+export const HEIGHT_SENSITIVITY = 0.01; // world units per pixel of vertical mouse movement

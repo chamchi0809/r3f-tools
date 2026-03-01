@@ -12,12 +12,16 @@ import { PrefabPanel } from "./components/PrefabPanel";
 import { SceneContent } from "./components/SceneContent";
 import { EditorModeBar, type TransformMode } from "./components/Toolbar";
 import { ModelingOverlay } from "./components/ModelingOverlay";
-import { BrushOverlay } from "./components/BrushOverlay";
+
 import { useModelingStore } from "./store/modelingStore";
 import { sceneActions, useSceneStore } from "./store/sceneStore";
 import { initCustomObjectRegistry } from "./customObjectRegistry";
 import "./styles";
-import { ViewportGizmo, ViewportGizmoAnimator } from "./components/ViewportGizmo";
+import {
+  ViewportGizmo,
+  ViewportGizmoAnimator,
+} from "./components/ViewportGizmo";
+import { BrushOverlay } from "./components/viewport/brush";
 
 // Initialise the custom object registry as early as possible so that the
 // Hierarchy pane can show custom kinds as soon as the editor mounts.
@@ -25,7 +29,8 @@ void initCustomObjectRegistry();
 
 const Viewport = () => {
   const [transformDragging, setTransformDragging] = useState(false);
-  const [transformMode, setTransformMode] = useState<TransformMode>("translate");
+  const [transformMode, setTransformMode] =
+    useState<TransformMode>("translate");
   const editorMode = useModelingStore((s) => s.editorMode);
   const isModeling = editorMode === "modeling";
   const isBrush = editorMode === "brush";
@@ -68,7 +73,10 @@ const Viewport = () => {
         camera={{ position: [0, 2, 8], fov: 60 }}
         style={{ background: "#1a1a1a", cursor: "inherit" }}
       >
-        <ViewportGizmoAnimator controlsRef={controlsRef} cameraRef={cameraRef} />
+        <ViewportGizmoAnimator
+          controlsRef={controlsRef}
+          cameraRef={cameraRef}
+        />
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 8, 5]} intensity={1} />
         <gridHelper args={[20, 20, "#333", "#2a2a2a"]} />
@@ -80,10 +88,17 @@ const Viewport = () => {
         />
         {isModeling && <ModelingOverlay />}
         {isBrush && <BrushOverlay />}
-        <OrbitControls ref={controlsRef} makeDefault enabled={!transformDragging && !isBrush} />
+        <OrbitControls
+          ref={controlsRef}
+          makeDefault
+          enabled={!transformDragging && !isBrush}
+        />
       </Canvas>
       <ViewportGizmo cameraRef={cameraRef} controlsRef={controlsRef} />
-      <EditorModeBar transformMode={transformMode} setTransformMode={setTransformMode} />
+      <EditorModeBar
+        transformMode={transformMode}
+        setTransformMode={setTransformMode}
+      />
     </div>
   );
 };
