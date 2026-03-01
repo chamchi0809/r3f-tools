@@ -719,7 +719,10 @@ function CubeBrushOverlay(): React.JSX.Element {
 
       if (phase === 3) {
         const dy = extrudeStartYRef.current - sy; // upward = positive
-        setHeight(dy * HEIGHT_SENSITIVITY * 20);
+        let h = dy * HEIGHT_SENSITIVITY * 20;
+        const snap = useSettingsStore.getState().snap;
+        if (snap.enabled && e.ctrlKey) h = snapToGrid(h, snap.brushStep);
+        setHeight(h);
         return;
       }
 
@@ -1155,7 +1158,10 @@ function SlopeBrushOverlay(): React.JSX.Element {
       if (phase === 4) {
         // Height: vertical mouse movement from phase-start Y
         const dy = extrudeStartYRef.current - sy;
-        setHeight(dy * HEIGHT_SENSITIVITY * 20);
+        let h = dy * HEIGHT_SENSITIVITY * 20;
+        const snap = useSettingsStore.getState().snap;
+        if (snap.enabled && e.ctrlKey) h = snapToGrid(h, snap.brushStep);
+        setHeight(h);
         return;
       }
 
@@ -1434,7 +1440,10 @@ export function BrushOverlay(): React.JSX.Element | null {
       // Phase 2: compute height from vertical mouse movement
       if (extrudePoints !== null) {
         const dy = extrudeStartYRef.current - sy; // upward = positive
-        setExtrudeHeight(dy * HEIGHT_SENSITIVITY * 20);
+        let h = dy * HEIGHT_SENSITIVITY * 20;
+        const snap = useSettingsStore.getState().snap;
+        if (snap.enabled && e.ctrlKey) h = snapToGrid(h, snap.brushStep);
+        setExtrudeHeight(h);
         return;
       }
 
