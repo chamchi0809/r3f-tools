@@ -26,7 +26,7 @@ export type {
 } from "./store";
 export { TEXTURE_MAP_SLOTS } from "./store";
 export { Prefab, type PrefabProps } from "./components";
-export type { PrefabTypeRegistry, PrefabRef, PrefabRootType, PrefabObjectNames, PrefabTags } from "./prefabTypes";
+export type { PrefabTypeRegistry, PrefabRef, PrefabRootType, PrefabObjectNames, PrefabTags, PrefabTree, TreePaths } from "./prefabTypes";
 export type {
   CustomObjectKindRegistry,
   CustomObjectKind,

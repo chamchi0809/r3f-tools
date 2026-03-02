@@ -61,10 +61,20 @@ export function Prefab({ id, ref, ...groupProps }: PrefabProps<any>): React.Reac
     const handle = group
       ? Object.assign(group, {
         find(name: string) {
-          return group.getObjectByName(name);
+          return group.getObjectsByProperty("name", name);
         },
-        typedFind(name: string) {
-          return group.getObjectByName(name);
+        get(name: string) {
+          return group.getObjectsByProperty("name", name);
+        },
+        treeGet(path: string) {
+          const segments = path.split(".");
+          let current: THREE.Object3D = group;
+          for (const segment of segments) {
+            const next = current.children.find((c) => c.name === segment);
+            if (!next) return undefined;
+            current = next;
+          }
+          return current === group ? undefined : current;
         },
         findWithTag(tag: string) {
           const objectTags = useTagStore.getState().objectTags;

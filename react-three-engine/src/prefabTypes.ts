@@ -10,6 +10,9 @@ import type * as THREE from "three";
  *   - `root`: a `THREE.Group` subtype whose `children` tuple reflects the
  *     root-level objects saved in the prefab file.
  *   - `names`: a string union of every named object in the prefab hierarchy.
+ *   - `tags`: a string union of every tag used in the prefab hierarchy.
+ *   - `tree`: a nested object type reflecting the hierarchy, used to derive
+ *     dot-separated path autocompletion for `treeGet`.
  *
  * @example
  * // auto-generated prefabs/prefabs.d.ts
@@ -18,6 +21,8 @@ import type * as THREE from "three";
  *     "test-prefab": {
  *       root: import("three").Group & { children: [import("three").Mesh] };
  *       names: "Mesh";
+ *       tags: never;
+ *       tree: { Parent: { Child: {}; Child2: {} } };
  *     };
  *   }
  * }
@@ -46,12 +51,47 @@ export type PrefabTags<K extends string> = K extends keyof PrefabTypeRegistry
     : string
   : string;
 
+/** Extracts the tree type for a given prefab id. Falls back to `Record<string, unknown>`. */
+export type PrefabTree<K extends string> = K extends keyof PrefabTypeRegistry
+  ? PrefabTypeRegistry[K] extends { tree: infer T }
+    ? T
+    : Record<string, unknown>
+  : Record<string, unknown>;
+
+/**
+ * Derives all valid dot-separated paths from a nested tree type.
+ *
+ * Given `{ Parent: { Child: {}; Child2: {} } }` produces:
+ *   `"Parent" | "Parent.Child" | "Parent.Child2"`
+ */
+export type TreePaths<T> = T extends Record<string, unknown>
+  ? {
+      [K in keyof T & string]:
+        | K
+        | (TreePaths<T[K]> extends infer P
+            ? P extends string
+              ? `${K}.${P}`
+              : never
+            : never);
+    }[keyof T & string]
+  : never;
+
 /** The ref handle exposed on `<Prefab>`. Extends the root Group type with find helpers. */
 export type PrefabRef<K extends string> = PrefabRootType<K> & {
-  /** Search the entire prefab hierarchy for an object with the given name. */
-  find(name: string): THREE.Object3D | undefined;
+  /** Find all objects in the prefab hierarchy that match the given name. */
+  find(name: string): THREE.Object3D[];
   /** Like `find`, but the name is constrained to known object names in the prefab. */
-  typedFind(name: PrefabObjectNames<K>): THREE.Object3D | undefined;
+  get(name: PrefabObjectNames<K>): THREE.Object3D[];
+  /**
+   * Navigate the prefab hierarchy using a dot-separated path of node names.
+   * Returns the first object at the full path, or `undefined` if not found.
+   *
+   * @example
+   * ref.treeGet("Parent")          // → THREE.Object3D | undefined
+   * ref.treeGet("Parent.Child")    // → THREE.Object3D | undefined
+   * ref.treeGet("Parent.Child2")   // → THREE.Object3D | undefined
+   */
+  treeGet(path: TreePaths<PrefabTree<K>>): THREE.Object3D | undefined;
   /** Find all objects in the prefab hierarchy that have the given tag attached. */
   findWithTag(tag: PrefabTags<K>): THREE.Object3D[];
 };

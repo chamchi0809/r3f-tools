@@ -453,6 +453,21 @@ function collectNames(node: RawNode, out: Set<string>): void {
   if (node.name && node.name.trim() !== "") out.add(node.name);
   for (const child of node.children) collectNames(child, out);
 }
+
+/** Build a nested object type literal reflecting the hierarchy, e.g. `{ Parent: { Child: {}; Child2: {} } }` */
+function buildTreeType(nodes: RawNode[]): string {
+  function nodeToEntry(node: RawNode): string | null {
+    const name = node.name?.trim();
+    if (!name) return null;
+    const childEntries = node.children
+      .map(nodeToEntry)
+      .filter((e): e is string => e !== null);
+    const body = childEntries.length > 0 ? childEntries.join("; ") : "";
+    return `${JSON.stringify(name)}: { ${body} }`;
+  }
+  const entries = nodes.map(nodeToEntry).filter((e): e is string => e !== null);
+  return `{ ${entries.join("; ")} }`;
+}
 /** Recursively collect every non-empty tag from a node and its descendants. */
 function collectTags(node: RawNode, out: Set<string>): void {
   if (node.tags) {
@@ -493,11 +508,12 @@ function generatePrefabsDts(saveDir: string, ext: string): string {
               .map((t) => JSON.stringify(t))
               .join(" | ")
           : "never";
+      const treeType = buildTreeType(raw);
       entries.push(
-        `    ${JSON.stringify(name)}: { root: ${rootType}; names: ${namesType}; tags: ${tagsType} };`,
+        `    ${JSON.stringify(name)}: { root: ${rootType}; names: ${namesType}; tags: ${tagsType}; tree: ${treeType} };`,
       );
     } catch {
-      entries.push(`    ${JSON.stringify(name)}: { root: import("three").Group; names: never; tags: never };`);
+      entries.push(`    ${JSON.stringify(name)}: { root: import("three").Group; names: never; tags: never; tree: Record<never, never> };`);
     }
   }
   const body = entries.length > 0 ? entries.join("\n") : "";

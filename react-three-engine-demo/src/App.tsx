@@ -5,7 +5,10 @@ function App() {
   return (
     <Canvas>
       <ambientLight />
-      <Prefab id="1234" ref={(el) => console.log(el?.findWithTag("door"))} />
+      <Prefab
+        id="1234"
+        ref={(el) => console.log(el?.treeGet("Scene.door1-1"))}
+      />
     </Canvas>
   );
 }
