@@ -40,13 +40,10 @@ const MODELING_TOOLS_VERTEX: { tool: ModelingTool; label: string }[] = [
 
 const MODELING_TOOLS_EDGE: { tool: ModelingTool; label: string }[] = [
   { tool: "select", label: "Select" },
-  { tool: "bevel", label: "Bevel" },
 ];
 
 const MODELING_TOOLS_FACE: { tool: ModelingTool; label: string }[] = [
   { tool: "select", label: "Select" },
-  { tool: "bevel", label: "Bevel" },
-  { tool: "extrude", label: "Extrude" },
 ];
 
 const BRUSH_TYPES: { type: BrushType; label: string; disabled?: boolean }[] = [
@@ -163,8 +160,9 @@ export function EditorModeBar({
   const selectionMode = useModelingStore((s) => s.selectionMode);
   const modelingTransformMode = useModelingStore((s) => s.transformMode);
   const modelingTool = useModelingStore((s) => s.modelingTool);
+  const selectedElements = useModelingStore((s) => s.selectedElements);
   const bevelAmount = useModelingStore((s) => s.bevelAmount);
-  const extrudeAmount = useModelingStore((s) => s.extrudeAmount);
+  const extrudeInteractive = useModelingStore((s) => s.extrudeInteractive);
   const brushType = useModelingStore((s) => s.brushType);
   const brushPhase = useModelingStore((s) => s.brushPhase);
   const brushPointCount = useModelingStore((s) => s.brushPointCount);
@@ -294,7 +292,7 @@ export function EditorModeBar({
             ))}
           </div>
 
-          {/* Tool (Select / Add / Bevel) — varies by selection mode */}
+          {/* Tool (Select / Add) — varies by selection mode */}
           <div
             style={{
               background: "#1e1e1ecc",
@@ -325,12 +323,12 @@ export function EditorModeBar({
             ))}
           </div>
 
-          {/* Extrude amount slider — shown when extrude tool is active in face mode */}
-          {modelingTool === "extrude" && selectionMode === "face" && (
+          {/* Extrude button — shown in face mode, enabled when faces are selected */}
+          {selectionMode === "face" && (
             <div
               style={{
                 background: "#1e1e1ecc",
-                border: "1px solid #444",
+                border: `1px solid ${extrudeInteractive ? "#5588ff" : "#444"}`,
                 borderRadius: 6,
                 padding: "5px 10px",
                 backdropFilter: "blur(4px)",
@@ -339,37 +337,38 @@ export function EditorModeBar({
                 gap: 4,
               }}
             >
-              <span style={{ fontSize: 11, color: "#aaa", fontFamily: "monospace" }}>
-                Amount: {extrudeAmount.toFixed(3)}
-              </span>
-              <input
-                type="range"
-                min={-2}
-                max={2}
-                step={0.01}
-                value={extrudeAmount}
-                onChange={(e) => modelingActions.setExtrudeAmount(parseFloat(e.target.value))}
-                style={{ width: 120, cursor: "pointer" }}
-              />
-              <button
-                onClick={() => modelingActions.requestExtrude()}
-                style={{
-                  ...btnStyle,
-                  background: "#2d5fa6",
-                  color: "#fff",
-                  fontSize: 12,
-                  padding: "3px 10px",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                Apply  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "monospace" }}>[Ctrl+E]</span>
-              </button>
+              {extrudeInteractive ? (
+                <>
+                  <span style={{ fontSize: 11, color: "#88aaff", fontFamily: "monospace" }}>
+                    Move mouse up/down to set height
+                  </span>
+                  <span style={{ fontSize: 11, color: "#666", fontFamily: "monospace" }}>
+                    Click or Enter to confirm · Esc to cancel
+                  </span>
+                </>
+              ) : (
+                <button
+                  onClick={() => modelingActions.requestExtrude()}
+                  disabled={selectedElements.length === 0}
+                  style={{
+                    ...btnStyle,
+                    background: selectedElements.length > 0 ? "#2d5fa6" : "transparent",
+                    color: selectedElements.length > 0 ? "#fff" : "#555",
+                    fontSize: 12,
+                    padding: "3px 10px",
+                    border: "none",
+                    cursor: selectedElements.length > 0 ? "pointer" : "not-allowed",
+                    opacity: selectedElements.length > 0 ? 1 : 0.5,
+                  }}
+                >
+                  Extrude  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "monospace" }}>[Ctrl+E]</span>
+                </button>
+              )}
             </div>
           )}
 
-          {/* Bevel amount slider — shown when bevel tool is active in edge or face mode */}
-          {modelingTool === "bevel" && (selectionMode === "edge" || selectionMode === "face") && (
+          {/* Bevel controls — shown in edge or face mode, button enabled when elements are selected */}
+          {(selectionMode === "edge" || selectionMode === "face") && (
             <div
               style={{
                 background: "#1e1e1ecc",
@@ -396,17 +395,19 @@ export function EditorModeBar({
               />
               <button
                 onClick={() => modelingActions.requestBevel()}
+                disabled={selectedElements.length === 0}
                 style={{
                   ...btnStyle,
-                  background: "#2d5fa6",
-                  color: "#fff",
+                  background: selectedElements.length > 0 ? "#2d5fa6" : "transparent",
+                  color: selectedElements.length > 0 ? "#fff" : "#555",
                   fontSize: 12,
                   padding: "3px 10px",
                   border: "none",
-                  cursor: "pointer",
+                  cursor: selectedElements.length > 0 ? "pointer" : "not-allowed",
+                  opacity: selectedElements.length > 0 ? 1 : 0.5,
                 }}
               >
-                Apply  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "monospace" }}>[Ctrl+B]</span>
+                Bevel  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "monospace" }}>[Ctrl+B]</span>
               </button>
             </div>
           )}

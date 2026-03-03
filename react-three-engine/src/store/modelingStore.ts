@@ -34,6 +34,8 @@ interface ModelingState {
   bevelPending: boolean;
   extrudeAmount: number;
   extrudePending: boolean;
+  /** True while interactive mouse-driven extrude is in progress */
+  extrudeInteractive: boolean;
   setEditorMode: (mode: EditorMode) => void;
   setSelectionMode: (mode: SelectionMode) => void;
   setTransformMode: (mode: ModelingTransformMode) => void;
@@ -45,6 +47,7 @@ interface ModelingState {
   setExtrudeAmount: (amount: number) => void;
   requestExtrude: () => void;
   clearExtrudePending: () => void;
+  setExtrudeInteractive: (active: boolean) => void;
   setBrushType: (type: BrushType) => void;
   setBrushPhase: (phase: 1 | 2) => void;
   setBrushPointCount: (count: number) => void;
@@ -63,6 +66,7 @@ export const useModelingStore = create<ModelingState>((set) => ({
   bevelPending: false,
   extrudeAmount: 0.5,
   extrudePending: false,
+  extrudeInteractive: false,
   brushType: "polygon",
   brushPhase: 1,
   brushPointCount: 0,
@@ -84,9 +88,11 @@ export const useModelingStore = create<ModelingState>((set) => ({
 
   setExtrudeAmount: (amount) => set({ extrudeAmount: amount }),
 
-  requestExtrude: () => set({ extrudePending: true }),
+  requestExtrude: () => set({ extrudeInteractive: true }),
 
   clearExtrudePending: () => set({ extrudePending: false }),
+
+  setExtrudeInteractive: (active) => set({ extrudeInteractive: active }),
 
   setBrushType: (type) => set({ brushType: type, brushPhase: 1, brushPointCount: 0 }),
 
@@ -126,6 +132,7 @@ export const modelingActions = {
   setExtrudeAmount: (amount: number) => useModelingStore.getState().setExtrudeAmount(amount),
   requestExtrude: () => useModelingStore.getState().requestExtrude(),
   clearExtrudePending: () => useModelingStore.getState().clearExtrudePending(),
+  setExtrudeInteractive: (active: boolean) => useModelingStore.getState().setExtrudeInteractive(active),
   setBrushType: (type: BrushType) => useModelingStore.getState().setBrushType(type),
   setBrushPhase: (phase: 1 | 2) => useModelingStore.getState().setBrushPhase(phase),
   setBrushPointCount: (count: number) => useModelingStore.getState().setBrushPointCount(count),

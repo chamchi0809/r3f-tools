@@ -15,6 +15,7 @@ import {
   type SelectedElement,
 } from "../../../store/modelingStore";
 import { getPositions, getIndices, selectedVertexIndices, flushPositions, addVertexOnEdge, addVertexOnFace, bevelEdge, bevelFace, bevelQuadFace, extrudeFace, extrudeQuadFace, groupFacesIntoPolygons, findQuadPartner } from "./helpers";
+import { ExtrudeInteractiveGizmo } from "./ExtrudeInteractiveGizmo";
 import { BoundingBoxGizmo } from "./BoundingBoxGizmo";
 import { VertexHoverGizmo } from "./VertexHoverGizmo";
 import { VertexDots } from "./VertexDots";
@@ -34,6 +35,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
   const modelingTool = useModelingStore((s) => s.modelingTool);
   const bevelPending = useModelingStore((s) => s.bevelPending);
   const extrudePending = useModelingStore((s) => s.extrudePending);
+  const extrudeInteractive = useModelingStore((s) => s.extrudeInteractive);
   const [ctrlHeld, setCtrlHeld] = useState(false);
   const [hoveredVertexIdx, setHoveredVertexIdx] = useState<number | null>(null);
   const [addVertexPreview, setAddVertexPreview] = useState<{ point: THREE.Vector3; hitType: AddVertexHitType } | null>(null);
@@ -286,6 +288,40 @@ export function ModelingOverlay(): React.JSX.Element | null {
     }
   }, [mesh]);
 
+  // ── Interactive extrude commit / cancel ────────────────────────────────────
+  const handleExtrudeCommit = useCallback(
+    (amount: number) => {
+      modelingActions.setExtrudeInteractive(false);
+      if (!mesh) return;
+      const mState = useModelingStore.getState();
+      const faces = mState.selectedElements.filter((el) => el.type === "face");
+      if (faces.length === 0) return;
+      const polygons = groupFacesIntoPolygons(
+        faces.map((el) => el.index),
+        mesh.geometry,
+      );
+      polygons.sort((a, b) => {
+        const aMin = a.kind === "quad" ? Math.min(a.faceIdxA, a.faceIdxB) : a.faceIdx;
+        const bMin = b.kind === "quad" ? Math.min(b.faceIdxA, b.faceIdxB) : b.faceIdx;
+        return bMin - aMin;
+      });
+      for (const poly of polygons) {
+        if (poly.kind === "quad") {
+          extrudeQuadFace(mesh.geometry, poly.faceIdxA, poly.faceIdxB, amount);
+        } else {
+          extrudeFace(mesh.geometry, poly.faceIdx, amount);
+        }
+      }
+      modelingActions.clearSelection();
+      sceneActions.invalidate();
+    },
+    [mesh],
+  );
+
+  const handleExtrudeCancel = useCallback(() => {
+    modelingActions.setExtrudeInteractive(false);
+  }, []);
+
   const addMode = modelingTool === "add" && selectionMode === "vertex";
 
   const handleAddVertexOnEdge = useCallback(
@@ -371,7 +407,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
           hitType={addVertexPreview.hitType}
         />
       )}
-      {selectedElements.length > 0 && (
+      {selectedElements.length > 0 && !extrudeInteractive && (
         <SelectionTransformGizmo
           mesh={mesh}
           selectedElements={selectedElements}
@@ -379,6 +415,14 @@ export function ModelingOverlay(): React.JSX.Element | null {
           onTransformStart={handleTransformStart}
           onTransformEnd={handleTransformEnd}
           ctrlHeld={ctrlHeld}
+        />
+      )}
+      {extrudeInteractive && (
+        <ExtrudeInteractiveGizmo
+          mesh={mesh}
+          selectedElements={selectedElements}
+          onCommit={handleExtrudeCommit}
+          onCancel={handleExtrudeCancel}
         />
       )}
     </>
