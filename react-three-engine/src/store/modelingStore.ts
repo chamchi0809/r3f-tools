@@ -5,7 +5,7 @@ import { create } from "zustand";
 export type EditorMode = "object" | "modeling" | "brush";
 export type SelectionMode = "vertex" | "edge" | "face";
 export type ModelingTransformMode = "translate" | "rotate" | "scale";
-export type ModelingTool = "select" | "add";
+export type ModelingTool = "select" | "add" | "bevel";
 export type BrushType = "polygon" | "poly3d" | "cube" | "slope" | "stair";
 
 /** A selected sub-element index within the active mesh's BufferGeometry. */
@@ -30,11 +30,16 @@ interface ModelingState {
   /** Indices of selected sub-elements in the active mesh geometry */
   selectedElements: SelectedElement[];
 
+  bevelAmount: number;
+  bevelPending: boolean;
   setEditorMode: (mode: EditorMode) => void;
   setSelectionMode: (mode: SelectionMode) => void;
   setTransformMode: (mode: ModelingTransformMode) => void;
   modelingTool: ModelingTool;
   setModelingTool: (tool: ModelingTool) => void;
+  setBevelAmount: (amount: number) => void;
+  requestBevel: () => void;
+  clearBevelPending: () => void;
   setBrushType: (type: BrushType) => void;
   setBrushPhase: (phase: 1 | 2) => void;
   setBrushPointCount: (count: number) => void;
@@ -49,6 +54,8 @@ export const useModelingStore = create<ModelingState>((set) => ({
   selectionMode: "vertex",
   transformMode: "translate",
   modelingTool: "select",
+  bevelAmount: 0.1,
+  bevelPending: false,
   brushType: "polygon",
   brushPhase: 1,
   brushPointCount: 0,
@@ -56,11 +63,17 @@ export const useModelingStore = create<ModelingState>((set) => ({
 
   setEditorMode: (mode) => set({ editorMode: mode, selectedElements: [] }),
 
-  setSelectionMode: (mode) => set({ selectionMode: mode, selectedElements: [] }),
+  setSelectionMode: (mode) => set({ selectionMode: mode, selectedElements: [], modelingTool: "select" }),
 
   setTransformMode: (mode) => set({ transformMode: mode }),
 
   setModelingTool: (tool) => set({ modelingTool: tool }),
+
+  setBevelAmount: (amount) => set({ bevelAmount: amount }),
+
+  requestBevel: () => set({ bevelPending: true }),
+
+  clearBevelPending: () => set({ bevelPending: false }),
 
   setBrushType: (type) => set({ brushType: type, brushPhase: 1, brushPointCount: 0 }),
 
@@ -94,6 +107,9 @@ export const modelingActions = {
   setTransformMode: (mode: ModelingTransformMode) =>
     useModelingStore.getState().setTransformMode(mode),
   setModelingTool: (tool: ModelingTool) => useModelingStore.getState().setModelingTool(tool),
+  setBevelAmount: (amount: number) => useModelingStore.getState().setBevelAmount(amount),
+  requestBevel: () => useModelingStore.getState().requestBevel(),
+  clearBevelPending: () => useModelingStore.getState().clearBevelPending(),
   setBrushType: (type: BrushType) => useModelingStore.getState().setBrushType(type),
   setBrushPhase: (phase: 1 | 2) => useModelingStore.getState().setBrushPhase(phase),
   setBrushPointCount: (count: number) => useModelingStore.getState().setBrushPointCount(count),

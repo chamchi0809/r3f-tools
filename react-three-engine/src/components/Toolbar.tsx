@@ -33,9 +33,14 @@ const MODELING_TRANSFORM_MODES: { mode: ModelingTransformMode; label: string; ho
   { mode: "scale", label: "Scale", hotkey: "S" },
 ];
 
-const MODELING_TOOLS: { tool: ModelingTool; label: string }[] = [
+const MODELING_TOOLS_VERTEX: { tool: ModelingTool; label: string }[] = [
   { tool: "select", label: "Select" },
   { tool: "add", label: "Add" },
+];
+
+const MODELING_TOOLS_EDGE: { tool: ModelingTool; label: string }[] = [
+  { tool: "select", label: "Select" },
+  { tool: "bevel", label: "Bevel" },
 ];
 
 const BRUSH_TYPES: { type: BrushType; label: string; disabled?: boolean }[] = [
@@ -152,11 +157,19 @@ export function EditorModeBar({
   const selectionMode = useModelingStore((s) => s.selectionMode);
   const modelingTransformMode = useModelingStore((s) => s.transformMode);
   const modelingTool = useModelingStore((s) => s.modelingTool);
+  const bevelAmount = useModelingStore((s) => s.bevelAmount);
   const brushType = useModelingStore((s) => s.brushType);
   const brushPhase = useModelingStore((s) => s.brushPhase);
   const brushPointCount = useModelingStore((s) => s.brushPointCount);
   const isObject = editorMode === "object";
   const isModeling = editorMode === "modeling";
+
+  const activeTools =
+    selectionMode === "vertex"
+      ? MODELING_TOOLS_VERTEX
+      : selectionMode === "edge"
+        ? MODELING_TOOLS_EDGE
+        : [{ tool: "select" as ModelingTool, label: "Select" }];
   return (
     <div
       style={{
@@ -274,36 +287,77 @@ export function EditorModeBar({
             ))}
           </div>
 
-          {/* Tool (Select / Add) — only in vertex mode */}
-          {selectionMode === "vertex" && (
+          {/* Tool (Select / Add / Bevel) — varies by selection mode */}
+          <div
+            style={{
+              background: "#1e1e1ecc",
+              border: "1px solid #444",
+              borderRadius: 6,
+              display: "flex",
+              gap: 2,
+              padding: 3,
+              backdropFilter: "blur(4px)",
+            }}
+          >
+            {activeTools.map(({ tool, label }) => (
+              <button
+                key={tool}
+                onClick={() => modelingActions.setModelingTool(tool)}
+                title={label}
+                style={{
+                  ...btnStyle,
+                  background: modelingTool === tool ? "#2d7a5f" : "transparent",
+                  color: modelingTool === tool ? "#fff" : "#888",
+                  fontSize: 13,
+                  padding: "3px 10px",
+                  border: "none",
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Bevel amount slider — shown when bevel tool is active in edge mode */}
+          {modelingTool === "bevel" && selectionMode === "edge" && (
             <div
               style={{
                 background: "#1e1e1ecc",
                 border: "1px solid #444",
                 borderRadius: 6,
-                display: "flex",
-                gap: 2,
-                padding: 3,
+                padding: "5px 10px",
                 backdropFilter: "blur(4px)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
               }}
             >
-              {MODELING_TOOLS.map(({ tool, label }) => (
-                <button
-                  key={tool}
-                  onClick={() => modelingActions.setModelingTool(tool)}
-                  title={label}
-                  style={{
-                    ...btnStyle,
-                    background: modelingTool === tool ? "#2d7a5f" : "transparent",
-                    color: modelingTool === tool ? "#fff" : "#888",
-                    fontSize: 13,
-                    padding: "3px 10px",
-                    border: "none",
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
+              <span style={{ fontSize: 11, color: "#aaa", fontFamily: "monospace" }}>
+                Amount: {bevelAmount.toFixed(3)}
+              </span>
+              <input
+                type="range"
+                min={0.01}
+                max={1}
+                step={0.01}
+                value={bevelAmount}
+                onChange={(e) => modelingActions.setBevelAmount(parseFloat(e.target.value))}
+                style={{ width: 120, cursor: "pointer" }}
+              />
+              <button
+                onClick={() => modelingActions.requestBevel()}
+                style={{
+                  ...btnStyle,
+                  background: "#2d5fa6",
+                  color: "#fff",
+                  fontSize: 12,
+                  padding: "3px 10px",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Apply  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "monospace" }}>[Ctrl+B]</span>
+              </button>
             </div>
           )}
 

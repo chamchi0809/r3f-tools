@@ -209,6 +209,229 @@ export function addVertexOnFace(
 }
 
 /**
+ * Bevel an edge (a, b) by the given amount.
+ *
+ * Handles split-vertex geometries (e.g. BoxGeometry) by expanding edge
+ * endpoints to all co-located vertex copies, grouping adjacent triangles by
+ * face normal into two sides, and propagating the new vertex references to
+ * every triangle on each face.  A bevel strip quad and endpoint caps are then
+ * inserted to keep the mesh watertight.
+ */
+export function bevelEdge(
+  geo: THREE.BufferGeometry,
+  a: number,
+  b: number,
+  amount: number,
+): void {
+  const positions = getPositions(geo);
+  const indices = getIndices(geo);
+  if (!indices) return;
+
+  const pa = new THREE.Vector3(positions[a * 3], positions[a * 3 + 1], positions[a * 3 + 2]);
+  const pb = new THREE.Vector3(positions[b * 3], positions[b * 3 + 1], positions[b * 3 + 2]);
+  const abHat = new THREE.Vector3().subVectors(pb, pa).normalize();
+
+  // Expand to co-located vertex groups (handles split-vertex / per-face-normal geometries)
+  const aGroup = expandToColocated(new Set([a]), positions);
+  const bGroup = expandToColocated(new Set([b]), positions);
+
+  // Find all triangles that straddle this geometric edge (one vertex from each group)
+  type AdjTri = {
+    startIdx: number;
+    v: [number, number, number];
+    vA: number;
+    vB: number;
+    opp: number;
+    oppPos: THREE.Vector3;
+    faceNormal: THREE.Vector3;
+  };
+  const adjTris: AdjTri[] = [];
+  for (let i = 0; i < indices.length; i += 3) {
+    const v = [indices[i], indices[i + 1], indices[i + 2]] as [number, number, number];
+    const vA = v.find((x) => aGroup.has(x));
+    const vB = v.find((x) => bGroup.has(x));
+    if (vA === undefined || vB === undefined || vA === vB) continue;
+    const opp = v.find((x) => x !== vA && x !== vB)!;
+    const oppPos = new THREE.Vector3(positions[opp * 3], positions[opp * 3 + 1], positions[opp * 3 + 2]);
+    const p0 = new THREE.Vector3(positions[v[0] * 3], positions[v[0] * 3 + 1], positions[v[0] * 3 + 2]);
+    const p1 = new THREE.Vector3(positions[v[1] * 3], positions[v[1] * 3 + 1], positions[v[1] * 3 + 2]);
+    const p2 = new THREE.Vector3(positions[v[2] * 3], positions[v[2] * 3 + 1], positions[v[2] * 3 + 2]);
+    const faceNormal = new THREE.Vector3()
+      .crossVectors(new THREE.Vector3().subVectors(p1, p0), new THREE.Vector3().subVectors(p2, p0))
+      .normalize();
+    adjTris.push({ startIdx: i, v, vA, vB, opp, oppPos, faceNormal });
+  }
+  if (adjTris.length === 0) return;
+
+  // Group adjacent triangles into sides by face-normal similarity
+  // (each side = one face of the mesh bordering this geometric edge)
+  const SAME_FACE_DOT = 0.99;
+  type Side = {
+    tris: AdjTri[];
+    avgNormal: THREE.Vector3;
+    avgOppPos: THREE.Vector3;
+    perpDir: THREE.Vector3;
+    newA: number;
+    newB: number;
+  };
+  const sides: Side[] = [];
+  for (const tri of adjTris) {
+    let placed = false;
+    for (const side of sides) {
+      if (side.avgNormal.dot(tri.faceNormal) > SAME_FACE_DOT) {
+        side.tris.push(tri);
+        side.avgOppPos.add(tri.oppPos).multiplyScalar(0.5);
+        side.avgNormal.add(tri.faceNormal).normalize();
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      sides.push({
+        tris: [tri],
+        avgNormal: tri.faceNormal.clone(),
+        avgOppPos: tri.oppPos.clone(),
+        perpDir: new THREE.Vector3(),
+        newA: -1,
+        newB: -1,
+      });
+    }
+  }
+  if (sides.length === 0) return;
+
+  // Clamp amount so vertices don't overshoot the opposite edge
+  let maxAmount = Infinity;
+  for (const side of sides) {
+    const toOpp = new THREE.Vector3().subVectors(side.avgOppPos, pa);
+    const perpLen = toOpp.clone().sub(abHat.clone().multiplyScalar(toOpp.dot(abHat))).length();
+    maxAmount = Math.min(maxAmount, perpLen * 0.49);
+  }
+  const clampedAmount = Math.min(amount, maxAmount);
+
+  // Create one new vertex per side per endpoint
+  const newPositionsArr: number[] = Array.from(positions);
+  for (const side of sides) {
+    const toOpp = new THREE.Vector3().subVectors(side.avgOppPos, pa);
+    side.perpDir = toOpp
+      .clone()
+      .sub(abHat.clone().multiplyScalar(toOpp.dot(abHat)))
+      .normalize();
+    const newAPos = pa.clone().addScaledVector(side.perpDir, clampedAmount);
+    const newBPos = pb.clone().addScaledVector(side.perpDir, clampedAmount);
+    side.newA = newPositionsArr.length / 3;
+    newPositionsArr.push(newAPos.x, newAPos.y, newAPos.z);
+    side.newB = newPositionsArr.length / 3;
+    newPositionsArr.push(newBPos.x, newBPos.y, newBPos.z);
+  }
+
+  // Map from triangle start index → its side
+  const triSideMap = new Map<number, Side>();
+  for (const side of sides) {
+    for (const tri of side.tris) triSideMap.set(tri.startIdx, side);
+  }
+
+  // Helper: find closest side for a triangle by face normal (returns null if none close enough)
+  const findSide = (faceNormal: THREE.Vector3): Side | null => {
+    let best: Side | null = null;
+    let bestDot = SAME_FACE_DOT;
+    for (const side of sides) {
+      const d = side.avgNormal.dot(faceNormal);
+      if (d > bestDot) { bestDot = d; best = side; }
+    }
+    return best;
+  };
+
+  // Rebuild index buffer
+  const newIndices: number[] = [];
+  for (let i = 0; i < indices.length; i += 3) {
+    const v = [indices[i], indices[i + 1], indices[i + 2]];
+    const hasA = v.some((x) => aGroup.has(x));
+    const hasB = v.some((x) => bGroup.has(x));
+
+    if (!hasA && !hasB) {
+      newIndices.push(...v);
+      continue;
+    }
+
+    // Determine the bevel side for this triangle
+    let side: Side | null = triSideMap.get(i) ?? null;
+
+    if (!side) {
+      // Not a direct edge triangle — find side by face normal
+      const p0 = new THREE.Vector3(positions[v[0] * 3], positions[v[0] * 3 + 1], positions[v[0] * 3 + 2]);
+      const p1 = new THREE.Vector3(positions[v[1] * 3], positions[v[1] * 3 + 1], positions[v[1] * 3 + 2]);
+      const p2 = new THREE.Vector3(positions[v[2] * 3], positions[v[2] * 3 + 1], positions[v[2] * 3 + 2]);
+      const fn = new THREE.Vector3()
+        .crossVectors(new THREE.Vector3().subVectors(p1, p0), new THREE.Vector3().subVectors(p2, p0))
+        .normalize();
+      side = findSide(fn);
+    }
+
+    if (!side) {
+      // Perpendicular face sharing only a corner: leave untouched
+      newIndices.push(...v);
+      continue;
+    }
+
+    // Replace aGroup → side.newA, bGroup → side.newB
+    newIndices.push(...v.map((x) => {
+      if (aGroup.has(x)) return side!.newA;
+      if (bGroup.has(x)) return side!.newB;
+      return x;
+    }));
+  }
+
+  // Bevel strip + endpoint caps (requires exactly 2 sides for a manifold edge)
+  if (sides.length >= 2) {
+    const [s0, s1] = sides;
+    const a1 = s0.newA, b1 = s0.newB, a2 = s1.newA, b2 = s1.newB;
+
+    const pa1 = new THREE.Vector3(newPositionsArr[a1 * 3], newPositionsArr[a1 * 3 + 1], newPositionsArr[a1 * 3 + 2]);
+    const pb1 = new THREE.Vector3(newPositionsArr[b1 * 3], newPositionsArr[b1 * 3 + 1], newPositionsArr[b1 * 3 + 2]);
+    const pa2 = new THREE.Vector3(newPositionsArr[a2 * 3], newPositionsArr[a2 * 3 + 1], newPositionsArr[a2 * 3 + 2]);
+    const pb2 = new THREE.Vector3(newPositionsArr[b2 * 3], newPositionsArr[b2 * 3 + 1], newPositionsArr[b2 * 3 + 2]);
+
+    // Strip: desired outward normal = negate of average inset perpDirs
+    const desiredStripNorm = s0.perpDir.clone().add(s1.perpDir).negate().normalize();
+    const stripNorm = new THREE.Vector3().crossVectors(
+      new THREE.Vector3().subVectors(pb1, pa1),
+      new THREE.Vector3().subVectors(pa2, pa1),
+    );
+    if (stripNorm.dot(desiredStripNorm) >= 0) {
+      newIndices.push(a1, b1, b2, a1, b2, a2);
+    } else {
+      newIndices.push(a1, a2, b2, a1, b2, b1);
+    }
+
+    // Cap at a — desired normal along −abHat (away from b)
+    const capANorm = new THREE.Vector3().crossVectors(
+      new THREE.Vector3().subVectors(pa1, pa),
+      new THREE.Vector3().subVectors(pa2, pa),
+    );
+    if (capANorm.dot(abHat.clone().negate()) >= 0) {
+      newIndices.push(a, a1, a2);
+    } else {
+      newIndices.push(a, a2, a1);
+    }
+
+    // Cap at b — desired normal along +abHat (away from a)
+    const capBNorm = new THREE.Vector3().crossVectors(
+      new THREE.Vector3().subVectors(pb1, pb),
+      new THREE.Vector3().subVectors(pb2, pb),
+    );
+    if (capBNorm.dot(abHat) >= 0) {
+      newIndices.push(b, b1, b2);
+    } else {
+      newIndices.push(b, b2, b1);
+    }
+
+  }
+
+  geo.setIndex(new THREE.BufferAttribute(new Uint32Array(newIndices), 1));
+  flushPositions(geo, new Float32Array(newPositionsArr));
+}
+
+/**
  * Expand a set of vertex indices to include ALL position-buffer entries that
  * are co-located (within epsilon) with any vertex already in the set.
  *

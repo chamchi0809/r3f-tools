@@ -13,7 +13,7 @@ import {
   useModelingStore,
   modelingActions,
 } from "../../../store/modelingStore";
-import { getPositions, getIndices, selectedVertexIndices, flushPositions, addVertexOnEdge, addVertexOnFace } from "./helpers";
+import { getPositions, getIndices, selectedVertexIndices, flushPositions, addVertexOnEdge, addVertexOnFace, bevelEdge } from "./helpers";
 import { BoundingBoxGizmo } from "./BoundingBoxGizmo";
 import { VertexHoverGizmo } from "./VertexHoverGizmo";
 import { VertexDots } from "./VertexDots";
@@ -31,6 +31,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
   const selectionMode = useModelingStore((s) => s.selectionMode);
   const transformMode = useModelingStore((s) => s.transformMode);
   const modelingTool = useModelingStore((s) => s.modelingTool);
+  const bevelPending = useModelingStore((s) => s.bevelPending);
   const [ctrlHeld, setCtrlHeld] = useState(false);
   const [hoveredVertexIdx, setHoveredVertexIdx] = useState<number | null>(null);
   const [addVertexPreview, setAddVertexPreview] = useState<{ point: THREE.Vector3; hitType: AddVertexHitType } | null>(null);
@@ -53,6 +54,26 @@ export function ModelingOverlay(): React.JSX.Element | null {
     };
   }, []);
 
+  // Apply bevel when toolbar button is clicked (bevelPending flag)
+  useEffect(() => {
+    if (!bevelPending) return;
+    modelingActions.clearBevelPending();
+    const state = useSceneStore.getState();
+    const mState = useModelingStore.getState();
+    const selUUID = state.selectedUUID;
+    if (!selUUID) return;
+    const obj = state.objects.get(selUUID);
+    if (!(obj instanceof THREE.Mesh)) return;
+    const edges = mState.selectedElements.filter((el) => el.type === "edge");
+    if (edges.length === 0) return;
+    for (const el of edges) {
+      if (el.index2 === undefined) continue;
+      bevelEdge(obj.geometry, el.index, el.index2, mState.bevelAmount);
+    }
+    modelingActions.clearSelection();
+    sceneActions.invalidate();
+  }, [bevelPending]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -61,6 +82,23 @@ export function ModelingOverlay(): React.JSX.Element | null {
       if (e.key === "Tab") {
         e.preventDefault();
         modelingActions.setEditorMode("object");
+      } else if (e.ctrlKey && (e.key === "b" || e.key === "B")) {
+        // Ctrl+B — apply bevel to all selected edges
+        e.preventDefault();
+        const state = useSceneStore.getState();
+        const mState = useModelingStore.getState();
+        const selUUID = state.selectedUUID;
+        if (!selUUID) return;
+        const obj = state.objects.get(selUUID);
+        if (!(obj instanceof THREE.Mesh)) return;
+        const edges = mState.selectedElements.filter((el) => el.type === "edge");
+        if (edges.length === 0) return;
+        for (const el of edges) {
+          if (el.index2 === undefined) continue;
+          bevelEdge(obj.geometry, el.index, el.index2, mState.bevelAmount);
+        }
+        modelingActions.clearSelection();
+        sceneActions.invalidate();
       } else if (e.key === "g" || e.key === "G") {
         modelingActions.setTransformMode("translate");
       } else if (e.key === "r" || e.key === "R") {
