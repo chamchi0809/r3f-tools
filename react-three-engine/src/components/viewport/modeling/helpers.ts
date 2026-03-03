@@ -432,6 +432,155 @@ export function bevelEdge(
 }
 
 /**
+ * Bevel (inset) a face triangle by the given amount.
+ *
+ * Each vertex of the triangle is moved toward the face centroid by `amount`
+ * (clamped so it never overshoots the centroid).  The original triangle is
+ * replaced by:
+ *   - an inset inner triangle (a', b', c')
+ *   - three side quads connecting the original perimeter to the inset edges
+ */
+export function bevelFace(
+  geo: THREE.BufferGeometry,
+  faceIdx: number,
+  amount: number,
+): void {
+  const positions = getPositions(geo);
+  const indices = getIndices(geo);
+  if (!indices) return;
+
+  const a = indices[faceIdx * 3];
+  const b = indices[faceIdx * 3 + 1];
+  const c = indices[faceIdx * 3 + 2];
+
+  const pa = new THREE.Vector3(positions[a * 3], positions[a * 3 + 1], positions[a * 3 + 2]);
+  const pb = new THREE.Vector3(positions[b * 3], positions[b * 3 + 1], positions[b * 3 + 2]);
+  const pc = new THREE.Vector3(positions[c * 3], positions[c * 3 + 1], positions[c * 3 + 2]);
+
+  const centroid = new THREE.Vector3().addVectors(pa, pb).add(pc).multiplyScalar(1 / 3);
+
+  // Move each vertex toward the centroid by `amount`, clamped to 99% of the distance
+  const insetVertex = (p: THREE.Vector3): THREE.Vector3 => {
+    const toCenter = new THREE.Vector3().subVectors(centroid, p);
+    const dist = toCenter.length();
+    if (dist < 1e-6) return p.clone();
+    const t = Math.min(amount / dist, 0.99);
+    return p.clone().addScaledVector(toCenter, t);
+  };
+
+  const pa2 = insetVertex(pa);
+  const pb2 = insetVertex(pb);
+  const pc2 = insetVertex(pc);
+
+  // Append 3 new inset vertices (a', b', c')
+  const ai = positions.length / 3;
+  const bi = ai + 1;
+  const ci = ai + 2;
+  const newPositions = new Float32Array(positions.length + 9);
+  newPositions.set(positions);
+  newPositions[positions.length + 0] = pa2.x;
+  newPositions[positions.length + 1] = pa2.y;
+  newPositions[positions.length + 2] = pa2.z;
+  newPositions[positions.length + 3] = pb2.x;
+  newPositions[positions.length + 4] = pb2.y;
+  newPositions[positions.length + 5] = pb2.z;
+  newPositions[positions.length + 6] = pc2.x;
+  newPositions[positions.length + 7] = pc2.y;
+  newPositions[positions.length + 8] = pc2.z;
+
+  // Rebuild index buffer: replace the target face with inset + side quads
+  const newIndices: number[] = [];
+  for (let i = 0; i < indices.length; i += 3) {
+    if (i !== faceIdx * 3) {
+      newIndices.push(indices[i], indices[i + 1], indices[i + 2]);
+      continue;
+    }
+    // Inset triangle (preserves original CCW winding)
+    newIndices.push(ai, bi, ci);
+    // Side quads: for each edge x→y of the original face, pattern is (x, y, yi, x, yi, xi)
+    // This winding gives the same outward normal as the original face (verified analytically)
+    newIndices.push(a, b, bi, a, bi, ai);
+    newIndices.push(b, c, ci, b, ci, bi);
+    newIndices.push(c, a, ai, c, ai, ci);
+  }
+
+  geo.setIndex(new THREE.BufferAttribute(new Uint32Array(newIndices), 1));
+  flushPositions(geo, newPositions);
+}
+
+/**
+ * Find the "quad partner" triangle for a given face index.
+ *
+ * A quad in a triangulated mesh is two coplanar triangles that share a
+ * geometric edge (same XYZ positions, not necessarily the same buffer index —
+ * handles split-vertex geometries like BoxGeometry).
+ *
+ * Returns the face index of the partner triangle, or null if none is found.
+ */
+export function findQuadPartner(
+  geo: THREE.BufferGeometry,
+  faceIdx: number,
+  coplanarDotThreshold = 0.999,
+): number | null {
+  const positions = getPositions(geo);
+  const indices = getIndices(geo);
+  const faceCount = indices
+    ? Math.floor(indices.length / 3)
+    : Math.floor(positions.length / 9);
+
+  const getTriVerts = (fi: number): [THREE.Vector3, THREE.Vector3, THREE.Vector3] => {
+    if (indices) {
+      const a = indices[fi * 3], b = indices[fi * 3 + 1], c = indices[fi * 3 + 2];
+      return [
+        new THREE.Vector3(positions[a * 3], positions[a * 3 + 1], positions[a * 3 + 2]),
+        new THREE.Vector3(positions[b * 3], positions[b * 3 + 1], positions[b * 3 + 2]),
+        new THREE.Vector3(positions[c * 3], positions[c * 3 + 1], positions[c * 3 + 2]),
+      ];
+    }
+    const base = fi * 9;
+    return [
+      new THREE.Vector3(positions[base], positions[base + 1], positions[base + 2]),
+      new THREE.Vector3(positions[base + 3], positions[base + 4], positions[base + 5]),
+      new THREE.Vector3(positions[base + 6], positions[base + 7], positions[base + 8]),
+    ];
+  };
+
+  const getFaceNormal = (verts: [THREE.Vector3, THREE.Vector3, THREE.Vector3]): THREE.Vector3 =>
+    new THREE.Vector3()
+      .crossVectors(
+        new THREE.Vector3().subVectors(verts[1], verts[0]),
+        new THREE.Vector3().subVectors(verts[2], verts[0]),
+      )
+      .normalize();
+
+  const eps2 = 1e-8;
+  const samePos = (a: THREE.Vector3, b: THREE.Vector3): boolean => a.distanceToSquared(b) < eps2;
+
+  const targetVerts = getTriVerts(faceIdx);
+  const targetNormal = getFaceNormal(targetVerts);
+
+  for (let fi = 0; fi < faceCount; fi++) {
+    if (fi === faceIdx) continue;
+
+    const candidateVerts = getTriVerts(fi);
+    const candidateNormal = getFaceNormal(candidateVerts);
+
+    if (Math.abs(targetNormal.dot(candidateNormal)) < coplanarDotThreshold) continue;
+
+    let sharedCount = 0;
+    for (const tv of targetVerts) {
+      for (const cv of candidateVerts) {
+        if (samePos(tv, cv)) { sharedCount++; break; }
+      }
+    }
+
+    if (sharedCount === 2) return fi;
+  }
+
+  return null;
+}
+
+/**
  * Expand a set of vertex indices to include ALL position-buffer entries that
  * are co-located (within epsilon) with any vertex already in the set.
  *
@@ -468,4 +617,165 @@ export function expandToColocated(baseSet: Set<number>, positions: Float32Array,
     }
   }
   return expanded;
+}
+
+export type FacePolygon =
+  | { kind: "tri"; faceIdx: number }
+  | { kind: "quad"; faceIdxA: number; faceIdxB: number };
+
+export function groupFacesIntoPolygons(
+  faceIndices: number[],
+  geo: THREE.BufferGeometry,
+): FacePolygon[] {
+  const remaining = new Set(faceIndices);
+  const result: FacePolygon[] = [];
+
+  for (const fi of faceIndices) {
+    if (!remaining.has(fi)) continue;
+    remaining.delete(fi);
+
+    const partner = findQuadPartner(geo, fi);
+    if (partner !== null && remaining.has(partner)) {
+      remaining.delete(partner);
+      result.push({ kind: "quad", faceIdxA: fi, faceIdxB: partner });
+    } else {
+      result.push({ kind: "tri", faceIdx: fi });
+    }
+  }
+
+  return result;
+}
+
+export function bevelQuadFace(
+  geo: THREE.BufferGeometry,
+  faceIdxA: number,
+  faceIdxB: number,
+  amount: number,
+): void {
+  const positions = getPositions(geo);
+  const indices = getIndices(geo);
+  if (!indices) return;
+
+  const ia = [indices[faceIdxA * 3], indices[faceIdxA * 3 + 1], indices[faceIdxA * 3 + 2]];
+  const ib = [indices[faceIdxB * 3], indices[faceIdxB * 3 + 1], indices[faceIdxB * 3 + 2]];
+
+  const pos = (vi: number) =>
+    new THREE.Vector3(positions[vi * 3], positions[vi * 3 + 1], positions[vi * 3 + 2]);
+
+  const eps2 = 1e-8;
+  const samePos = (a: number, b: number) => pos(a).distanceToSquared(pos(b)) < eps2;
+
+  const sharedA: number[] = [];
+  const sharedB: number[] = [];
+  for (const va of ia) {
+    for (const vb of ib) {
+      if (samePos(va, vb)) { sharedA.push(va); sharedB.push(vb); break; }
+    }
+  }
+
+  if (sharedA.length !== 2) {
+    bevelFace(geo, faceIdxA, amount);
+    bevelFace(geo, faceIdxB, amount);
+    return;
+  }
+
+  const uniqueA = ia.filter((v) => !sharedA.includes(v));
+  const uniqueB = ib.filter((v) => !sharedB.includes(v));
+  if (uniqueA.length !== 1 || uniqueB.length !== 1) {
+    bevelFace(geo, faceIdxA, amount);
+    bevelFace(geo, faceIdxB, amount);
+    return;
+  }
+
+  const uA = uniqueA[0];
+  const uB = uniqueB[0];
+  const [s0, s1] = sharedA;
+
+  const puA = pos(uA), puB = pos(uB), ps0 = pos(s0), ps1 = pos(s1);
+
+  const faceNormalA = new THREE.Vector3()
+    .crossVectors(
+      new THREE.Vector3().subVectors(pos(ia[1]), pos(ia[0])),
+      new THREE.Vector3().subVectors(pos(ia[2]), pos(ia[0])),
+    )
+    .normalize();
+
+  // Order the 4 perimeter vertices CCW (matching faceNormalA winding).
+  // Start from uA, walk: uA → s0 → uB → s1 (or uA → s1 → uB → s0).
+  // Pick the ordering whose first cross product matches faceNormalA.
+  let ring: [number, number, number, number];
+  const crossTest = new THREE.Vector3()
+    .crossVectors(
+      new THREE.Vector3().subVectors(ps0, puA),
+      new THREE.Vector3().subVectors(puB, puA),
+    );
+  if (crossTest.dot(faceNormalA) >= 0) {
+    ring = [uA, s0, uB, s1];
+  } else {
+    ring = [uA, s1, uB, s0];
+  }
+
+  const ringPos = ring.map(pos);
+  const n = 4;
+
+  // Uniform inset via corner bisector: inward bisector = normalize(inPrev + inNext),
+  // scaled by amount / sin(θ/2) so perpendicular distance to both adjacent edges = amount.
+  const faceNormal = faceNormalA;
+  const insetPositions: THREE.Vector3[] = ringPos.map((p, i) => {
+    const prev = ringPos[(i + n - 1) % n];
+    const next = ringPos[(i + 1) % n];
+
+    const edgePrev = new THREE.Vector3().subVectors(p, prev).normalize();
+    const edgeNext = new THREE.Vector3().subVectors(next, p).normalize();
+
+    const inPrev = new THREE.Vector3().crossVectors(faceNormal, edgePrev).normalize();
+    const inNext = new THREE.Vector3().crossVectors(faceNormal, edgeNext).normalize();
+
+    const bisector = new THREE.Vector3().addVectors(inPrev, inNext);
+    const bisectorLen = bisector.length();
+    if (bisectorLen < 1e-6) return p.clone().addScaledVector(inPrev, amount);
+
+    bisector.divideScalar(bisectorLen);
+
+    const sinHalf = new THREE.Vector3().crossVectors(bisector, edgeNext).length();
+    const scale = sinHalf < 1e-6 ? amount : Math.min(amount / sinHalf, 0.49);
+
+    return p.clone().addScaledVector(bisector, scale);
+  });
+
+  const base = positions.length / 3;
+  const insetIdx = ring.map((_, i) => base + i);
+
+  const newPositions = new Float32Array(positions.length + n * 3);
+  newPositions.set(positions);
+  for (let i = 0; i < n; i++) {
+    newPositions[positions.length + i * 3 + 0] = insetPositions[i].x;
+    newPositions[positions.length + i * 3 + 1] = insetPositions[i].y;
+    newPositions[positions.length + i * 3 + 2] = insetPositions[i].z;
+  }
+
+  const faceSetA = faceIdxA * 3;
+  const faceSetB = faceIdxB * 3;
+
+  const newIndices: number[] = [];
+  for (let i = 0; i < indices.length; i += 3) {
+    if (i === faceSetA || i === faceSetB) continue;
+    newIndices.push(indices[i], indices[i + 1], indices[i + 2]);
+  }
+
+  const [ii0, ii1, ii2, ii3] = insetIdx;
+  newIndices.push(ii0, ii1, ii2);
+  newIndices.push(ii0, ii2, ii3);
+
+  for (let i = 0; i < n; i++) {
+    const o0 = ring[i];
+    const o1 = ring[(i + 1) % n];
+    const i0 = insetIdx[i];
+    const i1 = insetIdx[(i + 1) % n];
+    newIndices.push(o0, o1, i1);
+    newIndices.push(o0, i1, i0);
+  }
+
+  geo.setIndex(new THREE.BufferAttribute(new Uint32Array(newIndices), 1));
+  flushPositions(geo, newPositions);
 }

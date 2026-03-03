@@ -43,6 +43,11 @@ const MODELING_TOOLS_EDGE: { tool: ModelingTool; label: string }[] = [
   { tool: "bevel", label: "Bevel" },
 ];
 
+const MODELING_TOOLS_FACE: { tool: ModelingTool; label: string }[] = [
+  { tool: "select", label: "Select" },
+  { tool: "bevel", label: "Bevel" },
+];
+
 const BRUSH_TYPES: { type: BrushType; label: string; disabled?: boolean }[] = [
   { type: "polygon", label: "Polygon Brush" },
   { type: "poly3d", label: "Poly3D Brush" },
@@ -169,7 +174,7 @@ export function EditorModeBar({
       ? MODELING_TOOLS_VERTEX
       : selectionMode === "edge"
         ? MODELING_TOOLS_EDGE
-        : [{ tool: "select" as ModelingTool, label: "Select" }];
+        : MODELING_TOOLS_FACE;
   return (
     <div
       style={{
@@ -318,8 +323,8 @@ export function EditorModeBar({
             ))}
           </div>
 
-          {/* Bevel amount slider — shown when bevel tool is active in edge mode */}
-          {modelingTool === "bevel" && selectionMode === "edge" && (
+          {/* Bevel amount slider — shown when bevel tool is active in edge or face mode */}
+          {modelingTool === "bevel" && (selectionMode === "edge" || selectionMode === "face") && (
             <div
               style={{
                 background: "#1e1e1ecc",

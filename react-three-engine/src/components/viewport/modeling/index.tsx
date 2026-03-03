@@ -12,8 +12,9 @@ import { useSceneStore, sceneActions } from "../../../store/sceneStore";
 import {
   useModelingStore,
   modelingActions,
+  type SelectedElement,
 } from "../../../store/modelingStore";
-import { getPositions, getIndices, selectedVertexIndices, flushPositions, addVertexOnEdge, addVertexOnFace, bevelEdge } from "./helpers";
+import { getPositions, getIndices, selectedVertexIndices, flushPositions, addVertexOnEdge, addVertexOnFace, bevelEdge, bevelFace, bevelQuadFace, groupFacesIntoPolygons, findQuadPartner } from "./helpers";
 import { BoundingBoxGizmo } from "./BoundingBoxGizmo";
 import { VertexHoverGizmo } from "./VertexHoverGizmo";
 import { VertexDots } from "./VertexDots";
@@ -64,11 +65,24 @@ export function ModelingOverlay(): React.JSX.Element | null {
     if (!selUUID) return;
     const obj = state.objects.get(selUUID);
     if (!(obj instanceof THREE.Mesh)) return;
-    const edges = mState.selectedElements.filter((el) => el.type === "edge");
-    if (edges.length === 0) return;
-    for (const el of edges) {
-      if (el.index2 === undefined) continue;
-      bevelEdge(obj.geometry, el.index, el.index2, mState.bevelAmount);
+    if (mState.selectionMode === "face") {
+      const faces = mState.selectedElements.filter((el) => el.type === "face");
+      if (faces.length === 0) return;
+      const polygons = groupFacesIntoPolygons(faces.map((el) => el.index), obj.geometry);
+      for (const poly of polygons) {
+        if (poly.kind === "quad") {
+          bevelQuadFace(obj.geometry, poly.faceIdxA, poly.faceIdxB, mState.bevelAmount);
+        } else {
+          bevelFace(obj.geometry, poly.faceIdx, mState.bevelAmount);
+        }
+      }
+    } else {
+      const edges = mState.selectedElements.filter((el) => el.type === "edge");
+      if (edges.length === 0) return;
+      for (const el of edges) {
+        if (el.index2 === undefined) continue;
+        bevelEdge(obj.geometry, el.index, el.index2, mState.bevelAmount);
+      }
     }
     modelingActions.clearSelection();
     sceneActions.invalidate();
@@ -83,7 +97,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
         e.preventDefault();
         modelingActions.setEditorMode("object");
       } else if (e.ctrlKey && (e.key === "b" || e.key === "B")) {
-        // Ctrl+B — apply bevel to all selected edges
+        // Ctrl+B — apply bevel to all selected edges or faces
         e.preventDefault();
         const state = useSceneStore.getState();
         const mState = useModelingStore.getState();
@@ -91,11 +105,24 @@ export function ModelingOverlay(): React.JSX.Element | null {
         if (!selUUID) return;
         const obj = state.objects.get(selUUID);
         if (!(obj instanceof THREE.Mesh)) return;
-        const edges = mState.selectedElements.filter((el) => el.type === "edge");
-        if (edges.length === 0) return;
-        for (const el of edges) {
-          if (el.index2 === undefined) continue;
-          bevelEdge(obj.geometry, el.index, el.index2, mState.bevelAmount);
+        if (mState.selectionMode === "face") {
+          const faces = mState.selectedElements.filter((el) => el.type === "face");
+          if (faces.length === 0) return;
+          const polygons = groupFacesIntoPolygons(faces.map((el) => el.index), obj.geometry);
+          for (const poly of polygons) {
+            if (poly.kind === "quad") {
+              bevelQuadFace(obj.geometry, poly.faceIdxA, poly.faceIdxB, mState.bevelAmount);
+            } else {
+              bevelFace(obj.geometry, poly.faceIdx, mState.bevelAmount);
+            }
+          }
+        } else {
+          const edges = mState.selectedElements.filter((el) => el.type === "edge");
+          if (edges.length === 0) return;
+          for (const el of edges) {
+            if (el.index2 === undefined) continue;
+            bevelEdge(obj.geometry, el.index, el.index2, mState.bevelAmount);
+          }
         }
         modelingActions.clearSelection();
         sceneActions.invalidate();
@@ -208,8 +235,18 @@ export function ModelingOverlay(): React.JSX.Element | null {
   }, []);
 
   const handleFaceClick = useCallback((faceIdx: number, additive: boolean) => {
-    modelingActions.selectElement({ type: "face", index: faceIdx }, additive);
-  }, []);
+    if (!mesh) return;
+    const partnerIdx = findQuadPartner(mesh.geometry, faceIdx);
+    if (additive) {
+      modelingActions.selectElement({ type: "face", index: faceIdx }, true);
+      if (partnerIdx !== null) modelingActions.selectElement({ type: "face", index: partnerIdx }, true);
+    } else {
+      const elements: SelectedElement[] = [{ type: "face", index: faceIdx }];
+      if (partnerIdx !== null) elements.push({ type: "face", index: partnerIdx });
+      useModelingStore.getState().clearSelection();
+      for (const el of elements) modelingActions.selectElement(el, true);
+    }
+  }, [mesh]);
 
   const addMode = modelingTool === "add" && selectionMode === "vertex";
 
