@@ -46,6 +46,7 @@ const MODELING_TOOLS_EDGE: { tool: ModelingTool; label: string }[] = [
 const MODELING_TOOLS_FACE: { tool: ModelingTool; label: string }[] = [
   { tool: "select", label: "Select" },
   { tool: "bevel", label: "Bevel" },
+  { tool: "extrude", label: "Extrude" },
 ];
 
 const BRUSH_TYPES: { type: BrushType; label: string; disabled?: boolean }[] = [
@@ -163,6 +164,7 @@ export function EditorModeBar({
   const modelingTransformMode = useModelingStore((s) => s.transformMode);
   const modelingTool = useModelingStore((s) => s.modelingTool);
   const bevelAmount = useModelingStore((s) => s.bevelAmount);
+  const extrudeAmount = useModelingStore((s) => s.extrudeAmount);
   const brushType = useModelingStore((s) => s.brushType);
   const brushPhase = useModelingStore((s) => s.brushPhase);
   const brushPointCount = useModelingStore((s) => s.brushPointCount);
@@ -322,6 +324,49 @@ export function EditorModeBar({
               </button>
             ))}
           </div>
+
+          {/* Extrude amount slider — shown when extrude tool is active in face mode */}
+          {modelingTool === "extrude" && selectionMode === "face" && (
+            <div
+              style={{
+                background: "#1e1e1ecc",
+                border: "1px solid #444",
+                borderRadius: 6,
+                padding: "5px 10px",
+                backdropFilter: "blur(4px)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
+              <span style={{ fontSize: 11, color: "#aaa", fontFamily: "monospace" }}>
+                Amount: {extrudeAmount.toFixed(3)}
+              </span>
+              <input
+                type="range"
+                min={-2}
+                max={2}
+                step={0.01}
+                value={extrudeAmount}
+                onChange={(e) => modelingActions.setExtrudeAmount(parseFloat(e.target.value))}
+                style={{ width: 120, cursor: "pointer" }}
+              />
+              <button
+                onClick={() => modelingActions.requestExtrude()}
+                style={{
+                  ...btnStyle,
+                  background: "#2d5fa6",
+                  color: "#fff",
+                  fontSize: 12,
+                  padding: "3px 10px",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Apply  <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "monospace" }}>[Ctrl+E]</span>
+              </button>
+            </div>
+          )}
 
           {/* Bevel amount slider — shown when bevel tool is active in edge or face mode */}
           {modelingTool === "bevel" && (selectionMode === "edge" || selectionMode === "face") && (

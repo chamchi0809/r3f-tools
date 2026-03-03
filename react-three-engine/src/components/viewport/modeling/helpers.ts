@@ -619,6 +619,192 @@ export function expandToColocated(baseSet: Set<number>, positions: Float32Array,
   return expanded;
 }
 
+/**
+ * Extrude a single triangle face along its normal by the given amount.
+ *
+ * The original face is replaced by a top face (the extruded triangle) and
+ * three side quads that connect the base perimeter to the extruded face.
+ */
+export function extrudeFace(
+  geo: THREE.BufferGeometry,
+  faceIdx: number,
+  amount: number,
+): void {
+  const positions = getPositions(geo);
+  const indices = getIndices(geo);
+  if (!indices) return;
+  if (faceIdx * 3 + 2 >= indices.length) return;
+
+  const a = indices[faceIdx * 3];
+  const b = indices[faceIdx * 3 + 1];
+  const c = indices[faceIdx * 3 + 2];
+
+  const pa = new THREE.Vector3(positions[a * 3], positions[a * 3 + 1], positions[a * 3 + 2]);
+  const pb = new THREE.Vector3(positions[b * 3], positions[b * 3 + 1], positions[b * 3 + 2]);
+  const pc = new THREE.Vector3(positions[c * 3], positions[c * 3 + 1], positions[c * 3 + 2]);
+
+  const normal = new THREE.Vector3()
+    .crossVectors(new THREE.Vector3().subVectors(pb, pa), new THREE.Vector3().subVectors(pc, pa))
+    .normalize();
+
+  const pa2 = pa.clone().addScaledVector(normal, amount);
+  const pb2 = pb.clone().addScaledVector(normal, amount);
+  const pc2 = pc.clone().addScaledVector(normal, amount);
+
+  const ai = positions.length / 3;
+  const bi = ai + 1;
+  const ci = ai + 2;
+
+  const newPositions = new Float32Array(positions.length + 9);
+  newPositions.set(positions);
+  newPositions[positions.length + 0] = pa2.x;
+  newPositions[positions.length + 1] = pa2.y;
+  newPositions[positions.length + 2] = pa2.z;
+  newPositions[positions.length + 3] = pb2.x;
+  newPositions[positions.length + 4] = pb2.y;
+  newPositions[positions.length + 5] = pb2.z;
+  newPositions[positions.length + 6] = pc2.x;
+  newPositions[positions.length + 7] = pc2.y;
+  newPositions[positions.length + 8] = pc2.z;
+
+  const newIndices: number[] = [];
+  for (let i = 0; i < indices.length; i += 3) {
+    if (i !== faceIdx * 3) {
+      newIndices.push(indices[i], indices[i + 1], indices[i + 2]);
+      continue;
+    }
+    // Top face (same CCW winding = same outward normal)
+    newIndices.push(ai, bi, ci);
+    // Side quads: for each edge x→y, pattern (x, y, yi) + (xi, x, yi)
+    newIndices.push(a, b, bi, ai, a, bi);
+    newIndices.push(b, c, ci, bi, b, ci);
+    newIndices.push(c, a, ai, ci, c, ai);
+  }
+
+  geo.setIndex(new THREE.BufferAttribute(new Uint32Array(newIndices), 1));
+  flushPositions(geo, newPositions);
+}
+
+/**
+ * Extrude a quad face (two coplanar triangles) along its normal by the given amount.
+ *
+ * The original two triangles are replaced by a top quad face and four side quads.
+ */
+export function extrudeQuadFace(
+  geo: THREE.BufferGeometry,
+  faceIdxA: number,
+  faceIdxB: number,
+  amount: number,
+): void {
+  const positions = getPositions(geo);
+  const indices = getIndices(geo);
+  if (!indices) return;
+
+  const ia = [indices[faceIdxA * 3], indices[faceIdxA * 3 + 1], indices[faceIdxA * 3 + 2]];
+  const ib = [indices[faceIdxB * 3], indices[faceIdxB * 3 + 1], indices[faceIdxB * 3 + 2]];
+
+  const pos = (vi: number) =>
+    new THREE.Vector3(positions[vi * 3], positions[vi * 3 + 1], positions[vi * 3 + 2]);
+
+  const eps2 = 1e-8;
+  const samePos = (a: number, b: number) => pos(a).distanceToSquared(pos(b)) < eps2;
+
+  const sharedA: number[] = [];
+  const sharedB: number[] = [];
+  for (const va of ia) {
+    for (const vb of ib) {
+      if (samePos(va, vb)) { sharedA.push(va); sharedB.push(vb); break; }
+    }
+  }
+
+  if (sharedA.length !== 2) {
+    // Process higher index first so the first mutation doesn't shift the lower index
+    const [hi, lo] = faceIdxA > faceIdxB ? [faceIdxA, faceIdxB] : [faceIdxB, faceIdxA];
+    extrudeFace(geo, hi, amount);
+    extrudeFace(geo, lo, amount);
+    return;
+  }
+
+  const uniqueA = ia.filter((v) => !sharedA.includes(v));
+  const uniqueB = ib.filter((v) => !sharedB.includes(v));
+  if (uniqueA.length !== 1 || uniqueB.length !== 1) {
+    const [hi, lo] = faceIdxA > faceIdxB ? [faceIdxA, faceIdxB] : [faceIdxB, faceIdxA];
+    extrudeFace(geo, hi, amount);
+    extrudeFace(geo, lo, amount);
+    return;
+  }
+
+  const uA = uniqueA[0];
+  const uB = uniqueB[0];
+  const [s0, s1] = sharedA;
+
+  const puA = pos(uA), ps0 = pos(s0), ps1 = pos(s1);
+
+  const faceNormalA = new THREE.Vector3()
+    .crossVectors(
+      new THREE.Vector3().subVectors(pos(ia[1]), pos(ia[0])),
+      new THREE.Vector3().subVectors(pos(ia[2]), pos(ia[0])),
+    )
+    .normalize();
+
+  // Order the 4 ring vertices CCW when viewed from faceNormalA
+  let ring: [number, number, number, number];
+  const crossTest = new THREE.Vector3().crossVectors(
+    new THREE.Vector3().subVectors(ps0, puA),
+    new THREE.Vector3().subVectors(pos(uB), puA),
+  );
+  if (crossTest.dot(faceNormalA) >= 0) {
+    ring = [uA, s0, uB, s1];
+  } else {
+    ring = [uA, s1, uB, s0];
+  }
+
+  const n = 4;
+  const ringPos = ring.map(pos);
+
+  // Extrude each ring vertex along the face normal
+  const extrudedPos: THREE.Vector3[] = ringPos.map((p) =>
+    p.clone().addScaledVector(faceNormalA, amount),
+  );
+
+  const base = positions.length / 3;
+  const extIdx = ring.map((_, i) => base + i);
+
+  const newPositions = new Float32Array(positions.length + n * 3);
+  newPositions.set(positions);
+  for (let i = 0; i < n; i++) {
+    newPositions[positions.length + i * 3 + 0] = extrudedPos[i].x;
+    newPositions[positions.length + i * 3 + 1] = extrudedPos[i].y;
+    newPositions[positions.length + i * 3 + 2] = extrudedPos[i].z;
+  }
+
+  const faceSetA = faceIdxA * 3;
+  const faceSetB = faceIdxB * 3;
+
+  const newIndices: number[] = [];
+  for (let i = 0; i < indices.length; i += 3) {
+    if (i === faceSetA || i === faceSetB) continue;
+    newIndices.push(indices[i], indices[i + 1], indices[i + 2]);
+  }
+
+  // Top face (two triangles, same CCW winding as original)
+  const [ii0, ii1, ii2, ii3] = extIdx;
+  newIndices.push(ii0, ii1, ii2);
+  newIndices.push(ii0, ii2, ii3);
+
+  // Side quads: for each ring edge o_i→o_{i+1}, pattern (oi, oj, ej) + (ei, oi, ej)
+  for (let i = 0; i < n; i++) {
+    const oi = ring[i];
+    const oj = ring[(i + 1) % n];
+    const ei = extIdx[i];
+    const ej = extIdx[(i + 1) % n];
+    newIndices.push(oi, oj, ej, ei, oi, ej);
+  }
+
+  geo.setIndex(new THREE.BufferAttribute(new Uint32Array(newIndices), 1));
+  flushPositions(geo, newPositions);
+}
+
 export type FacePolygon =
   | { kind: "tri"; faceIdx: number }
   | { kind: "quad"; faceIdxA: number; faceIdxB: number };

@@ -5,7 +5,7 @@ import { create } from "zustand";
 export type EditorMode = "object" | "modeling" | "brush";
 export type SelectionMode = "vertex" | "edge" | "face";
 export type ModelingTransformMode = "translate" | "rotate" | "scale";
-export type ModelingTool = "select" | "add" | "bevel";
+export type ModelingTool = "select" | "add" | "bevel" | "extrude";
 export type BrushType = "polygon" | "poly3d" | "cube" | "slope" | "stair";
 
 /** A selected sub-element index within the active mesh's BufferGeometry. */
@@ -32,6 +32,8 @@ interface ModelingState {
 
   bevelAmount: number;
   bevelPending: boolean;
+  extrudeAmount: number;
+  extrudePending: boolean;
   setEditorMode: (mode: EditorMode) => void;
   setSelectionMode: (mode: SelectionMode) => void;
   setTransformMode: (mode: ModelingTransformMode) => void;
@@ -40,6 +42,9 @@ interface ModelingState {
   setBevelAmount: (amount: number) => void;
   requestBevel: () => void;
   clearBevelPending: () => void;
+  setExtrudeAmount: (amount: number) => void;
+  requestExtrude: () => void;
+  clearExtrudePending: () => void;
   setBrushType: (type: BrushType) => void;
   setBrushPhase: (phase: 1 | 2) => void;
   setBrushPointCount: (count: number) => void;
@@ -56,6 +61,8 @@ export const useModelingStore = create<ModelingState>((set) => ({
   modelingTool: "select",
   bevelAmount: 0.1,
   bevelPending: false,
+  extrudeAmount: 0.5,
+  extrudePending: false,
   brushType: "polygon",
   brushPhase: 1,
   brushPointCount: 0,
@@ -74,6 +81,12 @@ export const useModelingStore = create<ModelingState>((set) => ({
   requestBevel: () => set({ bevelPending: true }),
 
   clearBevelPending: () => set({ bevelPending: false }),
+
+  setExtrudeAmount: (amount) => set({ extrudeAmount: amount }),
+
+  requestExtrude: () => set({ extrudePending: true }),
+
+  clearExtrudePending: () => set({ extrudePending: false }),
 
   setBrushType: (type) => set({ brushType: type, brushPhase: 1, brushPointCount: 0 }),
 
@@ -110,6 +123,9 @@ export const modelingActions = {
   setBevelAmount: (amount: number) => useModelingStore.getState().setBevelAmount(amount),
   requestBevel: () => useModelingStore.getState().requestBevel(),
   clearBevelPending: () => useModelingStore.getState().clearBevelPending(),
+  setExtrudeAmount: (amount: number) => useModelingStore.getState().setExtrudeAmount(amount),
+  requestExtrude: () => useModelingStore.getState().requestExtrude(),
+  clearExtrudePending: () => useModelingStore.getState().clearExtrudePending(),
   setBrushType: (type: BrushType) => useModelingStore.getState().setBrushType(type),
   setBrushPhase: (phase: 1 | 2) => useModelingStore.getState().setBrushPhase(phase),
   setBrushPointCount: (count: number) => useModelingStore.getState().setBrushPointCount(count),

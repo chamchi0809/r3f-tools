@@ -14,7 +14,7 @@ import {
   modelingActions,
   type SelectedElement,
 } from "../../../store/modelingStore";
-import { getPositions, getIndices, selectedVertexIndices, flushPositions, addVertexOnEdge, addVertexOnFace, bevelEdge, bevelFace, bevelQuadFace, groupFacesIntoPolygons, findQuadPartner } from "./helpers";
+import { getPositions, getIndices, selectedVertexIndices, flushPositions, addVertexOnEdge, addVertexOnFace, bevelEdge, bevelFace, bevelQuadFace, extrudeFace, extrudeQuadFace, groupFacesIntoPolygons, findQuadPartner } from "./helpers";
 import { BoundingBoxGizmo } from "./BoundingBoxGizmo";
 import { VertexHoverGizmo } from "./VertexHoverGizmo";
 import { VertexDots } from "./VertexDots";
@@ -33,6 +33,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
   const transformMode = useModelingStore((s) => s.transformMode);
   const modelingTool = useModelingStore((s) => s.modelingTool);
   const bevelPending = useModelingStore((s) => s.bevelPending);
+  const extrudePending = useModelingStore((s) => s.extrudePending);
   const [ctrlHeld, setCtrlHeld] = useState(false);
   const [hoveredVertexIdx, setHoveredVertexIdx] = useState<number | null>(null);
   const [addVertexPreview, setAddVertexPreview] = useState<{ point: THREE.Vector3; hitType: AddVertexHitType } | null>(null);
@@ -88,6 +89,37 @@ export function ModelingOverlay(): React.JSX.Element | null {
     sceneActions.invalidate();
   }, [bevelPending]);
 
+  // Apply extrude when toolbar button is clicked (extrudePending flag)
+  useEffect(() => {
+    if (!extrudePending) return;
+    modelingActions.clearExtrudePending();
+    const state = useSceneStore.getState();
+    const mState = useModelingStore.getState();
+    const selUUID = state.selectedUUID;
+    if (!selUUID) return;
+    const obj = state.objects.get(selUUID);
+    if (!(obj instanceof THREE.Mesh)) return;
+    if (mState.selectionMode !== "face") return;
+    const faces = mState.selectedElements.filter((el) => el.type === "face");
+    if (faces.length === 0) return;
+    const polygons = groupFacesIntoPolygons(faces.map((el) => el.index), obj.geometry);
+    // Process in descending face-index order so earlier mutations don't corrupt later indices
+    polygons.sort((a, b) => {
+      const aMin = a.kind === "quad" ? Math.min(a.faceIdxA, a.faceIdxB) : a.faceIdx;
+      const bMin = b.kind === "quad" ? Math.min(b.faceIdxA, b.faceIdxB) : b.faceIdx;
+      return bMin - aMin;
+    });
+    for (const poly of polygons) {
+      if (poly.kind === "quad") {
+        extrudeQuadFace(obj.geometry, poly.faceIdxA, poly.faceIdxB, mState.extrudeAmount);
+      } else {
+        extrudeFace(obj.geometry, poly.faceIdx, mState.extrudeAmount);
+      }
+    }
+    modelingActions.clearSelection();
+    sceneActions.invalidate();
+  }, [extrudePending]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -126,6 +158,12 @@ export function ModelingOverlay(): React.JSX.Element | null {
         }
         modelingActions.clearSelection();
         sceneActions.invalidate();
+      } else if (e.ctrlKey && (e.key === "e" || e.key === "E")) {
+        // Ctrl+E — extrude selected faces
+        e.preventDefault();
+        if (useModelingStore.getState().selectionMode === "face") {
+          modelingActions.requestExtrude();
+        }
       } else if (e.key === "g" || e.key === "G") {
         modelingActions.setTransformMode("translate");
       } else if (e.key === "r" || e.key === "R") {
