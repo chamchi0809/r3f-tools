@@ -3,6 +3,7 @@ import * as THREE from "three/webgpu";
 export const VERTEX_RADIUS = 0.04;
 export const VERTEX_HIT_RADIUS = 0.12;           // invisible hit sphere — 3× visual for forgiving clicks
 export const VERTEX_SCREEN_HIT_PX = 24;          // screen-space hover threshold (pixels)
+export const VERTEX_SCREEN_VISUAL_PX = 5;        // target screen-space pixel radius for visual dots
 export const VERTEX_COLOR_DEFAULT = "#888888";
 export const VERTEX_COLOR_HOVERABLE = "#44aaff"; // within cursor reach but not yet clicked
 export const VERTEX_COLOR_SELECTED = "#f0a020";

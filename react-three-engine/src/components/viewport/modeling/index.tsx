@@ -6,7 +6,7 @@
  *   - TransformControls gizmo (translate/rotate/scale) on selection centroid
  *   - G/R/S hotkeys to switch transform mode; Tab exits to Object Mode
  */
-import React, { useEffect, useMemo, useCallback, useState } from "react";
+import React, { useEffect, useMemo, useCallback, useState, useRef } from "react";
 import * as THREE from "three/webgpu";
 import { useSceneStore, sceneActions } from "../../../store/sceneStore";
 import { historyActions } from "../../../store/historyStore";
@@ -39,7 +39,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
   const extrudePending = useModelingStore((s) => s.extrudePending);
   const extrudeInteractive = useModelingStore((s) => s.extrudeInteractive);
   const [ctrlHeld, setCtrlHeld] = useState(false);
-  const [hoveredVertexIdx, setHoveredVertexIdx] = useState<number | null>(null);
+  const hoverGizmoRef = useRef<{ pos: THREE.Vector3; isSelected: boolean } | null>(null);
   const [addVertexPreview, setAddVertexPreview] = useState<{ point: THREE.Vector3; hitType: AddVertexHitType } | null>(null);
 
   void version; // force re-render on geometry changes
@@ -301,22 +301,6 @@ export function ModelingOverlay(): React.JSX.Element | null {
     return entries;
   }, [objects]);
 
-  const handleVertexHover = useCallback((idx: number | null) => {
-    setHoveredVertexIdx(idx);
-  }, []);
-
-  // World-space position of the hovered vertex (for the gizmo rendered outside the local group)
-  const hoveredVertexWorldPos = useMemo(() => {
-    if (hoveredVertexIdx === null || !mesh) return null;
-    const positions = getPositions(mesh.geometry);
-    if (hoveredVertexIdx >= positions.length / 3) return null;
-    return new THREE.Vector3(
-      positions[hoveredVertexIdx * 3],
-      positions[hoveredVertexIdx * 3 + 1],
-      positions[hoveredVertexIdx * 3 + 2],
-    ).applyMatrix4(mesh.matrixWorld);
-  }, [hoveredVertexIdx, mesh, version]); // version ensures refresh after geometry edits
-
   const handleTransformStart = useCallback(() => {
     // Disable OrbitControls while dragging gizmo
     // (TransformControls fires stopPropagation on pointer events so OrbitControls
@@ -477,28 +461,22 @@ export function ModelingOverlay(): React.JSX.Element | null {
     <>
       {/* Selected-mesh-only gizmos */}
       {mesh && <BoundingBoxGizmo mesh={mesh} />}
-      {selectionMode === "vertex" && hoveredVertexWorldPos && (
-        <VertexHoverGizmo
-          position={hoveredVertexWorldPos}
-          isSelected={selectedElements.some(
-            (e) => e.type === "vertex" && e.index === hoveredVertexIdx,
-          )}
-        />
-      )}
+      {selectionMode === "vertex" && <VertexHoverGizmo stateRef={hoverGizmoRef} />}
 
       {/* Overlays for ALL meshes in scene */}
       {meshEntries.map(({ uuid, mesh: m }) => {
         const isActive = uuid === selectedUUID;
         const activeElements = isActive ? selectedElements : [];
         return (
-          <group key={uuid} matrixAutoUpdate={false} matrix={m.matrixWorld}>
-            <VertexDots
-              mesh={m}
-              selectedElements={activeElements}
-              selectionMode={selectionMode}
-              onHover={isActive ? handleVertexHover : () => {}}
-              onClick={(idx, additive) => handleVertexClick(uuid, idx, additive)}
-            />
+          <React.Fragment key={uuid}>
+          <VertexDots
+            mesh={m}
+            selectedElements={activeElements}
+            selectionMode={selectionMode}
+            hoverGizmoRef={isActive ? hoverGizmoRef : undefined}
+            onClick={(idx, additive) => handleVertexClick(uuid, idx, additive)}
+          />
+          <group matrixAutoUpdate={false} matrix={m.matrixWorld}>
             <EdgeLines
               mesh={m}
               selectedElements={activeElements}
@@ -518,6 +496,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
               onAddVertexHover={isActive ? handleAddVertexFaceHover : () => {}}
             />
           </group>
+          </React.Fragment>
         );
       })}
 
