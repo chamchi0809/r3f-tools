@@ -1,7 +1,9 @@
 import { TransformControls } from "@react-three/drei";
 import React, { useEffect, useMemo, useCallback, useRef } from "react";
 import * as THREE from "three/webgpu";
-import { sceneActions } from "../../../store/sceneStore";
+import { useSceneStore, sceneActions } from "../../../store/sceneStore";
+import { historyActions } from "../../../store/historyStore";
+import { GeometryEditCommand } from "../../../store/commands";
 import {
   modelingActions,
   type SelectedElement,
@@ -43,7 +45,7 @@ export function SelectionTransformGizmo({
   ctrlHeld: boolean;
 }) {
   const snap = useSettingsStore((s) => s.snap);
-  // We don't need useThree here — drei's TransformControls auto-disables OrbitControls.
+  const version = useSceneStore((s) => s.version);
 
   // Pivot object lives for the lifetime of this component instance.
   // Pivot ref — must be a rendered <group> so drei can attach controls to it.
@@ -55,8 +57,11 @@ export function SelectionTransformGizmo({
   const snapCentroidLocal = useRef<THREE.Vector3>(new THREE.Vector3());
   // Pivot world matrix at drag start.
   const snapPivotWorld = useRef<THREE.Matrix4>(new THREE.Matrix4());
+  // Geometry snapshot (position + index buffers) captured at drag start for undo.
+  const beforeGeoSnapRef = useRef<{ positions: Float32Array; indices: Uint32Array | null } | null>(null);
 
   // Compute centroid of selected vertices in world space.
+  // `version` ensures this recomputes after any geometry mutation (undo/redo, bevel, etc.)
   const centroidWorld = useMemo(() => {
     const positions = getPositions(mesh.geometry);
     if (selectedElements.length === 0) return null;
@@ -70,7 +75,7 @@ export function SelectionTransformGizmo({
     }
     c.divideScalar(vis.size);
     return c.applyMatrix4(mesh.matrixWorld);
-  }, [mesh, selectedElements]);
+  }, [mesh, selectedElements, version]);
 
   // Keep pivot at centroid whenever selection or geometry changes (outside drag).
   useEffect(() => {
@@ -102,6 +107,15 @@ export function SelectionTransformGizmo({
     if (vis.size > 0) localCentroid.divideScalar(vis.size);
     snapCentroidLocal.current.copy(localCentroid);
     snapPivotWorld.current.copy(pivotRef.current.matrixWorld);
+
+    // Snapshot geometry buffers for undo recording.
+    const posAttr = mesh.geometry.getAttribute("position");
+    const idxAttr = mesh.geometry.getIndex();
+    beforeGeoSnapRef.current = {
+      positions: new Float32Array(posAttr.array as Float32Array),
+      indices: idxAttr ? new Uint32Array(idxAttr.array as Uint32Array) : null,
+    };
+
     onTransformStart();
   }, [mesh, selectedElements, onTransformStart]);
 
@@ -142,8 +156,25 @@ export function SelectionTransformGizmo({
 
   const handleMouseUp = useCallback(() => {
     onTransformEnd();
+    const snap = beforeGeoSnapRef.current;
+    beforeGeoSnapRef.current = null;
+    const selUUID = useSceneStore.getState().selectedUUID;
+    if (snap && selUUID) {
+      const posAttr = mesh.geometry.getAttribute("position");
+      const afterPositions = new Float32Array(posAttr.array as Float32Array);
+      // Only record if positions actually changed.
+      const changed = afterPositions.some((v, i) => v !== snap.positions[i]);
+      if (changed) {
+        const idxAttr = mesh.geometry.getIndex();
+        const afterIndices = idxAttr ? new Uint32Array(idxAttr.array as Uint32Array) : null;
+        historyActions.executeCommand(
+          new GeometryEditCommand(selUUID, snap.positions, snap.indices, afterPositions, afterIndices, "Move Vertices"),
+        );
+        return; // GeometryEditCommand calls invalidate internally
+      }
+    }
     sceneActions.invalidate();
-  }, [onTransformEnd]);
+  }, [mesh, onTransformEnd]);
 
   if (!centroidWorld || selectedElements.length === 0) return null;
 

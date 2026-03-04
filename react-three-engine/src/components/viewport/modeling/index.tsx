@@ -9,6 +9,8 @@
 import React, { useEffect, useMemo, useCallback, useState } from "react";
 import * as THREE from "three/webgpu";
 import { useSceneStore, sceneActions } from "../../../store/sceneStore";
+import { historyActions } from "../../../store/historyStore";
+import { GeometryEditCommand, snapshotGeometry } from "../../../store/commands";
 import {
   useModelingStore,
   modelingActions,
@@ -68,6 +70,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
     if (!selUUID) return;
     const obj = state.objects.get(selUUID);
     if (!(obj instanceof THREE.Mesh)) return;
+    const before = snapshotGeometry(selUUID);
     if (mState.selectionMode === "face") {
       const faces = mState.selectedElements.filter((el) => el.type === "face");
       if (faces.length === 0) return;
@@ -88,6 +91,15 @@ export function ModelingOverlay(): React.JSX.Element | null {
       }
     }
     modelingActions.clearSelection();
+    if (before) {
+      const after = snapshotGeometry(selUUID);
+      if (after) {
+        historyActions.executeCommand(
+          new GeometryEditCommand(selUUID, before.positions, before.indices, after.positions, after.indices, "Bevel"),
+        );
+        return; // GeometryEditCommand calls invalidate internally
+      }
+    }
     sceneActions.invalidate();
   }, [bevelPending]);
 
@@ -104,6 +116,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
     if (mState.selectionMode !== "face") return;
     const faces = mState.selectedElements.filter((el) => el.type === "face");
     if (faces.length === 0) return;
+    const before = snapshotGeometry(selUUID);
     const polygons = groupFacesIntoPolygons(faces.map((el) => el.index), obj.geometry);
     // Process in descending face-index order so earlier mutations don't corrupt later indices
     polygons.sort((a, b) => {
@@ -119,6 +132,15 @@ export function ModelingOverlay(): React.JSX.Element | null {
       }
     }
     modelingActions.clearSelection();
+    if (before) {
+      const after = snapshotGeometry(selUUID);
+      if (after) {
+        historyActions.executeCommand(
+          new GeometryEditCommand(selUUID, before.positions, before.indices, after.positions, after.indices, "Extrude"),
+        );
+        return;
+      }
+    }
     sceneActions.invalidate();
   }, [extrudePending]);
 
@@ -139,6 +161,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
         if (!selUUID) return;
         const obj = state.objects.get(selUUID);
         if (!(obj instanceof THREE.Mesh)) return;
+        const before = snapshotGeometry(selUUID);
         if (mState.selectionMode === "face") {
           const faces = mState.selectedElements.filter((el) => el.type === "face");
           if (faces.length === 0) return;
@@ -159,6 +182,15 @@ export function ModelingOverlay(): React.JSX.Element | null {
           }
         }
         modelingActions.clearSelection();
+        if (before) {
+          const after = snapshotGeometry(selUUID);
+          if (after) {
+            historyActions.executeCommand(
+              new GeometryEditCommand(selUUID, before.positions, before.indices, after.positions, after.indices, "Bevel"),
+            );
+            return;
+          }
+        }
         sceneActions.invalidate();
       } else if (e.ctrlKey && (e.key === "e" || e.key === "E")) {
         // Ctrl+E — extrude selected faces
@@ -184,6 +216,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
         const elements = mState.selectedElements;
         if (elements.length === 0) return;
 
+        const before = snapshotGeometry(selUUID);
         const positions = getPositions(geo);
         const oldIndices = getIndices(geo);
         if (!oldIndices) return; // non-indexed — skip for safety
@@ -238,6 +271,15 @@ export function ModelingOverlay(): React.JSX.Element | null {
         geo.setIndex(new THREE.BufferAttribute(new Uint32Array(remappedIndices), 1));
         flushPositions(geo, newPositions);
         modelingActions.clearSelection();
+        if (before) {
+          const after = snapshotGeometry(selUUID);
+          if (after) {
+            historyActions.executeCommand(
+              new GeometryEditCommand(selUUID, before.positions, before.indices, after.positions, after.indices, "Delete Elements"),
+            );
+            return;
+          }
+        }
         sceneActions.invalidate();
       }
     };
@@ -328,9 +370,12 @@ export function ModelingOverlay(): React.JSX.Element | null {
     (amount: number) => {
       modelingActions.setExtrudeInteractive(false);
       if (!mesh) return;
+      const selUUID = useSceneStore.getState().selectedUUID;
+      if (!selUUID) return;
       const mState = useModelingStore.getState();
       const faces = mState.selectedElements.filter((el) => el.type === "face");
       if (faces.length === 0) return;
+      const before = snapshotGeometry(selUUID);
       const polygons = groupFacesIntoPolygons(
         faces.map((el) => el.index),
         mesh.geometry,
@@ -348,6 +393,15 @@ export function ModelingOverlay(): React.JSX.Element | null {
         }
       }
       modelingActions.clearSelection();
+      if (before) {
+        const after = snapshotGeometry(selUUID);
+        if (after) {
+          historyActions.executeCommand(
+            new GeometryEditCommand(selUUID, before.positions, before.indices, after.positions, after.indices, "Extrude (Interactive)"),
+          );
+          return;
+        }
+      }
       sceneActions.invalidate();
     },
     [mesh],
@@ -362,8 +416,20 @@ export function ModelingOverlay(): React.JSX.Element | null {
   const handleAddVertexOnEdge = useCallback(
     (a: number, b: number, worldPoint: THREE.Vector3) => {
       if (!mesh) return;
+      const selUUID = useSceneStore.getState().selectedUUID;
+      if (!selUUID) return;
+      const before = snapshotGeometry(selUUID);
       const localPoint = mesh.worldToLocal(worldPoint.clone());
       addVertexOnEdge(mesh.geometry, a, b, localPoint);
+      if (before) {
+        const after = snapshotGeometry(selUUID);
+        if (after) {
+          historyActions.executeCommand(
+            new GeometryEditCommand(selUUID, before.positions, before.indices, after.positions, after.indices, "Add Vertex on Edge"),
+          );
+          return;
+        }
+      }
       sceneActions.invalidate();
     },
     [mesh],
@@ -372,8 +438,20 @@ export function ModelingOverlay(): React.JSX.Element | null {
   const handleAddVertexOnFace = useCallback(
     (faceIdx: number, worldPoint: THREE.Vector3) => {
       if (!mesh) return;
+      const selUUID = useSceneStore.getState().selectedUUID;
+      if (!selUUID) return;
+      const before = snapshotGeometry(selUUID);
       const localPoint = mesh.worldToLocal(worldPoint.clone());
       addVertexOnFace(mesh.geometry, faceIdx, localPoint);
+      if (before) {
+        const after = snapshotGeometry(selUUID);
+        if (after) {
+          historyActions.executeCommand(
+            new GeometryEditCommand(selUUID, before.positions, before.indices, after.positions, after.indices, "Add Vertex on Face"),
+          );
+          return;
+        }
+      }
       sceneActions.invalidate();
     },
     [mesh],

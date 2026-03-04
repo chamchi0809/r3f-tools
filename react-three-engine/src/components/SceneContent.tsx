@@ -10,6 +10,8 @@ import {
   useSceneStore,
   type SerializedObject,
 } from "../store/sceneStore";
+import { historyActions } from "../store/historyStore";
+import { SetTransformCommand } from "../store/commands";
 import { useSettingsStore, resolveSnapProps } from "../store/settingsStore";
 import { useTagStore } from "../store/tagStore";
 import { ClickSelector } from "./ClickSelector";
@@ -274,6 +276,13 @@ export function SceneContent({
     ? (useSceneStore.getState().objects.get(selectedUUID) ?? null)
     : null;
 
+  // Capture transform snapshot before a drag begins so we can record an undo step.
+  const transformStartRef = useRef<{
+    position: [number, number, number];
+    rotation: [number, number, number];
+    scale: [number, number, number];
+  } | null>(null);
+
   return (
     <>
       {!isModeling && <ClickSelector transformDragging={transformDragging} />}
@@ -282,10 +291,57 @@ export function SceneContent({
           object={selectedObj}
           mode={transformMode}
           {...resolveSnapProps(snap, ctrlHeld)}
-          onMouseDown={() => onTransformDrag(true)}
+          onMouseDown={() => {
+            // Snapshot transform before drag
+            transformStartRef.current = {
+              position: selectedObj.position.toArray() as [number, number, number],
+              rotation: [selectedObj.rotation.x, selectedObj.rotation.y, selectedObj.rotation.z],
+              scale: selectedObj.scale.toArray() as [number, number, number],
+            };
+            onTransformDrag(true);
+          }}
           onMouseUp={() => {
             onTransformDrag(false);
-            useSceneStore.getState().invalidate();
+            // Record undo step: only if transform actually changed
+            const start = transformStartRef.current;
+            transformStartRef.current = null;
+            if (start && selectedUUID) {
+              const after = {
+                position: selectedObj.position.toArray() as [number, number, number],
+                rotation: [selectedObj.rotation.x, selectedObj.rotation.y, selectedObj.rotation.z] as [number, number, number],
+                scale: selectedObj.scale.toArray() as [number, number, number],
+              };
+              const moved =
+                start.position.some((v, i) => v !== after.position[i]) ||
+                start.rotation.some((v, i) => v !== after.rotation[i]) ||
+                start.scale.some((v, i) => v !== after.scale[i]);
+              if (moved) {
+                // Build and execute command with correct before/after (object is
+                // already at the "after" position — execute() is a no-op here,
+                // but undo() will correctly restore the pre-drag state).
+                const cmd = new SetTransformCommand(
+                  selectedUUID,
+                  start,
+                  after,
+                );
+                // execute() would re-apply the transform (redundant but harmless)
+                // We bypass it and just push to the undo stack manually via a
+                // thin wrapper that skips re-application.
+                historyActions.executeCommand({
+                  label: cmd.label,
+                  mergeKey: undefined, // drag end is never merged
+                  execute() {
+                    // TransformControls already applied it; just mark dirty.
+                    useSceneStore.getState().invalidate();
+                  },
+                  undo() { cmd.undo(); },
+                });
+              } else {
+                useSceneStore.getState().invalidate();
+              }
+            } else {
+              useSceneStore.getState().invalidate();
+            }
           }}
         />
       )}

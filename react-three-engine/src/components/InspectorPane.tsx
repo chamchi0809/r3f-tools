@@ -107,16 +107,7 @@ export function InspectorPane(): React.JSX.Element {
         <input
           value={obj.name}
           onChange={(e) => {
-            obj.name = e.target.value;
-            const state = useSceneStore.getState();
-            const node = state.nodes.get(obj.uuid);
-            if (node) {
-              const nodes = new Map(state.nodes);
-              nodes.set(obj.uuid, { ...node, name: e.target.value });
-              useSceneStore.setState({ nodes, version: state.version + 1 });
-            } else {
-              state.invalidate();
-            }
+            sceneActions.renameObject(obj.uuid, e.target.value);
           }}
           style={{ ...textInputStyle, width: "100%" }}
         />

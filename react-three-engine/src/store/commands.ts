@@ -1,0 +1,659 @@
+/**
+ * commands.ts
+ *
+ * Concrete SceneCommand implementations for every undoable editor action.
+ *
+ * Each command:
+ * - Stores only the delta (before/after values), NOT the whole scene.
+ * - Calls raw store methods directly (not via sceneActions to avoid circular deps).
+ * - Is fully reversible via undo().
+ *
+ * Commands that involve add/remove use SerializedObject snapshots of the
+ * affected subtree only — this is still orders of magnitude cheaper than
+ * snapshotting the entire scene.
+ */
+
+import * as THREE from "three/webgpu";
+import type { SceneCommand } from "./historyStore";
+import {
+  useSceneStore,
+  makeObject,
+  buildGeometry,
+  buildMaterial,
+  applySerializedObject,
+  readMaterialProps,
+  readGeometryParams,
+  readLightProps,
+  readCameraProps,
+  type ObjectKind,
+  type SerializedObject,
+  type MaterialType,
+  type GeometryType,
+  type GeometryParams,
+  type SerializedMaterial,
+  type LightProps,
+  type CameraProps,
+  type TextureMapSlot,
+} from "./sceneStore";
+import { useTagStore } from "./tagStore";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Snapshot the full subtree of an object into a SerializedObject tree. */
+function snapshotSubtree(uuid: string): SerializedObject | null {
+  const state = useSceneStore.getState();
+  const obj = state.objects.get(uuid);
+  const node = state.nodes.get(uuid);
+  if (!obj || !node) return null;
+
+  const snap: SerializedObject = {
+    uuid: obj.uuid,
+    name: obj.name,
+    kind: node.kind,
+    position: obj.position.toArray() as [number, number, number],
+    rotation: [obj.rotation.x, obj.rotation.y, obj.rotation.z],
+    scale: obj.scale.toArray() as [number, number, number],
+    castShadow: obj.castShadow,
+    receiveShadow: obj.receiveShadow,
+    children: node.childUUIDs
+      .map((childUUID) => snapshotSubtree(childUUID))
+      .filter((c): c is SerializedObject => c !== null),
+  };
+
+  if (obj instanceof THREE.Mesh) {
+    snap.geometry = readGeometryParams(obj.geometry);
+    snap.material = readMaterialProps(obj.material as THREE.Material);
+  }
+  if (obj instanceof THREE.Light) {
+    snap.lightProps = readLightProps(obj);
+  }
+  if (obj instanceof THREE.PerspectiveCamera) {
+    snap.cameraProps = readCameraProps(obj);
+  }
+
+  const tags = useTagStore.getState().objectTags.get(uuid);
+  if (tags && tags.size > 0) snap.tags = Array.from(tags);
+
+  return snap;
+}
+
+/**
+ * Restore a previously-removed subtree back into the scene.
+ * Walks the THREE scene to re-parent correctly.
+ */
+function restoreSubtree(
+  snap: SerializedObject,
+  parentUUID: string | null,
+): void {
+  const state = useSceneStore.getState();
+
+  // Find the THREE parent — either a registered object or the scene root.
+  // We cannot access the R3F scene directly here, so we piggyback on
+  // pendingDeserialize for add-back, OR we re-use the existing parent object
+  // when it's already registered (the common case for undo after remove).
+  const parentObj = parentUUID ? state.objects.get(parentUUID) : null;
+  if (parentUUID && !parentObj) {
+    // Parent no longer exists — fall back to scene-level add via pendingAdd.
+    // This is an edge case (parent was also deleted); we lose nesting but
+    // don't hard-fail.
+    useSceneStore.getState().addObject(snap.kind, null);
+    return;
+  }
+
+  const obj = makeObject(snap.kind);
+  obj.uuid = snap.uuid; // ← preserve UUID so refs stay consistent after undo
+  obj.name = snap.name;
+  obj.position.set(...snap.position);
+  obj.rotation.set(...snap.rotation);
+  obj.scale.set(...snap.scale);
+  if (obj instanceof THREE.Mesh) {
+    if (snap.geometry) obj.geometry = buildGeometry(snap.geometry);
+    if (snap.material) obj.material = buildMaterial(snap.material);
+  }
+  applySerializedObject(obj, snap);
+
+  if (parentObj) {
+    parentObj.add(obj);
+  } else {
+    // Attach to the scene root.  We need the THREE.Scene reference.
+    // The cleanest way is to use pendingAdd but we need the obj already built.
+    // Instead, walk the objects map to find a root-level object and grab its parent.
+    const rootUUIDs = state.rootUUIDs;
+    if (rootUUIDs.length > 0) {
+      const firstRoot = state.objects.get(rootUUIDs[0]);
+      if (firstRoot?.parent) {
+        firstRoot.parent.add(obj);
+      }
+    }
+  }
+
+  useSceneStore.getState().registerObject(obj, snap.kind, parentUUID);
+
+  for (const child of snap.children) {
+    restoreSubtree(child, obj.uuid);
+  }
+}
+
+/** Remove a subtree from the THREE scene and the store without using pendingRemove. */
+function removeSubtreeImmediate(uuid: string): void {
+  const state = useSceneStore.getState();
+  const node = state.nodes.get(uuid);
+  if (!node) return;
+  // depth-first: remove children first
+  for (const childUUID of [...(node.childUUIDs ?? [])]) {
+    removeSubtreeImmediate(childUUID);
+  }
+  const obj = state.objects.get(uuid);
+  if (obj) obj.parent?.remove(obj);
+  useSceneStore.getState().unregisterObject(uuid);
+}
+
+// ─── AddObjectCommand ─────────────────────────────────────────────────────────
+
+export class AddObjectCommand implements SceneCommand {
+  readonly label: string;
+  private uuid: string | null = null;
+
+  constructor(
+    private readonly kind: ObjectKind,
+    private readonly parentUUID: string | null = null,
+  ) {
+    this.label = `Add ${kind}`;
+  }
+
+  execute(): void {
+    if (this.uuid) {
+      // Re-do: restore the previously-created object
+      const state = useSceneStore.getState();
+      // If it was already re-added (e.g. double redo) do nothing
+      if (state.objects.has(this.uuid)) return;
+    }
+    // Trigger the normal add flow — SceneContent will pick up pendingAdd.
+    useSceneStore.getState().addObject(this.kind, this.parentUUID);
+    // We can't know the UUID synchronously because registerObject is called
+    // asynchronously in a React effect. We track it via a subscription below.
+    this._subscribeNextRegister();
+  }
+
+  undo(): void {
+    if (!this.uuid) return;
+    removeSubtreeImmediate(this.uuid);
+  }
+
+  private _subscribeNextRegister(): void {
+    // Grab the current set of registered UUIDs before the add resolves.
+    const before = new Set(useSceneStore.getState().objects.keys());
+    const unsub = useSceneStore.subscribe((state) => {
+      for (const uuid of state.objects.keys()) {
+        if (!before.has(uuid)) {
+          this.uuid = uuid;
+          unsub();
+          return;
+        }
+      }
+    });
+  }
+}
+
+// ─── RemoveObjectCommand ──────────────────────────────────────────────────────
+
+export class RemoveObjectCommand implements SceneCommand {
+  readonly label: string;
+  private snapshot: SerializedObject | null = null;
+  private parentUUID: string | null = null;
+
+  constructor(private readonly uuid: string, objectName: string) {
+    this.label = `Remove ${objectName}`;
+  }
+
+  execute(): void {
+    // Capture state before removal
+    this.snapshot = snapshotSubtree(this.uuid);
+    this.parentUUID = useSceneStore.getState().nodes.get(this.uuid)?.parentUUID ?? null;
+    removeSubtreeImmediate(this.uuid);
+  }
+
+  undo(): void {
+    if (!this.snapshot) return;
+    restoreSubtree(this.snapshot, this.parentUUID);
+  }
+}
+
+// ─── SetTransformCommand ──────────────────────────────────────────────────────
+
+export class SetTransformCommand implements SceneCommand {
+  readonly label = "Set Transform";
+  readonly mergeKey: string;
+
+  constructor(
+    private readonly uuid: string,
+    private readonly before: {
+      position: [number, number, number];
+      rotation: [number, number, number];
+      scale: [number, number, number];
+    },
+    private readonly after: {
+      position: [number, number, number];
+      rotation: [number, number, number];
+      scale: [number, number, number];
+    },
+  ) {
+    this.mergeKey = `SetTransform:${uuid}`;
+  }
+
+  execute(): void {
+    useSceneStore
+      .getState()
+      .setTransform(this.uuid, this.after.position, this.after.rotation, this.after.scale);
+  }
+
+  undo(): void {
+    useSceneStore
+      .getState()
+      .setTransform(this.uuid, this.before.position, this.before.rotation, this.before.scale);
+  }
+}
+
+// ─── SetMaterialColorCommand ──────────────────────────────────────────────────
+
+export class SetMaterialColorCommand implements SceneCommand {
+  readonly label = "Set Material Color";
+  readonly mergeKey: string;
+
+  constructor(
+    private readonly uuid: string,
+    private readonly before: string,
+    private readonly after: string,
+  ) {
+    this.mergeKey = `SetMaterialColor:${uuid}`;
+  }
+
+  execute(): void {
+    useSceneStore.getState().setMaterialColor(this.uuid, this.after);
+  }
+
+  undo(): void {
+    useSceneStore.getState().setMaterialColor(this.uuid, this.before);
+  }
+}
+
+// ─── SetMaterialTypeCommand ───────────────────────────────────────────────────
+
+export class SetMaterialTypeCommand implements SceneCommand {
+  readonly label: string;
+
+  constructor(
+    private readonly uuid: string,
+    private readonly before: MaterialType,
+    private readonly after: MaterialType,
+    private readonly beforeFull: SerializedMaterial,
+  ) {
+    this.label = `Change Material → ${after}`;
+  }
+
+  execute(): void {
+    useSceneStore.getState().setMaterialType(this.uuid, this.after);
+  }
+
+  undo(): void {
+    // Restore the entire previous material (type + props) via setMaterialProps
+    // which rebuilds from a full serialized descriptor.
+    useSceneStore.getState().setMaterialProps(this.uuid, this.beforeFull);
+  }
+}
+
+// ─── SetMaterialPropsCommand ──────────────────────────────────────────────────
+
+export class SetMaterialPropsCommand implements SceneCommand {
+  readonly label = "Edit Material";
+  readonly mergeKey: string;
+
+  constructor(
+    private readonly uuid: string,
+    private readonly before: SerializedMaterial,
+    private readonly after: Partial<Omit<SerializedMaterial, "type">>,
+  ) {
+    this.mergeKey = `SetMaterialProps:${uuid}`;
+  }
+
+  execute(): void {
+    useSceneStore.getState().setMaterialProps(this.uuid, this.after);
+  }
+
+  undo(): void {
+    useSceneStore.getState().setMaterialProps(this.uuid, this.before);
+  }
+}
+
+// ─── SetTextureMapCommand ─────────────────────────────────────────────────────
+
+export class SetTextureMapCommand implements SceneCommand {
+  readonly label: string;
+
+  constructor(
+    private readonly uuid: string,
+    private readonly slot: TextureMapSlot,
+    private readonly before: string | null,
+    private readonly after: string | null,
+  ) {
+    this.label = `Set Texture (${slot})`;
+  }
+
+  execute(): void {
+    useSceneStore.getState().setTextureMap(this.uuid, this.slot, this.after);
+  }
+
+  undo(): void {
+    useSceneStore.getState().setTextureMap(this.uuid, this.slot, this.before);
+  }
+}
+
+// ─── SetGeometryTypeCommand ───────────────────────────────────────────────────
+
+export class SetGeometryTypeCommand implements SceneCommand {
+  readonly label: string;
+
+  constructor(
+    private readonly uuid: string,
+    private readonly before: GeometryParams,
+    private readonly after: GeometryType,
+  ) {
+    this.label = `Change Geometry → ${after.replace("Geometry", "")}`;
+  }
+
+  execute(): void {
+    useSceneStore.getState().setGeometryType(this.uuid, this.after);
+  }
+
+  undo(): void {
+    // Restore the exact previous geometry params
+    useSceneStore.getState().setGeometryParams(this.uuid, this.before);
+  }
+}
+
+// ─── SetGeometryParamsCommand ─────────────────────────────────────────────────
+
+export class SetGeometryParamsCommand implements SceneCommand {
+  readonly label = "Edit Geometry";
+  readonly mergeKey: string;
+
+  constructor(
+    private readonly uuid: string,
+    private readonly before: GeometryParams,
+    private readonly after: Partial<GeometryParams>,
+  ) {
+    this.mergeKey = `SetGeometryParams:${uuid}`;
+  }
+
+  execute(): void {
+    useSceneStore.getState().setGeometryParams(this.uuid, this.after);
+  }
+
+  undo(): void {
+    useSceneStore.getState().setGeometryParams(this.uuid, this.before);
+  }
+}
+
+// ─── SetLightPropsCommand ─────────────────────────────────────────────────────
+
+export class SetLightPropsCommand implements SceneCommand {
+  readonly label = "Edit Light";
+  readonly mergeKey: string;
+
+  constructor(
+    private readonly uuid: string,
+    private readonly before: LightProps,
+    private readonly after: Partial<LightProps>,
+  ) {
+    this.mergeKey = `SetLightProps:${uuid}`;
+  }
+
+  execute(): void {
+    useSceneStore.getState().setLightProps(this.uuid, this.after);
+  }
+
+  undo(): void {
+    useSceneStore.getState().setLightProps(this.uuid, this.before);
+  }
+}
+
+// ─── SetCameraPropsCommand ────────────────────────────────────────────────────
+
+export class SetCameraPropsCommand implements SceneCommand {
+  readonly label = "Edit Camera";
+  readonly mergeKey: string;
+
+  constructor(
+    private readonly uuid: string,
+    private readonly before: CameraProps,
+    private readonly after: Partial<CameraProps>,
+  ) {
+    this.mergeKey = `SetCameraProps:${uuid}`;
+  }
+
+  execute(): void {
+    useSceneStore.getState().setCameraProps(this.uuid, this.after);
+  }
+
+  undo(): void {
+    useSceneStore.getState().setCameraProps(this.uuid, this.before);
+  }
+}
+
+// ─── RenameObjectCommand ──────────────────────────────────────────────────────
+
+export class RenameObjectCommand implements SceneCommand {
+  readonly label: string;
+  readonly mergeKey: string;
+
+  constructor(
+    private readonly uuid: string,
+    private readonly before: string,
+    private readonly after: string,
+  ) {
+    this.label = `Rename → "${after}"`;
+    this.mergeKey = `Rename:${uuid}`;
+  }
+
+  execute(): void {
+    this._apply(this.after);
+  }
+
+  undo(): void {
+    this._apply(this.before);
+  }
+
+  private _apply(name: string): void {
+    const state = useSceneStore.getState();
+    const obj = state.objects.get(this.uuid);
+    if (!obj) return;
+    obj.name = name;
+    const node = state.nodes.get(this.uuid);
+    if (node) {
+      const nodes = new Map(state.nodes);
+      nodes.set(this.uuid, { ...node, name });
+      useSceneStore.setState({ nodes, version: state.version + 1 });
+    } else {
+      state.invalidate();
+    }
+  }
+}
+
+// ─── AddMeshWithGeometryCommand ───────────────────────────────────────────────
+
+/**
+ * Records a brush-painted mesh add. On undo, removes the mesh.
+ * On redo, re-creates it from the stored geometry snapshot.
+ *
+ * We snapshot the geometry buffer (position + index arrays) so that redo can
+ * recreate the exact same mesh without needing the original THREE.BufferGeometry
+ * object (which may have been disposed after undo).
+ */
+export class AddMeshWithGeometryCommand implements SceneCommand {
+  readonly label = "Add Mesh (Brush)";
+  private uuid: string | null = null;
+
+  // Geometry snapshot stored so execute() / redo can rebuild the mesh.
+  private readonly positionArray: Float32Array;
+  private readonly indexArray: Uint32Array | null;
+  private readonly position: [number, number, number];
+  private readonly parentUUID: string | null;
+
+  constructor(
+    geo: THREE.BufferGeometry,
+    center: THREE.Vector3 | undefined,
+    parentUUID: string | null = null,
+  ) {
+    // Snapshot only — no side effects. The actual add happens in execute().
+    const posAttr = geo.getAttribute("position");
+    this.positionArray = new Float32Array(posAttr.array as Float32Array);
+    const idxAttr = geo.getIndex();
+    this.indexArray = idxAttr ? new Uint32Array(idxAttr.array as Uint32Array) : null;
+    this.position = center ? [center.x, center.y, center.z] : [0, 0, 0];
+    this.parentUUID = parentUUID;
+  }
+
+  execute(): void {
+    if (this.uuid && useSceneStore.getState().objects.has(this.uuid)) {
+      // Already present (guard against double-execute).
+      return;
+    }
+    // Rebuild geometry from snapshot.
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(this.positionArray), 3));
+    const count = this.positionArray.length / 3;
+    geo.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+    geo.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(count * 2), 2));
+    if (this.indexArray) {
+      geo.setIndex(new THREE.BufferAttribute(new Uint32Array(this.indexArray), 1));
+    }
+    if (this.positionArray.length > 0) geo.computeVertexNormals();
+    geo.userData.r3eEdited = true;
+
+    const center = new THREE.Vector3(...this.position);
+    // Track the new UUID so subsequent undo/redo cycles work.
+    const before = new Set(useSceneStore.getState().objects.keys());
+    useSceneStore.getState().addMeshWithGeometry(geo, center, this.parentUUID);
+    const unsub = useSceneStore.subscribe((state) => {
+      for (const uuid of state.objects.keys()) {
+        if (!before.has(uuid)) {
+          this.uuid = uuid;
+          unsub();
+          return;
+        }
+      }
+    });
+  }
+
+  undo(): void {
+    if (!this.uuid) return;
+    removeSubtreeImmediate(this.uuid);
+    this.uuid = null; // reset so next execute() re-tracks a fresh UUID
+  }
+}
+
+// ─── GeometryEditCommand ──────────────────────────────────────────────────────
+
+/**
+ * Snapshot helper — captures the current position + index buffers of a mesh's
+ * geometry so a GeometryEditCommand can store before/after deltas.
+ * Call BEFORE the mutation to get `before`, and AFTER to get `after`.
+ */
+export function snapshotGeometry(uuid: string): { positions: Float32Array; indices: Uint32Array | null } | null {
+  const obj = useSceneStore.getState().objects.get(uuid);
+  if (!(obj instanceof THREE.Mesh)) return null;
+  const geo = obj.geometry;
+  const posAttr = geo.getAttribute("position");
+  if (!posAttr) return null;
+  const positions = new Float32Array(posAttr.array as Float32Array);
+  const idxAttr = geo.getIndex();
+  const indices = idxAttr ? new Uint32Array(idxAttr.array as Uint32Array) : null;
+  return { positions, indices };
+}
+
+/**
+ * Records a direct geometry mutation (bevel, extrude, delete elements, add vertex,
+ * or vertex drag in modeling mode).
+ *
+ * Stores only the position + index buffer deltas — not the full scene.
+ * apply() replaces the mesh's geometry attributes in-place and recomputes normals/bounds.
+ */
+export class GeometryEditCommand implements SceneCommand {
+  readonly label: string;
+
+  constructor(
+    private readonly uuid: string,
+    private readonly beforePositions: Float32Array,
+    private readonly beforeIndices: Uint32Array | null,
+    private readonly afterPositions: Float32Array,
+    private readonly afterIndices: Uint32Array | null,
+    label: string,
+  ) {
+    this.label = label;
+  }
+
+  execute(): void {
+    this._apply(this.afterPositions, this.afterIndices);
+  }
+
+  undo(): void {
+    this._apply(this.beforePositions, this.beforeIndices);
+  }
+
+  private _apply(positions: Float32Array, indices: Uint32Array | null): void {
+    const obj = useSceneStore.getState().objects.get(this.uuid);
+    if (!(obj instanceof THREE.Mesh)) return;
+    const geo = obj.geometry;
+    const count = positions.length / 3;
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(positions), 3));
+    geo.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+    geo.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(count * 2), 2));
+    if (indices) {
+      geo.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
+    } else {
+      geo.setIndex(null);
+    }
+    if (positions.length > 0) geo.computeVertexNormals();
+    geo.computeBoundingSphere();
+    geo.userData.r3eEdited = true;
+    useSceneStore.getState().invalidate();
+  }
+}
+
+// ─── AddGltfCommand ───────────────────────────────────────────────────────────
+
+export class AddGltfCommand implements SceneCommand {
+  readonly label = "Import GLTF";
+  private addedRootUUIDs: string[] = [];
+
+  constructor(private readonly gltfRoot: THREE.Object3D) {}
+
+  execute(): void {
+    if (this.addedRootUUIDs.length > 0) {
+      // Re-do: re-register the previously imported subtree
+      // The THREE objects are already in the scene graph from the first execute.
+      // This is intentionally not handled for now — GLTF re-add after undo
+      // would require re-attaching three objects. We treat it as non-undoable
+      // by resetting on undo only.
+      return;
+    }
+    const before = new Set(useSceneStore.getState().rootUUIDs);
+    useSceneStore.getState().addGltf(this.gltfRoot);
+    // Subscribe to capture the newly-registered root UUIDs.
+    const unsub = useSceneStore.subscribe((state) => {
+      const newRoots = state.rootUUIDs.filter((id) => !before.has(id));
+      if (newRoots.length > 0) {
+        this.addedRootUUIDs = newRoots;
+        unsub();
+      }
+    });
+  }
+
+  undo(): void {
+    for (const uuid of this.addedRootUUIDs) {
+      removeSubtreeImmediate(uuid);
+    }
+    // Also remove from the THREE scene
+    this.gltfRoot.parent?.remove(this.gltfRoot);
+  }
+}

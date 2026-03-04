@@ -30,3 +30,5 @@ export { useModelingStore, modelingActions } from "./modelingStore";
 export type { EditorMode, SelectionMode, SelectedElement } from "./modelingStore";
 export { useTagStore, tagActions } from "./tagStore";
 export type { TagName } from "./tagStore";
+export { useHistoryStore, historyActions } from "./historyStore";
+export type { SceneCommand } from "./historyStore";

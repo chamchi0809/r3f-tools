@@ -1085,6 +1085,22 @@ export const useSceneStore: UseBoundStore<StoreApi<SceneState>> = create<SceneSt
   }),
 );
 
+// ─── Command-aware sceneActions ───────────────────────────────────────────────
+// Import lazily to avoid circular dependency at module init time.
+// All *undoable* mutations go through historyActions.executeCommand().
+// Non-undoable operations (select, serialize, deserialize, invalidate) call
+// the store directly.
+
+function _history() {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return (require("./historyStore") as typeof import("./historyStore")).historyActions;
+}
+
+function _commands() {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require("./commands") as typeof import("./commands");
+}
+
 export const sceneActions: {
   addObject: (kind: ObjectKind, parentUUID?: string | null) => void;
   removeObject: (uuid: string) => void;
@@ -1101,6 +1117,7 @@ export const sceneActions: {
   setTextureMap: (uuid: string, slot: TextureMapSlot, url: string | null) => void;
   setGeometryType: (uuid: string, type: GeometryType) => void;
   setGeometryParams: (uuid: string, params: Partial<GeometryParams>) => void;
+  renameObject: (uuid: string, name: string) => void;
   serialize: () => SerializedObject[];
   deserialize: (nodes: SerializedObject[]) => void;
   setLightProps: (uuid: string, props: Partial<LightProps>) => void;
@@ -1113,23 +1130,121 @@ export const sceneActions: {
   ) => void;
   addGltf: (root: THREE.Object3D) => void;
 } = {
-  addObject: (kind, parentUUID) => useSceneStore.getState().addObject(kind, parentUUID),
-  addMeshWithGeometry: (geo, position, parentUUID) =>
-    useSceneStore.getState().addMeshWithGeometry(geo, position, parentUUID),
-  removeObject: (uuid) => useSceneStore.getState().removeObject(uuid),
+  addObject: (kind, parentUUID) => {
+    const cmd = new (_commands().AddObjectCommand)(kind, parentUUID ?? null);
+    _history().executeCommand(cmd);
+  },
+
+  addMeshWithGeometry: (geo, position, parentUUID) => {
+    const cmd = new (_commands().AddMeshWithGeometryCommand)(geo, position, parentUUID ?? null);
+    _history().executeCommand(cmd);
+  },
+
+  removeObject: (uuid) => {
+    const state = useSceneStore.getState();
+    const name = state.nodes.get(uuid)?.name ?? state.objects.get(uuid)?.name ?? uuid;
+    const cmd = new (_commands().RemoveObjectCommand)(uuid, name);
+    _history().executeCommand(cmd);
+  },
+
   select: (uuid) => useSceneStore.getState().select(uuid),
-  setTransform: (uuid, position, rotation, scale) =>
-    useSceneStore.getState().setTransform(uuid, position, rotation, scale),
-  setMaterialColor: (uuid, color) => useSceneStore.getState().setMaterialColor(uuid, color),
-  setMaterialType: (uuid, type) => useSceneStore.getState().setMaterialType(uuid, type),
-  setMaterialProps: (uuid, props) => useSceneStore.getState().setMaterialProps(uuid, props),
-  setTextureMap: (uuid, slot, url) => useSceneStore.getState().setTextureMap(uuid, slot, url),
-  setGeometryType: (uuid, type) => useSceneStore.getState().setGeometryType(uuid, type),
-  setGeometryParams: (uuid, params) => useSceneStore.getState().setGeometryParams(uuid, params),
+
+  setTransform: (uuid, position, rotation, scale) => {
+    const obj = useSceneStore.getState().objects.get(uuid);
+    if (!obj) return;
+    const before = {
+      position: obj.position.toArray() as [number, number, number],
+      rotation: [obj.rotation.x, obj.rotation.y, obj.rotation.z] as [number, number, number],
+      scale: obj.scale.toArray() as [number, number, number],
+    };
+    const cmd = new (_commands().SetTransformCommand)(uuid, before, { position, rotation, scale });
+    _history().executeCommand(cmd);
+  },
+
+  setMaterialColor: (uuid, color) => {
+    const obj = useSceneStore.getState().objects.get(uuid);
+    if (!(obj instanceof THREE.Mesh)) return;
+    const before = `#${(obj.material as THREE.MeshStandardMaterial).color.getHexString()}`;
+    const cmd = new (_commands().SetMaterialColorCommand)(uuid, before, color);
+    _history().executeCommand(cmd);
+  },
+
+  setMaterialType: (uuid, type) => {
+    const obj = useSceneStore.getState().objects.get(uuid);
+    if (!(obj instanceof THREE.Mesh)) return;
+    const beforeFull = readMaterialProps(obj.material as THREE.Material);
+    const cmd = new (_commands().SetMaterialTypeCommand)(uuid, beforeFull.type, type, beforeFull);
+    _history().executeCommand(cmd);
+  },
+
+  setMaterialProps: (uuid, props) => {
+    const obj = useSceneStore.getState().objects.get(uuid);
+    if (!(obj instanceof THREE.Mesh)) return;
+    const before = readMaterialProps(obj.material as THREE.Material);
+    const cmd = new (_commands().SetMaterialPropsCommand)(uuid, before, props);
+    _history().executeCommand(cmd);
+  },
+
+  setTextureMap: (uuid, slot, url) => {
+    const obj = useSceneStore.getState().objects.get(uuid);
+    if (!(obj instanceof THREE.Mesh)) return;
+    const mat = readMaterialProps(obj.material as THREE.Material);
+    const before = mat.maps?.[slot] ?? null;
+    const cmd = new (_commands().SetTextureMapCommand)(uuid, slot, before, url);
+    _history().executeCommand(cmd);
+  },
+
+  setGeometryType: (uuid, type) => {
+    const obj = useSceneStore.getState().objects.get(uuid);
+    if (!(obj instanceof THREE.Mesh)) return;
+    const before = readGeometryParams(obj.geometry);
+    const cmd = new (_commands().SetGeometryTypeCommand)(uuid, before, type);
+    _history().executeCommand(cmd);
+  },
+
+  setGeometryParams: (uuid, params) => {
+    const obj = useSceneStore.getState().objects.get(uuid);
+    if (!(obj instanceof THREE.Mesh)) return;
+    const before = readGeometryParams(obj.geometry);
+    const cmd = new (_commands().SetGeometryParamsCommand)(uuid, before, params);
+    _history().executeCommand(cmd);
+  },
+
+  renameObject: (uuid, name) => {
+    const obj = useSceneStore.getState().objects.get(uuid);
+    if (!obj) return;
+    const before = obj.name;
+    const cmd = new (_commands().RenameObjectCommand)(uuid, before, name);
+    _history().executeCommand(cmd);
+  },
+
   serialize: () => useSceneStore.getState().serialize(),
-  deserialize: (nodes) => useSceneStore.getState().deserialize(nodes),
-  setLightProps: (uuid, props) => useSceneStore.getState().setLightProps(uuid, props),
-  setCameraProps: (uuid, props) => useSceneStore.getState().setCameraProps(uuid, props),
+  deserialize: (nodes) => {
+    useSceneStore.getState().deserialize(nodes);
+    // All previous commands reference UUIDs that no longer exist after load.
+    _history().clear();
+  },
+
+  setLightProps: (uuid, props) => {
+    const obj = useSceneStore.getState().objects.get(uuid);
+    if (!(obj instanceof THREE.Light)) return;
+    const before = readLightProps(obj);
+    const cmd = new (_commands().SetLightPropsCommand)(uuid, before, props);
+    _history().executeCommand(cmd);
+  },
+
+  setCameraProps: (uuid, props) => {
+    const obj = useSceneStore.getState().objects.get(uuid);
+    if (!(obj instanceof THREE.PerspectiveCamera)) return;
+    const before = readCameraProps(obj);
+    const cmd = new (_commands().SetCameraPropsCommand)(uuid, before, props);
+    _history().executeCommand(cmd);
+  },
+
   invalidate: () => useSceneStore.getState().invalidate(),
-  addGltf: (root) => useSceneStore.getState().addGltf(root),
+
+  addGltf: (root) => {
+    const cmd = new (_commands().AddGltfCommand)(root);
+    _history().executeCommand(cmd);
+  },
 };

@@ -6,6 +6,7 @@ import "dockview/dist/styles/dockview.css";
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three/webgpu";
 import { HierarchyPane } from "./components/HierarchyPane";
+import { HistoryPane } from "./components/HistoryPane";
 import { InspectorPane } from "./components/InspectorPane";
 import { SettingsPane } from "./components/SettingsPane";
 import { PrefabPanel } from "./components/PrefabPanel";
@@ -15,6 +16,7 @@ import { EditorModeBar, type TransformMode } from "./components/Toolbar";
 
 import { useModelingStore } from "./store/modelingStore";
 import { sceneActions, useSceneStore } from "./store/sceneStore";
+import { historyActions } from "./store/historyStore";
 import { initCustomObjectRegistry } from "./customObjectRegistry";
 import "./styles";
 import {
@@ -52,11 +54,23 @@ const Viewport = () => {
   }, []);
 
 
-  // G/R/S + Delete shortcuts for object mode
+  // G/R/S + Delete shortcuts for object mode; Ctrl+Z/Y work in all modes
   useEffect(() => {
-    if (isModeling || isBrush) return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).tagName === "INPUT") return;
+      // Undo/redo — always active regardless of editor mode
+      if (e.ctrlKey && (e.key === "z" || e.key === "Z")) {
+        e.preventDefault();
+        historyActions.undo();
+        return;
+      }
+      if (e.ctrlKey && (e.key === "y" || e.key === "Y")) {
+        e.preventDefault();
+        historyActions.redo();
+        return;
+      }
+      // Object-mode-only shortcuts
+      if (isModeling || isBrush) return;
       if (e.key === "g" || e.key === "G") setTransformMode("translate");
       else if (e.key === "r" || e.key === "R") setTransformMode("rotate");
       else if (e.key === "s" || e.key === "S") setTransformMode("scale");
@@ -151,6 +165,16 @@ export default function App(): React.JSX.Element {
             },
           });
           e.api.addPanel({
+            id: "history",
+            title: "History",
+            component: "history",
+            tabComponent: "default",
+            position: {
+              referencePanel: "inspector",
+              direction: "within",
+            },
+          });
+          e.api.addPanel({
             id: "settings",
             title: "Settings",
             component: "settings",
@@ -184,6 +208,7 @@ export default function App(): React.JSX.Element {
           hierarchy: HierarchyPane,
           viewport: Viewport,
           inspector: InspectorPane,
+          history: HistoryPane,
           settings: SettingsPane,
           tags: TagsPane,
           prefabs: () => (
