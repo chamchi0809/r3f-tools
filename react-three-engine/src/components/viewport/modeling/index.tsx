@@ -251,6 +251,14 @@ export function ModelingOverlay(): React.JSX.Element | null {
     return obj instanceof THREE.Mesh ? obj : null;
   }, [selectedUUID, objects]);
 
+  const meshEntries = useMemo(() => {
+    const entries: { uuid: string; mesh: THREE.Mesh }[] = [];
+    objects.forEach((obj, uuid) => {
+      if (obj instanceof THREE.Mesh) entries.push({ uuid, mesh: obj });
+    });
+    return entries;
+  }, [objects]);
+
   const handleVertexHover = useCallback((idx: number | null) => {
     setHoveredVertexIdx(idx);
   }, []);
@@ -277,20 +285,33 @@ export function ModelingOverlay(): React.JSX.Element | null {
     sceneActions.invalidate();
   }, []);
 
-  const handleVertexClick = useCallback((idx: number, additive: boolean) => {
+  const handleVertexClick = useCallback((uuid: string, idx: number, additive: boolean) => {
+    if (uuid !== useSceneStore.getState().selectedUUID) {
+      sceneActions.select(uuid);
+      modelingActions.clearSelection();
+      additive = false;
+    }
     modelingActions.selectElement({ type: "vertex", index: idx }, additive);
   }, []);
 
-  const handleEdgeClick = useCallback((a: number, b: number, additive: boolean) => {
+  const handleEdgeClick = useCallback((uuid: string, a: number, b: number, additive: boolean) => {
+    if (uuid !== useSceneStore.getState().selectedUUID) {
+      sceneActions.select(uuid);
+      modelingActions.clearSelection();
+    }
     modelingActions.selectElement(
       { type: "edge", index: Math.min(a, b), index2: Math.max(a, b) },
       additive,
     );
   }, []);
 
-  const handleFaceClick = useCallback((faceIdx: number, additive: boolean) => {
-    if (!mesh) return;
-    const partnerIdx = findQuadPartner(mesh.geometry, faceIdx);
+  const handleFaceClick = useCallback((uuid: string, m: THREE.Mesh, faceIdx: number, additive: boolean) => {
+    if (uuid !== useSceneStore.getState().selectedUUID) {
+      sceneActions.select(uuid);
+      modelingActions.clearSelection();
+      additive = false;
+    }
+    const partnerIdx = findQuadPartner(m.geometry, faceIdx);
     if (additive) {
       modelingActions.selectElement({ type: "face", index: faceIdx }, true);
       if (partnerIdx !== null) modelingActions.selectElement({ type: "face", index: partnerIdx }, true);
@@ -300,7 +321,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
       useModelingStore.getState().clearSelection();
       for (const el of elements) modelingActions.selectElement(el, true);
     }
-  }, [mesh]);
+  }, []);
 
   // ── Interactive extrude commit / cancel ────────────────────────────────────
   const handleExtrudeCommit = useCallback(
@@ -372,13 +393,12 @@ export function ModelingOverlay(): React.JSX.Element | null {
     [],
   );
 
-  if (!mesh) return null;
+  if (meshEntries.length === 0) return null;
 
   return (
     <>
-      {/* SketchUp-style bounding box — wireframe + edge-midpoint dimension labels */}
-      <BoundingBoxGizmo mesh={mesh} />
-      {/* Vertex hover radius gizmo — rendered in world space, outside the local mesh group */}
+      {/* Selected-mesh-only gizmos */}
+      {mesh && <BoundingBoxGizmo mesh={mesh} />}
       {selectionMode === "vertex" && hoveredVertexWorldPos && (
         <VertexHoverGizmo
           position={hoveredVertexWorldPos}
@@ -387,33 +407,42 @@ export function ModelingOverlay(): React.JSX.Element | null {
           )}
         />
       )}
-      <group matrixAutoUpdate={false} matrix={mesh.matrixWorld}>
-        <VertexDots
-          mesh={mesh}
-          selectedElements={selectedElements}
-          selectionMode={selectionMode}
-          onHover={handleVertexHover}
-          onClick={handleVertexClick}
-        />
-        <EdgeLines
-          mesh={mesh}
-          selectedElements={selectedElements}
-          selectionMode={selectionMode}
-          onClick={handleEdgeClick}
-          addMode={addMode}
-          onAddVertex={handleAddVertexOnEdge}
-          onAddVertexHover={handleAddVertexEdgeHover}
-        />
-        <FaceOverlays
-          mesh={mesh}
-          selectedElements={selectedElements}
-          selectionMode={selectionMode}
-          onClick={handleFaceClick}
-          addMode={addMode}
-          onAddVertex={handleAddVertexOnFace}
-          onAddVertexHover={handleAddVertexFaceHover}
-        />
-      </group>
+
+      {/* Overlays for ALL meshes in scene */}
+      {meshEntries.map(({ uuid, mesh: m }) => {
+        const isActive = uuid === selectedUUID;
+        const activeElements = isActive ? selectedElements : [];
+        return (
+          <group key={uuid} matrixAutoUpdate={false} matrix={m.matrixWorld}>
+            <VertexDots
+              mesh={m}
+              selectedElements={activeElements}
+              selectionMode={selectionMode}
+              onHover={isActive ? handleVertexHover : () => {}}
+              onClick={(idx, additive) => handleVertexClick(uuid, idx, additive)}
+            />
+            <EdgeLines
+              mesh={m}
+              selectedElements={activeElements}
+              selectionMode={selectionMode}
+              onClick={(a, b, additive) => handleEdgeClick(uuid, a, b, additive)}
+              addMode={isActive ? addMode : false}
+              onAddVertex={isActive ? handleAddVertexOnEdge : () => {}}
+              onAddVertexHover={isActive ? handleAddVertexEdgeHover : () => {}}
+            />
+            <FaceOverlays
+              mesh={m}
+              selectedElements={activeElements}
+              selectionMode={selectionMode}
+              onClick={(faceIdx, additive) => handleFaceClick(uuid, m, faceIdx, additive)}
+              addMode={isActive ? addMode : false}
+              onAddVertex={isActive ? handleAddVertexOnFace : () => {}}
+              onAddVertexHover={isActive ? handleAddVertexFaceHover : () => {}}
+            />
+          </group>
+        );
+      })}
+
       {/* Add-vertex preview gizmo — shows where new vertex will land + edge/face label */}
       {addMode && addVertexPreview && (
         <AddVertexPreviewGizmo
@@ -421,7 +450,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
           hitType={addVertexPreview.hitType}
         />
       )}
-      {selectedElements.length > 0 && !extrudeInteractive && (
+      {mesh && selectedElements.length > 0 && !extrudeInteractive && (
         <SelectionTransformGizmo
           mesh={mesh}
           selectedElements={selectedElements}
@@ -431,7 +460,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
           ctrlHeld={ctrlHeld}
         />
       )}
-      {extrudeInteractive && (
+      {mesh && extrudeInteractive && (
         <ExtrudeInteractiveGizmo
           mesh={mesh}
           selectedElements={selectedElements}
