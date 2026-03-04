@@ -188,17 +188,31 @@ export function ModelingOverlay(): React.JSX.Element | null {
         const oldIndices = getIndices(geo);
         if (!oldIndices) return; // non-indexed — skip for safety
 
-        // Collect vertex indices to remove (all vertices touched by selection)
-        const toRemove = selectedVertexIndices(elements, geo);
+        let newTriIndices: number[];
 
-        // Remove triangles that reference any removed vertex
-        const newTriIndices: number[] = [];
-        for (let t = 0; t < oldIndices.length; t += 3) {
-          const a = oldIndices[t],
-            b = oldIndices[t + 1],
-            c = oldIndices[t + 2];
-          if (!toRemove.has(a) && !toRemove.has(b) && !toRemove.has(c)) {
-            newTriIndices.push(a, b, c);
+        if (mState.selectionMode === "face") {
+          // Face mode: remove exact triangle indices to avoid deleting adjacent
+          // faces that share vertices (e.g. extrusion side walls).
+          const facesToRemove = new Set(
+            elements.filter((e) => e.type === "face").map((e) => e.index),
+          );
+          newTriIndices = [];
+          for (let t = 0; t < oldIndices.length; t += 3) {
+            if (!facesToRemove.has(t / 3)) {
+              newTriIndices.push(oldIndices[t], oldIndices[t + 1], oldIndices[t + 2]);
+            }
+          }
+        } else {
+          // Vertex/Edge mode: remove all triangles that touch any selected vertex.
+          const toRemove = selectedVertexIndices(elements, geo);
+          newTriIndices = [];
+          for (let t = 0; t < oldIndices.length; t += 3) {
+            const a = oldIndices[t],
+              b = oldIndices[t + 1],
+              c = oldIndices[t + 2];
+            if (!toRemove.has(a) && !toRemove.has(b) && !toRemove.has(c)) {
+              newTriIndices.push(a, b, c);
+            }
           }
         }
 
