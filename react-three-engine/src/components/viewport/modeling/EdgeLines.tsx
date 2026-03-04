@@ -1,8 +1,13 @@
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useEffect } from "react";
 import * as THREE from "three/webgpu";
 import type { SelectionMode, SelectedElement } from "../../../store/modelingStore";
+import { useSceneStore } from "../../../store/sceneStore";
 import { EDGE_COLOR_DEFAULT, EDGE_COLOR_SELECTED, EDGE_HIT_RADIUS } from "./constants";
 import { getPositions, getIndices, makeCylinderGeometry } from "./helpers";
+
+// CylinderGeometry(r, r, h, 8, 1) always produces exactly 32 triangles:
+// sides: 8 quads × 2 = 16, top cap: 8, bottom cap: 8 → total: 32
+const TRI_PER_CYLINDER = 32;
 
 export function EdgeLines({
   mesh,
@@ -21,6 +26,7 @@ export function EdgeLines({
   onAddVertex?: (a: number, b: number, point: THREE.Vector3) => void;
   onAddVertexHover?: (a: number, b: number, point: THREE.Vector3 | null) => void;
 }) {
+  const version = useSceneStore((s) => s.version);
   const positions = getPositions(mesh.geometry);
   const indices = getIndices(mesh.geometry);
 
@@ -48,7 +54,7 @@ export function EdgeLines({
       seen.add(key);
       return true;
     });
-  }, [positions, indices]);
+  }, [positions, indices, version]);
 
   const selectedEdgeKeys = useMemo(
     () =>
@@ -85,44 +91,53 @@ export function EdgeLines({
     return { defaultGeo: dGeo, selectedGeo: sGeo };
   }, [edgeSet, positions, selectedEdgeKeys]);
 
-  /**
-   * Per-edge click-detection geometries, cached in a ref map keyed by "a_b".
-   * Rebuilt only when positions change, not every render.
-   */
-  const hitGeoCache = useRef<Map<string, THREE.BufferGeometry>>(new Map());
-  const hitGeos = useMemo(() => {
-    const cache = hitGeoCache.current;
-    // Dispose stale entries
-    for (const key of cache.keys()) {
-      if (!edgeSet.find(([a, b]) => `${a}_${b}` === key)) {
-        cache.get(key)!.dispose();
-        cache.delete(key);
-      }
-    }
-    return edgeSet.map(([a, b]) => {
-      const key = `${a}_${b}`;
-      const ax = positions[a * 3],
-        ay = positions[a * 3 + 1],
-        az = positions[a * 3 + 2];
-      const bx = positions[b * 3],
-        by = positions[b * 3 + 1],
-        bz = positions[b * 3 + 2];
-      const vecA = new THREE.Vector3(ax, ay, az);
-      const vecB = new THREE.Vector3(bx, by, bz);
+  // Dispose visual geometries when they change
+  useEffect(() => () => { defaultGeo.dispose(); selectedGeo.dispose(); }, [defaultGeo, selectedGeo]);
 
-      let g = cache.get(key);
-      if (!g) {
-        g = makeCylinderGeometry(vecA, vecB, EDGE_HIT_RADIUS);
-        cache.set(key, g);
-      } else {
-        // Rebuild if positions changed
-        g.dispose();
-        g = makeCylinderGeometry(vecA, vecB, EDGE_HIT_RADIUS);
-        cache.set(key, g);
+  /**
+   * Single merged hit geometry for all edges — one scene object instead of N.
+   *
+   * Each edge cylinder is unrolled into a flat (non-indexed) triangle buffer.
+   * Since CylinderGeometry(r, r, h, 8, 1) always has TRI_PER_CYLINDER=32 triangles
+   * regardless of length or orientation, edge `i` occupies face indices
+   * [i*32, (i+1)*32). We recover edgeIdx = Math.floor(faceIndex / TRI_PER_CYLINDER).
+   */
+  const hitGeo = useMemo(() => {
+    if (edgeSet.length === 0) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(0), 3));
+      return g;
+    }
+
+    // Each cylinder contributes TRI_PER_CYLINDER triangles × 3 vertices × 3 floats
+    const floatsPerCylinder = TRI_PER_CYLINDER * 3 * 3;
+    const allVerts = new Float32Array(edgeSet.length * floatsPerCylinder);
+    let offset = 0;
+
+    for (const [a, b] of edgeSet) {
+      const va = new THREE.Vector3(positions[a * 3], positions[a * 3 + 1], positions[a * 3 + 2]);
+      const vb = new THREE.Vector3(positions[b * 3], positions[b * 3 + 1], positions[b * 3 + 2]);
+      const cyl = makeCylinderGeometry(va, vb, EDGE_HIT_RADIUS);
+
+      // Unroll indexed cylinder into flat triangle list
+      const posAttr = cyl.getAttribute("position") as THREE.BufferAttribute;
+      const idxAttr = cyl.getIndex()!;
+      for (let i = 0; i < idxAttr.count; i++) {
+        const vi = idxAttr.getX(i);
+        allVerts[offset++] = posAttr.getX(vi);
+        allVerts[offset++] = posAttr.getY(vi);
+        allVerts[offset++] = posAttr.getZ(vi);
       }
-      return { key, a, b, geo: g };
-    });
+      cyl.dispose();
+    }
+
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(allVerts, 3));
+    return g;
   }, [edgeSet, positions]);
+
+  // Dispose hit geometry when it changes
+  useEffect(() => () => { hitGeo.dispose(); }, [hitGeo]);
 
   if (selectionMode !== "edge" && !addMode) return null;
 
@@ -134,24 +149,38 @@ export function EdgeLines({
       <lineSegments geometry={selectedGeo}>
         <lineBasicMaterial color={EDGE_COLOR_SELECTED} depthTest={false} linewidth={3} />
       </lineSegments>
-      {hitGeos.map(({ key, a, b, geo }) => (
-        <mesh
-          key={key}
-          geometry={geo}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (addMode) {
-              onAddVertex?.(a, b, e.point);
-            } else {
-              onClick(a, b, e.shiftKey);
-            }
-          }}
-          onPointerMove={addMode ? (e) => { e.stopPropagation(); onAddVertexHover?.(a, b, e.point); } : undefined}
-          onPointerLeave={addMode ? (e) => { e.stopPropagation(); onAddVertexHover?.(a, b, null); } : undefined}
-        >
-          <meshBasicMaterial visible={false} />
-        </mesh>
-      ))}
+      {/* Single hit mesh for all edges — faceIndex maps back to edge via TRI_PER_CYLINDER */}
+      <mesh
+        geometry={hitGeo}
+        onClick={(e) => {
+          e.stopPropagation();
+          const fi = e.faceIndex;
+          if (fi == null) return;
+          const edgeIdx = Math.floor(fi / TRI_PER_CYLINDER);
+          if (edgeIdx >= edgeSet.length) return;
+          const [a, b] = edgeSet[edgeIdx];
+          if (addMode) {
+            onAddVertex?.(a, b, e.point);
+          } else {
+            onClick(a, b, e.shiftKey);
+          }
+        }}
+        onPointerMove={addMode ? (e) => {
+          e.stopPropagation();
+          const fi = e.faceIndex;
+          if (fi == null) return;
+          const edgeIdx = Math.floor(fi / TRI_PER_CYLINDER);
+          if (edgeIdx >= edgeSet.length) return;
+          const [a, b] = edgeSet[edgeIdx];
+          onAddVertexHover?.(a, b, e.point);
+        } : undefined}
+        onPointerLeave={addMode ? (e) => {
+          e.stopPropagation();
+          onAddVertexHover?.(0, 0, null);
+        } : undefined}
+      >
+        <meshBasicMaterial visible={false} />
+      </mesh>
     </>
   );
 }

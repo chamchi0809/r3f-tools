@@ -50,7 +50,6 @@ export function flushPositions(geo: THREE.BufferGeometry, positions: Float32Arra
   geo.computeVertexNormals();
   geo.computeBoundingSphere();
   geo.userData.r3eEdited = true;
-  geo.computeBoundingSphere();
 }
 
 /** Collect the unique set of vertex indices covered by a selection. */
