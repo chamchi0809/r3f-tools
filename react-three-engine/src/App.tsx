@@ -26,6 +26,7 @@ import {
 } from "./components/ViewportGizmo";
 import { BrushOverlay } from "./components/viewport/brush";
 import { ModelingOverlay } from "./components/viewport/modeling";
+import { WireframeOverlay } from "./components/viewport/WireframeOverlay";
 
 // Initialise the custom object registry as early as possible so that the
 // Hierarchy pane can show custom kinds as soon as the editor mounts.
@@ -117,6 +118,7 @@ const Viewport = () => {
         />
         {isModeling && <ModelingOverlay />}
         {isBrush && <BrushOverlay />}
+        {(isModeling || isBrush) && <WireframeOverlay />}
         <OrbitControls
           ref={controlsRef}
           makeDefault
