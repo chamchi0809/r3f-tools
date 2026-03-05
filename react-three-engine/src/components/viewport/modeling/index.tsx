@@ -7,6 +7,7 @@
  *   - G/R/S hotkeys to switch transform mode; Tab exits to Object Mode
  */
 import React, { useEffect, useMemo, useCallback, useState, useRef } from "react";
+import { isModKey } from "../../../utils/platform";
 import * as THREE from "three/webgpu";
 import { useSceneStore, sceneActions } from "../../../store/sceneStore";
 import { historyActions } from "../../../store/historyStore";
@@ -102,10 +103,10 @@ export function ModelingOverlay(): React.JSX.Element | null {
   // Track Ctrl key for snapping
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
-      if (e.key === "Control") setCtrlHeld(true);
+      if (e.key === "Control" || e.key === "Meta") setCtrlHeld(true);
     };
     const onUp = (e: KeyboardEvent) => {
-      if (e.key === "Control") setCtrlHeld(false);
+      if (e.key === "Control" || e.key === "Meta") setCtrlHeld(false);
     };
     window.addEventListener("keydown", onDown);
     window.addEventListener("keyup", onUp);
@@ -152,7 +153,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
       if (e.key === "Tab") {
         e.preventDefault();
         modelingActions.setEditorMode("object");
-      } else if (e.ctrlKey && (e.key === "b" || e.key === "B")) {
+      } else if (isModKey(e) && (e.key === "b" || e.key === "B")) {
         // Ctrl+B — apply bevel to all selected edges or faces
         e.preventDefault();
         const sel = getSelectedMesh();
@@ -162,7 +163,7 @@ export function ModelingOverlay(): React.JSX.Element | null {
           if (!applyBevel(sel.mesh, mState)) return false;
           modelingActions.clearSelection();
         });
-      } else if (e.ctrlKey && (e.key === "e" || e.key === "E")) {
+      } else if (isModKey(e) && (e.key === "e" || e.key === "E")) {
         // Ctrl+E — extrude selected faces
         e.preventDefault();
         if (useModelingStore.getState().selectionMode === "face") {

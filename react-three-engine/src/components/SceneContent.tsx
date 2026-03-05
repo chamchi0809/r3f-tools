@@ -177,10 +177,10 @@ export function SceneContent({
 
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
-      if (e.key === "Control") setCtrlHeld(true);
+      if (e.key === "Control" || e.key === "Meta") setCtrlHeld(true);
     };
     const onUp = (e: KeyboardEvent) => {
-      if (e.key === "Control") setCtrlHeld(false);
+      if (e.key === "Control" || e.key === "Meta") setCtrlHeld(false);
     };
     window.addEventListener("keydown", onDown);
     window.addEventListener("keyup", onUp);

@@ -3,6 +3,7 @@ import { useThree } from "@react-three/fiber";
 import * as THREE from "three/webgpu";
 import { sceneActions } from "../../../store/sceneStore";
 import { useModelingStore, modelingActions } from "../../../store/modelingStore";
+import { isModKey } from "../../../utils/platform";
 import { useSettingsStore, snapToGrid } from "../../../store/settingsStore";
 import { BASE_PLANE_STEP, HEIGHT_SENSITIVITY, SNAP_RADIUS_PX } from "./constants";
 import { buildExtrudedGeometry, projectToFloor, triangulatePolygon, worldToScreenDist } from "./geometry";
@@ -189,7 +190,7 @@ export function BrushOverlay(): React.JSX.Element | null {
         const dy = extrudeStartYRef.current - sy; // upward = positive
         let h = dy * HEIGHT_SENSITIVITY * 20;
         const snap = useSettingsStore.getState().snap;
-        if (snap.enabled && e.ctrlKey) h = snapToGrid(h, snap.brushStep);
+        if (snap.enabled && isModKey(e)) h = snapToGrid(h, snap.brushStep);
         setExtrudeHeight(h);
         return;
       }
@@ -200,7 +201,7 @@ export function BrushOverlay(): React.JSX.Element | null {
       let hit = projectToFloor(new THREE.Vector2(ndcX, ndcY), camera, raycaster, basePlaneY);
       if (hit) {
         const snap = useSettingsStore.getState().snap;
-        if (snap.enabled && e.ctrlKey) {
+        if (snap.enabled && isModKey(e)) {
           hit = new THREE.Vector3(
             snapToGrid(hit.x, snap.brushStep),
             hit.y,
@@ -236,7 +237,7 @@ export function BrushOverlay(): React.JSX.Element | null {
       let hit = projectToFloor(new THREE.Vector2(ndcX, ndcY), camera, raycaster, basePlaneY);
       if (hit) {
         const snap = useSettingsStore.getState().snap;
-        if (snap.enabled && e.ctrlKey) {
+        if (snap.enabled && isModKey(e)) {
           hit = new THREE.Vector3(
             snapToGrid(hit.x, snap.brushStep),
             hit.y,

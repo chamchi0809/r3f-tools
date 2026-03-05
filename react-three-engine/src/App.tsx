@@ -4,6 +4,7 @@ import { Canvas } from "@react-three/fiber";
 import { DockviewReact, IDockviewPanelHeaderProps } from "dockview";
 import "dockview/dist/styles/dockview.css";
 import React, { useEffect, useRef, useState } from "react";
+import { isModKey } from "./utils/platform";
 import * as THREE from "three/webgpu";
 import { HierarchyPane } from "./components/HierarchyPane";
 import { HistoryPane } from "./components/HistoryPane";
@@ -59,12 +60,12 @@ const Viewport = () => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).tagName === "INPUT") return;
       // Undo/redo — always active regardless of editor mode
-      if (e.ctrlKey && (e.key === "z" || e.key === "Z")) {
+      if (isModKey(e) && (e.key === "z" || e.key === "Z")) {
         e.preventDefault();
         historyActions.undo();
         return;
       }
-      if (e.ctrlKey && (e.key === "y" || e.key === "Y")) {
+      if (isModKey(e) && (e.key === "y" || e.key === "Y")) {
         e.preventDefault();
         historyActions.redo();
         return;
