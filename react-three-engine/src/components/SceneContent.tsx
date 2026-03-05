@@ -157,11 +157,15 @@ export function SceneContent({
   transformDragging,
   transformMode,
   isModeling,
+  viewportRef,
+  enableTransformControls = true,
 }: {
   onTransformDrag: (dragging: boolean) => void;
   transformDragging: boolean;
   transformMode: TransformMode;
   isModeling: boolean;
+  viewportRef?: React.RefObject<HTMLElement | null>;
+  enableTransformControls?: boolean;
 }): React.JSX.Element {
   const { scene } = useThree();
   const snap = useSettingsStore((s) => s.snap);
@@ -285,8 +289,8 @@ export function SceneContent({
 
   return (
     <>
-      {!isModeling && <ClickSelector transformDragging={transformDragging} />}
-      {selectedObj && !isModeling && (
+      {!isModeling && <ClickSelector transformDragging={transformDragging} viewportRef={viewportRef} />}
+      {selectedObj && !isModeling && enableTransformControls && (
         <TransformControls
           object={selectedObj}
           mode={transformMode}

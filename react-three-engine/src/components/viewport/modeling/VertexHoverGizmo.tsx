@@ -35,10 +35,16 @@ export function VertexHoverGizmo({
     m.position.copy(state.pos);
     // Billboard: orient ring to always face the camera
     m.quaternion.copy(camera.quaternion);
-    // Scale so the ring's radius equals VERTEX_SCREEN_HIT_PX pixels at any distance
-    const dist = camera.position.distanceTo(state.pos);
-    const fovRad = ((camera as THREE.PerspectiveCamera).fov ?? 60) * (Math.PI / 180);
-    const worldRadius = (VERTEX_SCREEN_HIT_PX * dist * 2 * Math.tan(fovRad / 2)) / size.height;
+    // Scale so the ring's radius equals VERTEX_SCREEN_HIT_PX pixels at any distance.
+    // Ortho cameras have no FOV — use zoom instead (world units per pixel = 1/zoom).
+    const isOrtho = (camera as THREE.OrthographicCamera).isOrthographicCamera;
+    const worldRadius = isOrtho
+      ? VERTEX_SCREEN_HIT_PX / (camera as THREE.OrthographicCamera).zoom
+      : (() => {
+          const dist = camera.position.distanceTo(state.pos);
+          const fovRad = ((camera as THREE.PerspectiveCamera).fov ?? 60) * (Math.PI / 180);
+          return (VERTEX_SCREEN_HIT_PX * dist * 2 * Math.tan(fovRad / 2)) / size.height;
+        })();
     m.scale.setScalar(worldRadius);
     // Update ring color based on selection state
     const mat = m.material as THREE.MeshBasicMaterial;

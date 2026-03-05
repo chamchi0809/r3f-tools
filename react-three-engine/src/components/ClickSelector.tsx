@@ -1,9 +1,15 @@
 import { useThree } from "@react-three/fiber";
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import * as THREE from "three/webgpu";
 import { sceneActions, useSceneStore } from "../store/sceneStore";
 
-export function ClickSelector({ transformDragging }: { transformDragging: boolean }) {
+export function ClickSelector({
+  transformDragging,
+  viewportRef,
+}: {
+  transformDragging: boolean;
+  viewportRef?: React.RefObject<HTMLElement | null>;
+}) {
   const { camera, raycaster, gl } = useThree();
   const pointerDown = useRef<{ x: number; y: number } | null>(null);
 
@@ -23,7 +29,9 @@ export function ClickSelector({ transformDragging }: { transformDragging: boolea
       // Ignore if this was a drag (e.g. OrbitControls pan)
       if (Math.sqrt(dx * dx + dy * dy) > 4) return;
 
-      const rect = canvas.getBoundingClientRect();
+      // Use the explicit viewport element bounds when provided (split-view mode),
+      // otherwise fall back to the full canvas — both give correct NDC.
+      const rect = (viewportRef?.current ?? canvas).getBoundingClientRect();
       const ndcX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       const ndcY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);

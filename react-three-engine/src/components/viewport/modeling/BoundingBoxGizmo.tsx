@@ -8,7 +8,7 @@ import * as THREE from "three/webgpu";
  * W, H, and D edges. Labels are projected to screen space every frame so they
  * stay attached as the camera orbits.
  */
-export function BoundingBoxGizmo({ mesh }: { mesh: THREE.Mesh }) {
+export function BoundingBoxGizmo({ mesh, showLabels = true }: { mesh: THREE.Mesh; showLabels?: boolean }) {
   const { camera, size, gl } = useThree();
 
   // Stable line geometry — 12 edges × 2 vertices = 24 points = 72 floats.
@@ -20,8 +20,10 @@ export function BoundingBoxGizmo({ mesh }: { mesh: THREE.Mesh }) {
   useEffect(() => () => lineGeo.dispose(), [lineGeo]);
 
   // Three DOM labels (W, H, D) — created once, positioned every frame.
+  // Skipped in ortho views to avoid N copies of the same labels stacking up.
   const labelsRef = useRef<HTMLDivElement[]>([]);
   useEffect(() => {
+    if (!showLabels) return;
     const COLORS = ["#ff8888", "#88ee99", "#88aaff"];
     const divs = COLORS.map((color) => {
       const div = document.createElement("div");
@@ -45,7 +47,7 @@ export function BoundingBoxGizmo({ mesh }: { mesh: THREE.Mesh }) {
     });
     labelsRef.current = divs;
     return () => divs.forEach((d) => document.body.removeChild(d));
-  }, []);
+  }, [showLabels]);
 
   useFrame(() => {
     // precise=true reads the position buffer directly instead of the cached
@@ -80,24 +82,26 @@ export function BoundingBoxGizmo({ mesh }: { mesh: THREE.Mesh }) {
     attr.needsUpdate = true;
 
     // Midpoints of the three edges emanating from corner 0 (front-bottom-left).
-    const midpoints = [
-      new THREE.Vector3(cx,    min.y, min.z), // W: bottom-front edge
-      new THREE.Vector3(min.x, cy,    min.z), // H: front-left vertical
-      new THREE.Vector3(min.x, min.y, cz   ), // D: left-bottom depth edge
-    ];
-    const values = [max.x - min.x, max.y - min.y, max.z - min.z];
-    const labels = ["W", "H", "D"];
-    const rect = gl.domElement.getBoundingClientRect();
-    const vw = size.width, vh = size.height;
+    if (showLabels && labelsRef.current.length > 0) {
+      const midpoints = [
+        new THREE.Vector3(cx,    min.y, min.z), // W: bottom-front edge
+        new THREE.Vector3(min.x, cy,    min.z), // H: front-left vertical
+        new THREE.Vector3(min.x, min.y, cz   ), // D: left-bottom depth edge
+      ];
+      const values = [max.x - min.x, max.y - min.y, max.z - min.z];
+      const labels = ["W", "H", "D"];
+      const rect = gl.domElement.getBoundingClientRect();
+      const vw = size.width, vh = size.height;
 
-    labelsRef.current.forEach((div, i) => {
-      const ndc = midpoints[i].clone().project(camera);
-      if (ndc.z > 1) { div.style.display = "none"; return; }
-      div.style.display = "";
-      div.style.left = `${rect.left + (ndc.x * 0.5 + 0.5) * vw}px`;
-      div.style.top  = `${rect.top  + (1 - (ndc.y * 0.5 + 0.5)) * vh}px`;
-      div.textContent = `${labels[i]} ${values[i].toFixed(2)}`;
-    });
+      labelsRef.current.forEach((div, i) => {
+        const ndc = midpoints[i].clone().project(camera);
+        if (ndc.z > 1) { div.style.display = "none"; return; }
+        div.style.display = "";
+        div.style.left = `${rect.left + (ndc.x * 0.5 + 0.5) * vw}px`;
+        div.style.top  = `${rect.top  + (1 - (ndc.y * 0.5 + 0.5)) * vh}px`;
+        div.textContent = `${labels[i]} ${values[i].toFixed(2)}`;
+      });
+    }
   });
 
   return (

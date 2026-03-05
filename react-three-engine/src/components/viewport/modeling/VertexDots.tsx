@@ -166,11 +166,19 @@ export function VertexDots({
     frameCounter.current = (frameCounter.current + 1) % 2;
     if (frameCounter.current !== 0) return;
 
-    // Screen-space consistent scale in world space (no mesh scale compensation needed)
-    _meshCenter.current.setFromMatrixPosition(mesh.matrixWorld);
-    const camDist = camera.position.distanceTo(_meshCenter.current);
-    const fovRad = ((camera as THREE.PerspectiveCamera).fov ?? 60) * (Math.PI / 180);
-    const worldRadius = (VERTEX_SCREEN_VISUAL_PX * camDist * 2 * Math.tan(fovRad / 2)) / size.height;
+    // Screen-space consistent scale: formula differs between ortho and perspective cameras.
+    // Ortho: world units per pixel = 1 / zoom (independent of camera distance).
+    // Perspective: derived from FOV and camera-to-mesh distance.
+    const isOrtho = (camera as THREE.OrthographicCamera).isOrthographicCamera;
+    let worldRadius: number;
+    if (isOrtho) {
+      worldRadius = VERTEX_SCREEN_VISUAL_PX / (camera as THREE.OrthographicCamera).zoom;
+    } else {
+      _meshCenter.current.setFromMatrixPosition(mesh.matrixWorld);
+      const camDist = camera.position.distanceTo(_meshCenter.current);
+      const fovRad = ((camera as THREE.PerspectiveCamera).fov ?? 60) * (Math.PI / 180);
+      worldRadius = (VERTEX_SCREEN_VISUAL_PX * camDist * 2 * Math.tan(fovRad / 2)) / size.height;
+    }
 
     const visual = visualRef.current;
     const d = dummyRef.current;

@@ -81,6 +81,8 @@ export function BrushOverlay(): React.JSX.Element | null {
     const onPointerMove = (e: PointerEvent) => {
       if (!isPanning) return;
       if (!e.shiftKey) { isPanning = false; return; }
+      // Skip custom pan for orthographic cameras — MapControls handles it there
+      if (!(camera instanceof THREE.PerspectiveCamera)) return;
       const deltaX = e.clientX - lastX;
       const deltaY = e.clientY - lastY;
       lastX = e.clientX;

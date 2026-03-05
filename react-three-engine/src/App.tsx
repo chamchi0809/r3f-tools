@@ -1,6 +1,4 @@
 import { injectGlobal } from "@emotion/css";
-import { OrbitControls } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
 import { DockviewReact, IDockviewPanelHeaderProps } from "dockview";
 import "dockview/dist/styles/dockview.css";
 import React, { useEffect, useRef, useState } from "react";
@@ -12,7 +10,6 @@ import { InspectorPane } from "./components/InspectorPane";
 import { SettingsPane } from "./components/SettingsPane";
 import { PrefabPanel } from "./components/PrefabPanel";
 import { TagsPane } from "./components/TagsPane";
-import { SceneContent } from "./components/SceneContent";
 import { EditorModeBar, type TransformMode } from "./components/Toolbar";
 
 import { useModelingStore } from "./store/modelingStore";
@@ -20,13 +17,7 @@ import { sceneActions, useSceneStore } from "./store/sceneStore";
 import { historyActions } from "./store/historyStore";
 import { initCustomObjectRegistry } from "./customObjectRegistry";
 import "./styles";
-import {
-  ViewportGizmo,
-  ViewportGizmoAnimator,
-} from "./components/ViewportGizmo";
-import { BrushOverlay } from "./components/viewport/brush";
-import { ModelingOverlay } from "./components/viewport/modeling";
-import { WireframeOverlay } from "./components/viewport/WireframeOverlay";
+import { SplitViewport } from "./components/SplitViewport";
 
 // Initialise the custom object registry as early as possible so that the
 // Hierarchy pane can show custom kinds as soon as the editor mounts.
@@ -40,6 +31,7 @@ const Viewport = () => {
   const isModeling = editorMode === "modeling";
   const isBrush = editorMode === "brush";
   const [shiftHeld, setShiftHeld] = useState(false);
+  const [isSplitView, setIsSplitView] = useState(false);
 
   const cameraRef = useRef<THREE.Camera | null>(null);
   const controlsRef = useRef<any>(null);
@@ -93,39 +85,43 @@ const Viewport = () => {
         cursor: isBrush ? (shiftHeld ? "grab" : "crosshair") : "default",
       }}
     >
-      <Canvas
-        shadows="percentage"
-        gl={async (props) => {
-          const renderer = new THREE.WebGPURenderer(props as any);
-          await renderer.init();
-          return renderer;
+      {/* Split-view toggle button */}
+      <button
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          setIsSplitView((v) => !v);
         }}
-        camera={{ position: [0, 2, 8], fov: 60 }}
-        style={{ background: "#1a1a1a", cursor: "inherit" }}
+        title="Toggle quad viewport"
+        style={{
+          position: "absolute",
+          top: 8,
+          left: 8,
+          zIndex: 100,
+          background: isSplitView ? "rgba(80,100,220,0.55)" : "rgba(0,0,0,0.45)",
+          border: `1px solid ${isSplitView ? "#6080cc" : "#555"}`,
+          borderRadius: 4,
+          color: "#ccc",
+          cursor: "pointer",
+          padding: "2px 6px",
+          fontSize: 15,
+          lineHeight: 1,
+          userSelect: "none",
+        }}
       >
-        <ViewportGizmoAnimator
-          controlsRef={controlsRef}
-          cameraRef={cameraRef}
-        />
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 8, 5]} intensity={1} />
-        <gridHelper args={[20, 20, "#333", "#2a2a2a"]} />
-        <SceneContent
-          onTransformDrag={setTransformDragging}
-          transformDragging={transformDragging}
-          transformMode={transformMode}
-          isModeling={isModeling || isBrush}
-        />
-        {isModeling && <ModelingOverlay />}
-        {isBrush && <BrushOverlay />}
-        {(isModeling || isBrush) && <WireframeOverlay />}
-        <OrbitControls
-          ref={controlsRef}
-          makeDefault
-          enabled={!transformDragging && !isBrush}
-        />
-      </Canvas>
-      <ViewportGizmo cameraRef={cameraRef} controlsRef={controlsRef} />
+        ⊞
+      </button>
+
+      <SplitViewport
+        isSplit={isSplitView}
+        transformDragging={transformDragging}
+        onTransformDrag={setTransformDragging}
+        transformMode={transformMode}
+        isModeling={isModeling}
+        isBrush={isBrush}
+        perspCameraRef={cameraRef}
+        perspControlsRef={controlsRef}
+      />
+
       <EditorModeBar
         transformMode={transformMode}
         setTransformMode={setTransformMode}
