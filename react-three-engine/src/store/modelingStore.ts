@@ -18,7 +18,7 @@ export interface SelectedElement {
   index2?: number;
 }
 
-interface ModelingState {
+export interface ModelingState {
   editorMode: EditorMode;
   selectionMode: SelectionMode;
   transformMode: ModelingTransformMode;

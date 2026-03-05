@@ -54,6 +54,29 @@ const BRUSH_TYPES: { type: BrushType; label: string; disabled?: boolean }[] = [
   { type: "stair", label: "Stair Brush" },
 ];
 
+// ─── Shared style helpers ───────────────────────────────────────────────────────────
+
+const PANEL_ROW_STYLE: React.CSSProperties = {
+  background: "#1e1e1ecc",
+  border: "1px solid #444",
+  borderRadius: 6,
+  display: "flex",
+  gap: 2,
+  padding: 3,
+  backdropFilter: "blur(4px)",
+};
+
+function tabBtnStyle(active: boolean, activeColor: string): React.CSSProperties {
+  return {
+    ...btnStyle,
+    background: active ? activeColor : "transparent",
+    color: active ? "#fff" : "#888",
+    fontSize: 13,
+    padding: "3px 10px",
+    border: "none",
+  };
+}
+
 // ─── Brush instruction panel ────────────────────────────────────────────────────────
 
 function getInstructionLines(
@@ -188,29 +211,12 @@ export function EditorModeBar({
       }}
     >
       {/* Mode tabs */}
-      <div
-        style={{
-          background: "#1e1e1ecc",
-          border: "1px solid #444",
-          borderRadius: 6,
-          display: "flex",
-          gap: 2,
-          padding: 3,
-          backdropFilter: "blur(4px)",
-        }}
-      >
+      <div style={PANEL_ROW_STYLE}>
         {EDITOR_MODES.map(({ mode, label }) => (
           <button
             key={mode}
             onClick={() => modelingActions.setEditorMode(mode)}
-            style={{
-              ...btnStyle,
-              background: editorMode === mode ? "#2d5fa6" : "transparent",
-              color: editorMode === mode ? "#fff" : "#888",
-              fontSize: 13,
-              padding: "3px 10px",
-              border: "none",
-            }}
+            style={tabBtnStyle(editorMode === mode, "#2d5fa6")}
           >
             {label}
           </button>
@@ -219,17 +225,7 @@ export function EditorModeBar({
 
       {/* Object mode — transform mode (G / R / S) */}
       {isObject && (
-        <div
-          style={{
-            background: "#1e1e1ecc",
-            border: "1px solid #444",
-            borderRadius: 6,
-            display: "flex",
-            gap: 2,
-            padding: 3,
-            backdropFilter: "blur(4px)",
-          }}
-        >
+        <div style={PANEL_ROW_STYLE}>
           {(["translate", "rotate", "scale"] as TransformMode[]).map((m) => {
             const hotkey = m === "translate" ? "G" : m === "rotate" ? "R" : "S";
             return (
@@ -237,17 +233,7 @@ export function EditorModeBar({
                 key={m}
                 onClick={() => setTransformMode(m)}
                 title={`${m[0].toUpperCase() + m.slice(1)}  [${hotkey}]`}
-                style={{
-                  ...btnStyle,
-                  background: transformMode === m ? "#2d5fa6" : "transparent",
-                  color: transformMode === m ? "#fff" : "#888",
-                  fontSize: 13,
-                  padding: "3px 10px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  border: "none",
-                }}
+                style={{ ...tabBtnStyle(transformMode === m, "#2d5fa6"), display: "flex", alignItems: "center", gap: 4 }}
               >
                 {m[0].toUpperCase() + m.slice(1)}
                 <span style={{ fontSize: 11, opacity: 0.6, fontFamily: "monospace" }}>[{hotkey}]</span>
@@ -261,31 +247,13 @@ export function EditorModeBar({
       {isModeling && (
         <>
           {/* Selection mode */}
-          <div
-            style={{
-              background: "#1e1e1ecc",
-              border: "1px solid #444",
-              borderRadius: 6,
-              display: "flex",
-              gap: 2,
-              padding: 3,
-              backdropFilter: "blur(4px)",
-            }}
-          >
+          <div style={PANEL_ROW_STYLE}>
             {SELECTION_MODES.map(({ mode, label, icon }) => (
               <button
                 key={mode}
                 onClick={() => modelingActions.setSelectionMode(mode)}
                 title={label}
-                style={{
-                  ...btnStyle,
-                  background: selectionMode === mode ? "#2d7a5f" : "transparent",
-                  color: selectionMode === mode ? "#fff" : "#888",
-                  fontSize: 13,
-                  padding: "3px 10px",
-                  border: "none",
-                  lineHeight: 1,
-                }}
+                style={{ ...tabBtnStyle(selectionMode === mode, "#2d7a5f"), lineHeight: 1 }}
               >
                 {icon}
               </button>
@@ -293,30 +261,13 @@ export function EditorModeBar({
           </div>
 
           {/* Tool (Select / Add) — varies by selection mode */}
-          <div
-            style={{
-              background: "#1e1e1ecc",
-              border: "1px solid #444",
-              borderRadius: 6,
-              display: "flex",
-              gap: 2,
-              padding: 3,
-              backdropFilter: "blur(4px)",
-            }}
-          >
+          <div style={PANEL_ROW_STYLE}>
             {activeTools.map(({ tool, label }) => (
               <button
                 key={tool}
                 onClick={() => modelingActions.setModelingTool(tool)}
                 title={label}
-                style={{
-                  ...btnStyle,
-                  background: modelingTool === tool ? "#2d7a5f" : "transparent",
-                  color: modelingTool === tool ? "#fff" : "#888",
-                  fontSize: 13,
-                  padding: "3px 10px",
-                  border: "none",
-                }}
+                style={tabBtnStyle(modelingTool === tool, "#2d7a5f")}
               >
                 {label}
               </button>
@@ -413,33 +364,13 @@ export function EditorModeBar({
           )}
 
           {/* Transform mode (G / R / S) */}
-          <div
-            style={{
-              background: "#1e1e1ecc",
-              border: "1px solid #444",
-              borderRadius: 6,
-              display: "flex",
-              gap: 2,
-              padding: 3,
-              backdropFilter: "blur(4px)",
-            }}
-          >
+          <div style={PANEL_ROW_STYLE}>
             {MODELING_TRANSFORM_MODES.map(({ mode, label, hotkey }) => (
               <button
                 key={mode}
                 onClick={() => modelingActions.setTransformMode(mode)}
                 title={`${label}  [${hotkey}]`}
-                style={{
-                  ...btnStyle,
-                  background: modelingTransformMode === mode ? "#7a4a2d" : "transparent",
-                  color: modelingTransformMode === mode ? "#fff" : "#888",
-                  fontSize: 13,
-                  padding: "3px 10px",
-                  border: "none",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
+                style={{ ...tabBtnStyle(modelingTransformMode === mode, "#7a4a2d"), display: "flex", alignItems: "center", gap: 4 }}
               >
                 {label}
                 <span style={{ fontSize: 11, opacity: 0.6, fontFamily: "monospace" }}>
@@ -454,17 +385,7 @@ export function EditorModeBar({
       {/* Brush sub-controls */}
       {editorMode === "brush" && (
         <>
-          <div
-            style={{
-              background: "#1e1e1ecc",
-              border: "1px solid #444",
-              borderRadius: 6,
-              display: "flex",
-              gap: 2,
-              padding: 3,
-              backdropFilter: "blur(4px)",
-            }}
-          >
+          <div style={PANEL_ROW_STYLE}>
             {BRUSH_TYPES.map(({ type, label, disabled }) => (
               <button
                 key={type}
@@ -472,12 +393,8 @@ export function EditorModeBar({
                 disabled={disabled}
                 title={disabled ? "Coming soon" : label}
                 style={{
-                  ...btnStyle,
-                  background: brushType === type ? "#7a2d5f" : "transparent",
+                  ...tabBtnStyle(brushType === type, "#7a2d5f"),
                   color: disabled ? "#555" : brushType === type ? "#fff" : "#888",
-                  fontSize: 13,
-                  padding: "3px 10px",
-                  border: "none",
                   cursor: disabled ? "not-allowed" : "pointer",
                   opacity: disabled ? 0.4 : 1,
                 }}

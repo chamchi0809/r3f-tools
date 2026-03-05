@@ -1,6 +1,21 @@
 import * as THREE from "three/webgpu";
 import type { SelectedElement } from "../../../store/modelingStore";
 
+/** Extract vertex at buffer-index i into a Vector3. */
+function posAt(positions: Float32Array, i: number): THREE.Vector3 {
+  return new THREE.Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+}
+
+/** Compute the face normal from three vertex buffer-indices. */
+function triNormal(positions: Float32Array, i0: number, i1: number, i2: number): THREE.Vector3 {
+  return new THREE.Vector3()
+    .crossVectors(
+      new THREE.Vector3().subVectors(posAt(positions, i1), posAt(positions, i0)),
+      new THREE.Vector3().subVectors(posAt(positions, i2), posAt(positions, i0)),
+    )
+    .normalize();
+}
+
 export function getPositions(geo: THREE.BufferGeometry): Float32Array {
   const attr = geo.getAttribute("position");
   if (!attr) return new Float32Array(0);
@@ -119,8 +134,8 @@ export function addVertexOnEdge(
   if (!indices) return;
 
   // Project localPoint onto the edge line segment
-  const pa = new THREE.Vector3(positions[a * 3], positions[a * 3 + 1], positions[a * 3 + 2]);
-  const pb = new THREE.Vector3(positions[b * 3], positions[b * 3 + 1], positions[b * 3 + 2]);
+  const pa = posAt(positions, a);
+  const pb = posAt(positions, b);
   const edge = new THREE.Vector3().subVectors(pb, pa);
   const t = Math.max(0.01, Math.min(0.99, localPoint.clone().sub(pa).dot(edge) / edge.lengthSq()));
   const p = pa.clone().addScaledVector(edge, t);
@@ -226,8 +241,8 @@ export function bevelEdge(
   const indices = getIndices(geo);
   if (!indices) return;
 
-  const pa = new THREE.Vector3(positions[a * 3], positions[a * 3 + 1], positions[a * 3 + 2]);
-  const pb = new THREE.Vector3(positions[b * 3], positions[b * 3 + 1], positions[b * 3 + 2]);
+  const pa = posAt(positions, a);
+  const pb = posAt(positions, b);
   const abHat = new THREE.Vector3().subVectors(pb, pa).normalize();
 
   // Expand to co-located vertex groups (handles split-vertex / per-face-normal geometries)
@@ -251,13 +266,8 @@ export function bevelEdge(
     const vB = v.find((x) => bGroup.has(x));
     if (vA === undefined || vB === undefined || vA === vB) continue;
     const opp = v.find((x) => x !== vA && x !== vB)!;
-    const oppPos = new THREE.Vector3(positions[opp * 3], positions[opp * 3 + 1], positions[opp * 3 + 2]);
-    const p0 = new THREE.Vector3(positions[v[0] * 3], positions[v[0] * 3 + 1], positions[v[0] * 3 + 2]);
-    const p1 = new THREE.Vector3(positions[v[1] * 3], positions[v[1] * 3 + 1], positions[v[1] * 3 + 2]);
-    const p2 = new THREE.Vector3(positions[v[2] * 3], positions[v[2] * 3 + 1], positions[v[2] * 3 + 2]);
-    const faceNormal = new THREE.Vector3()
-      .crossVectors(new THREE.Vector3().subVectors(p1, p0), new THREE.Vector3().subVectors(p2, p0))
-      .normalize();
+    const oppPos = posAt(positions, opp);
+    const faceNormal = triNormal(positions, v[0], v[1], v[2]);
     adjTris.push({ startIdx: i, v, vA, vB, opp, oppPos, faceNormal });
   }
   if (adjTris.length === 0) return;
@@ -357,13 +367,7 @@ export function bevelEdge(
 
     if (!side) {
       // Not a direct edge triangle — find side by face normal
-      const p0 = new THREE.Vector3(positions[v[0] * 3], positions[v[0] * 3 + 1], positions[v[0] * 3 + 2]);
-      const p1 = new THREE.Vector3(positions[v[1] * 3], positions[v[1] * 3 + 1], positions[v[1] * 3 + 2]);
-      const p2 = new THREE.Vector3(positions[v[2] * 3], positions[v[2] * 3 + 1], positions[v[2] * 3 + 2]);
-      const fn = new THREE.Vector3()
-        .crossVectors(new THREE.Vector3().subVectors(p1, p0), new THREE.Vector3().subVectors(p2, p0))
-        .normalize();
-      side = findSide(fn);
+      side = findSide(triNormal(positions, v[0], v[1], v[2]));
     }
 
     if (!side) {
@@ -452,10 +456,9 @@ export function bevelFace(
   const b = indices[faceIdx * 3 + 1];
   const c = indices[faceIdx * 3 + 2];
 
-  const pa = new THREE.Vector3(positions[a * 3], positions[a * 3 + 1], positions[a * 3 + 2]);
-  const pb = new THREE.Vector3(positions[b * 3], positions[b * 3 + 1], positions[b * 3 + 2]);
-  const pc = new THREE.Vector3(positions[c * 3], positions[c * 3 + 1], positions[c * 3 + 2]);
-
+  const pa = posAt(positions, a);
+  const pb = posAt(positions, b);
+  const pc = posAt(positions, c);
   const centroid = new THREE.Vector3().addVectors(pa, pb).add(pc).multiplyScalar(1 / 3);
 
   // Move each vertex toward the centroid by `amount`, clamped to 99% of the distance
@@ -530,11 +533,7 @@ export function findQuadPartner(
   const getTriVerts = (fi: number): [THREE.Vector3, THREE.Vector3, THREE.Vector3] => {
     if (indices) {
       const a = indices[fi * 3], b = indices[fi * 3 + 1], c = indices[fi * 3 + 2];
-      return [
-        new THREE.Vector3(positions[a * 3], positions[a * 3 + 1], positions[a * 3 + 2]),
-        new THREE.Vector3(positions[b * 3], positions[b * 3 + 1], positions[b * 3 + 2]),
-        new THREE.Vector3(positions[c * 3], positions[c * 3 + 1], positions[c * 3 + 2]),
-      ];
+      return [posAt(positions, a), posAt(positions, b), posAt(positions, c)];
     }
     const base = fi * 9;
     return [
@@ -638,13 +637,10 @@ export function extrudeFace(
   const b = indices[faceIdx * 3 + 1];
   const c = indices[faceIdx * 3 + 2];
 
-  const pa = new THREE.Vector3(positions[a * 3], positions[a * 3 + 1], positions[a * 3 + 2]);
-  const pb = new THREE.Vector3(positions[b * 3], positions[b * 3 + 1], positions[b * 3 + 2]);
-  const pc = new THREE.Vector3(positions[c * 3], positions[c * 3 + 1], positions[c * 3 + 2]);
-
-  const normal = new THREE.Vector3()
-    .crossVectors(new THREE.Vector3().subVectors(pb, pa), new THREE.Vector3().subVectors(pc, pa))
-    .normalize();
+  const pa = posAt(positions, a);
+  const pb = posAt(positions, b);
+  const pc = posAt(positions, c);
+  const normal = triNormal(positions, a, b, c);
 
   const pa2 = pa.clone().addScaledVector(normal, amount);
   const pb2 = pb.clone().addScaledVector(normal, amount);
@@ -702,8 +698,7 @@ export function extrudeQuadFace(
   const ia = [indices[faceIdxA * 3], indices[faceIdxA * 3 + 1], indices[faceIdxA * 3 + 2]];
   const ib = [indices[faceIdxB * 3], indices[faceIdxB * 3 + 1], indices[faceIdxB * 3 + 2]];
 
-  const pos = (vi: number) =>
-    new THREE.Vector3(positions[vi * 3], positions[vi * 3 + 1], positions[vi * 3 + 2]);
+  const pos = (vi: number) => posAt(positions, vi);
 
   const eps2 = 1e-8;
   const samePos = (a: number, b: number) => pos(a).distanceToSquared(pos(b)) < eps2;
@@ -738,13 +733,7 @@ export function extrudeQuadFace(
   const [s0, s1] = sharedA;
 
   const puA = pos(uA), ps0 = pos(s0), ps1 = pos(s1);
-
-  const faceNormalA = new THREE.Vector3()
-    .crossVectors(
-      new THREE.Vector3().subVectors(pos(ia[1]), pos(ia[0])),
-      new THREE.Vector3().subVectors(pos(ia[2]), pos(ia[0])),
-    )
-    .normalize();
+  const faceNormalA = triNormal(positions, ia[0], ia[1], ia[2]);
 
   // Order the 4 ring vertices CCW when viewed from faceNormalA
   let ring: [number, number, number, number];
@@ -844,8 +833,7 @@ export function bevelQuadFace(
   const ia = [indices[faceIdxA * 3], indices[faceIdxA * 3 + 1], indices[faceIdxA * 3 + 2]];
   const ib = [indices[faceIdxB * 3], indices[faceIdxB * 3 + 1], indices[faceIdxB * 3 + 2]];
 
-  const pos = (vi: number) =>
-    new THREE.Vector3(positions[vi * 3], positions[vi * 3 + 1], positions[vi * 3 + 2]);
+  const pos = (vi: number) => posAt(positions, vi);
 
   const eps2 = 1e-8;
   const samePos = (a: number, b: number) => pos(a).distanceToSquared(pos(b)) < eps2;
@@ -877,13 +865,7 @@ export function bevelQuadFace(
   const [s0, s1] = sharedA;
 
   const puA = pos(uA), puB = pos(uB), ps0 = pos(s0), ps1 = pos(s1);
-
-  const faceNormalA = new THREE.Vector3()
-    .crossVectors(
-      new THREE.Vector3().subVectors(pos(ia[1]), pos(ia[0])),
-      new THREE.Vector3().subVectors(pos(ia[2]), pos(ia[0])),
-    )
-    .normalize();
+  const faceNormalA = triNormal(positions, ia[0], ia[1], ia[2]);
 
   // Order the 4 perimeter vertices CCW (matching faceNormalA winding).
   // Start from uA, walk: uA → s0 → uB → s1 (or uA → s1 → uB → s0).

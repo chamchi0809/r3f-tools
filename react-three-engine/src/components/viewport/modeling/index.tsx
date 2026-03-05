@@ -17,6 +17,7 @@ import {
   type SelectedElement,
 } from "../../../store/modelingStore";
 import { getPositions, getIndices, selectedVertexIndices, flushPositions, addVertexOnEdge, addVertexOnFace, bevelEdge, bevelFace, bevelQuadFace, extrudeFace, extrudeQuadFace, groupFacesIntoPolygons, findQuadPartner } from "./helpers";
+import type { ModelingState } from "../../../store/modelingStore";
 import { ExtrudeInteractiveGizmo } from "./ExtrudeInteractiveGizmo";
 import { BoundingBoxGizmo } from "./BoundingBoxGizmo";
 import { VertexHoverGizmo } from "./VertexHoverGizmo";
@@ -26,6 +27,60 @@ import { FaceOverlays } from "./FaceOverlays";
 import { SelectionTransformGizmo } from "./SelectionTransformGizmo";
 import { AddVertexPreviewGizmo } from "./AddVertexPreviewGizmo";
 import type { AddVertexHitType } from "./AddVertexPreviewGizmo";
+
+// ── Module-level helpers ─────────────────────────────────────────────────────
+
+function getSelectedMesh(): { uuid: string; mesh: THREE.Mesh } | null {
+  const { selectedUUID, objects } = useSceneStore.getState();
+  if (!selectedUUID) return null;
+  const obj = objects.get(selectedUUID);
+  return obj instanceof THREE.Mesh ? { uuid: selectedUUID, mesh: obj } : null;
+}
+
+/** Snapshot → run fn() → record GeometryEditCommand. fn() may return false to abort. */
+function withGeoOp(uuid: string, label: string, fn: () => boolean | void): void {
+  const before = snapshotGeometry(uuid);
+  if (fn() === false) return;
+  const after = snapshotGeometry(uuid);
+  if (before && after) {
+    historyActions.executeCommand(
+      new GeometryEditCommand(uuid, before.positions, before.indices, after.positions, after.indices, label),
+    );
+  } else {
+    sceneActions.invalidate();
+  }
+}
+
+/** Apply bevel to current selection. Returns false if nothing to bevel. */
+function applyBevel(mesh: THREE.Mesh, mState: ModelingState): boolean {
+  if (mState.selectionMode === "face") {
+    const faces = mState.selectedElements.filter((el) => el.type === "face");
+    if (!faces.length) return false;
+    const polygons = groupFacesIntoPolygons(faces.map((el) => el.index), mesh.geometry);
+    for (const poly of polygons)
+      poly.kind === "quad"
+        ? bevelQuadFace(mesh.geometry, poly.faceIdxA, poly.faceIdxB, mState.bevelAmount)
+        : bevelFace(mesh.geometry, poly.faceIdx, mState.bevelAmount);
+  } else {
+    const edges = mState.selectedElements.filter((el) => el.type === "edge" && el.index2 !== undefined);
+    if (!edges.length) return false;
+    for (const el of edges) bevelEdge(mesh.geometry, el.index, el.index2!, mState.bevelAmount);
+  }
+  return true;
+}
+
+/** Apply extrude to a set of face elements, in descending face-index order. */
+function applyExtrude(geo: THREE.BufferGeometry, faces: SelectedElement[], amount: number): void {
+  const polygons = groupFacesIntoPolygons(faces.map((el) => el.index), geo);
+  polygons.sort((a, b) => {
+    const min = (p: typeof a) => (p.kind === "quad" ? Math.min(p.faceIdxA, p.faceIdxB) : p.faceIdx);
+    return min(b) - min(a);
+  });
+  for (const poly of polygons)
+    poly.kind === "quad"
+      ? extrudeQuadFace(geo, poly.faceIdxA, poly.faceIdxB, amount)
+      : extrudeFace(geo, poly.faceIdx, amount);
+}
 
 export function ModelingOverlay(): React.JSX.Element | null {
   const selectedUUID = useSceneStore((s) => s.selectedUUID);
@@ -64,84 +119,29 @@ export function ModelingOverlay(): React.JSX.Element | null {
   useEffect(() => {
     if (!bevelPending) return;
     modelingActions.clearBevelPending();
-    const state = useSceneStore.getState();
+    const sel = getSelectedMesh();
+    if (!sel) return;
     const mState = useModelingStore.getState();
-    const selUUID = state.selectedUUID;
-    if (!selUUID) return;
-    const obj = state.objects.get(selUUID);
-    if (!(obj instanceof THREE.Mesh)) return;
-    const before = snapshotGeometry(selUUID);
-    if (mState.selectionMode === "face") {
-      const faces = mState.selectedElements.filter((el) => el.type === "face");
-      if (faces.length === 0) return;
-      const polygons = groupFacesIntoPolygons(faces.map((el) => el.index), obj.geometry);
-      for (const poly of polygons) {
-        if (poly.kind === "quad") {
-          bevelQuadFace(obj.geometry, poly.faceIdxA, poly.faceIdxB, mState.bevelAmount);
-        } else {
-          bevelFace(obj.geometry, poly.faceIdx, mState.bevelAmount);
-        }
-      }
-    } else {
-      const edges = mState.selectedElements.filter((el) => el.type === "edge");
-      if (edges.length === 0) return;
-      for (const el of edges) {
-        if (el.index2 === undefined) continue;
-        bevelEdge(obj.geometry, el.index, el.index2, mState.bevelAmount);
-      }
-    }
-    modelingActions.clearSelection();
-    if (before) {
-      const after = snapshotGeometry(selUUID);
-      if (after) {
-        historyActions.executeCommand(
-          new GeometryEditCommand(selUUID, before.positions, before.indices, after.positions, after.indices, "Bevel"),
-        );
-        return; // GeometryEditCommand calls invalidate internally
-      }
-    }
-    sceneActions.invalidate();
+    withGeoOp(sel.uuid, "Bevel", () => {
+      if (!applyBevel(sel.mesh, mState)) return false;
+      modelingActions.clearSelection();
+    });
   }, [bevelPending]);
 
   // Apply extrude when toolbar button is clicked (extrudePending flag)
   useEffect(() => {
     if (!extrudePending) return;
     modelingActions.clearExtrudePending();
-    const state = useSceneStore.getState();
+    const sel = getSelectedMesh();
+    if (!sel) return;
     const mState = useModelingStore.getState();
-    const selUUID = state.selectedUUID;
-    if (!selUUID) return;
-    const obj = state.objects.get(selUUID);
-    if (!(obj instanceof THREE.Mesh)) return;
     if (mState.selectionMode !== "face") return;
     const faces = mState.selectedElements.filter((el) => el.type === "face");
-    if (faces.length === 0) return;
-    const before = snapshotGeometry(selUUID);
-    const polygons = groupFacesIntoPolygons(faces.map((el) => el.index), obj.geometry);
-    // Process in descending face-index order so earlier mutations don't corrupt later indices
-    polygons.sort((a, b) => {
-      const aMin = a.kind === "quad" ? Math.min(a.faceIdxA, a.faceIdxB) : a.faceIdx;
-      const bMin = b.kind === "quad" ? Math.min(b.faceIdxA, b.faceIdxB) : b.faceIdx;
-      return bMin - aMin;
+    if (!faces.length) return;
+    withGeoOp(sel.uuid, "Extrude", () => {
+      applyExtrude(sel.mesh.geometry, faces, mState.extrudeAmount);
+      modelingActions.clearSelection();
     });
-    for (const poly of polygons) {
-      if (poly.kind === "quad") {
-        extrudeQuadFace(obj.geometry, poly.faceIdxA, poly.faceIdxB, mState.extrudeAmount);
-      } else {
-        extrudeFace(obj.geometry, poly.faceIdx, mState.extrudeAmount);
-      }
-    }
-    modelingActions.clearSelection();
-    if (before) {
-      const after = snapshotGeometry(selUUID);
-      if (after) {
-        historyActions.executeCommand(
-          new GeometryEditCommand(selUUID, before.positions, before.indices, after.positions, after.indices, "Extrude"),
-        );
-        return;
-      }
-    }
-    sceneActions.invalidate();
   }, [extrudePending]);
 
   // Keyboard shortcuts
@@ -155,43 +155,13 @@ export function ModelingOverlay(): React.JSX.Element | null {
       } else if (e.ctrlKey && (e.key === "b" || e.key === "B")) {
         // Ctrl+B — apply bevel to all selected edges or faces
         e.preventDefault();
-        const state = useSceneStore.getState();
+        const sel = getSelectedMesh();
+        if (!sel) return;
         const mState = useModelingStore.getState();
-        const selUUID = state.selectedUUID;
-        if (!selUUID) return;
-        const obj = state.objects.get(selUUID);
-        if (!(obj instanceof THREE.Mesh)) return;
-        const before = snapshotGeometry(selUUID);
-        if (mState.selectionMode === "face") {
-          const faces = mState.selectedElements.filter((el) => el.type === "face");
-          if (faces.length === 0) return;
-          const polygons = groupFacesIntoPolygons(faces.map((el) => el.index), obj.geometry);
-          for (const poly of polygons) {
-            if (poly.kind === "quad") {
-              bevelQuadFace(obj.geometry, poly.faceIdxA, poly.faceIdxB, mState.bevelAmount);
-            } else {
-              bevelFace(obj.geometry, poly.faceIdx, mState.bevelAmount);
-            }
-          }
-        } else {
-          const edges = mState.selectedElements.filter((el) => el.type === "edge");
-          if (edges.length === 0) return;
-          for (const el of edges) {
-            if (el.index2 === undefined) continue;
-            bevelEdge(obj.geometry, el.index, el.index2, mState.bevelAmount);
-          }
-        }
-        modelingActions.clearSelection();
-        if (before) {
-          const after = snapshotGeometry(selUUID);
-          if (after) {
-            historyActions.executeCommand(
-              new GeometryEditCommand(selUUID, before.positions, before.indices, after.positions, after.indices, "Bevel"),
-            );
-            return;
-          }
-        }
-        sceneActions.invalidate();
+        withGeoOp(sel.uuid, "Bevel", () => {
+          if (!applyBevel(sel.mesh, mState)) return false;
+          modelingActions.clearSelection();
+        });
       } else if (e.ctrlKey && (e.key === "e" || e.key === "E")) {
         // Ctrl+E — extrude selected faces
         e.preventDefault();
@@ -206,81 +176,51 @@ export function ModelingOverlay(): React.JSX.Element | null {
         modelingActions.setTransformMode("scale");
       } else if (e.key === "Delete" || e.key === "Backspace") {
         // Delete selected sub-elements from the active mesh
-        const state = useSceneStore.getState();
+        const sel = getSelectedMesh();
+        if (!sel) return;
         const mState = useModelingStore.getState();
-        const selUUID = state.selectedUUID;
-        if (!selUUID) return;
-        const obj = state.objects.get(selUUID);
-        if (!(obj instanceof THREE.Mesh)) return;
-        const geo = obj.geometry;
-        const elements = mState.selectedElements;
-        if (elements.length === 0) return;
-
-        const before = snapshotGeometry(selUUID);
-        const positions = getPositions(geo);
+        if (!mState.selectedElements.length) return;
+        const geo = sel.mesh.geometry;
         const oldIndices = getIndices(geo);
         if (!oldIndices) return; // non-indexed — skip for safety
-
-        let newTriIndices: number[];
-
-        if (mState.selectionMode === "face") {
-          // Face mode: remove exact triangle indices to avoid deleting adjacent
-          // faces that share vertices (e.g. extrusion side walls).
-          const facesToRemove = new Set(
-            elements.filter((e) => e.type === "face").map((e) => e.index),
-          );
-          newTriIndices = [];
-          for (let t = 0; t < oldIndices.length; t += 3) {
-            if (!facesToRemove.has(t / 3)) {
-              newTriIndices.push(oldIndices[t], oldIndices[t + 1], oldIndices[t + 2]);
+        withGeoOp(sel.uuid, "Delete Elements", () => {
+          const positions = getPositions(geo);
+          const elements = mState.selectedElements;
+          let newTriIndices: number[];
+          if (mState.selectionMode === "face") {
+            // Face mode: remove exact triangle indices to avoid deleting adjacent
+            // faces that share vertices (e.g. extrusion side walls).
+            const facesToRemove = new Set(elements.filter((e) => e.type === "face").map((e) => e.index));
+            newTriIndices = [];
+            for (let t = 0; t < oldIndices.length; t += 3) {
+              if (!facesToRemove.has(t / 3)) newTriIndices.push(oldIndices[t], oldIndices[t + 1], oldIndices[t + 2]);
+            }
+          } else {
+            // Vertex/Edge mode: remove all triangles that touch any selected vertex.
+            const toRemove = selectedVertexIndices(elements, geo);
+            newTriIndices = [];
+            for (let t = 0; t < oldIndices.length; t += 3) {
+              const a = oldIndices[t], b = oldIndices[t + 1], c = oldIndices[t + 2];
+              if (!toRemove.has(a) && !toRemove.has(b) && !toRemove.has(c)) newTriIndices.push(a, b, c);
             }
           }
-        } else {
-          // Vertex/Edge mode: remove all triangles that touch any selected vertex.
-          const toRemove = selectedVertexIndices(elements, geo);
-          newTriIndices = [];
-          for (let t = 0; t < oldIndices.length; t += 3) {
-            const a = oldIndices[t],
-              b = oldIndices[t + 1],
-              c = oldIndices[t + 2];
-            if (!toRemove.has(a) && !toRemove.has(b) && !toRemove.has(c)) {
-              newTriIndices.push(a, b, c);
-            }
+          // Compact vertex buffer: remove vertices not referenced by remaining triangles
+          const usedVerts = new Set(newTriIndices);
+          const remap = new Map<number, number>();
+          let newIdx = 0;
+          for (let i = 0; i < positions.length / 3; i++) {
+            if (usedVerts.has(i)) remap.set(i, newIdx++);
           }
-        }
-
-        // Compact vertex buffer: remove vertices not referenced by remaining triangles
-        const usedVerts = new Set(newTriIndices);
-        // Build old→new index remap
-        const remap = new Map<number, number>();
-        let newIdx = 0;
-        for (let i = 0; i < positions.length / 3; i++) {
-          if (usedVerts.has(i)) {
-            remap.set(i, newIdx++);
+          const newPositions = new Float32Array(newIdx * 3);
+          for (const [oldI, newI] of remap) {
+            newPositions[newI * 3] = positions[oldI * 3];
+            newPositions[newI * 3 + 1] = positions[oldI * 3 + 1];
+            newPositions[newI * 3 + 2] = positions[oldI * 3 + 2];
           }
-        }
-        const newPositions = new Float32Array(newIdx * 3);
-        for (const [oldI, newI] of remap) {
-          newPositions[newI * 3] = positions[oldI * 3];
-          newPositions[newI * 3 + 1] = positions[oldI * 3 + 1];
-          newPositions[newI * 3 + 2] = positions[oldI * 3 + 2];
-        }
-        const remappedIndices = newTriIndices.map((i) => remap.get(i)!);
-
-        // Apply back to geometry
-        geo.setIndex(new THREE.BufferAttribute(new Uint32Array(remappedIndices), 1));
-        flushPositions(geo, newPositions);
-        modelingActions.clearSelection();
-        if (before) {
-          const after = snapshotGeometry(selUUID);
-          if (after) {
-            historyActions.executeCommand(
-              new GeometryEditCommand(selUUID, before.positions, before.indices, after.positions, after.indices, "Delete Elements"),
-            );
-            return;
-          }
-        }
-        sceneActions.invalidate();
+          geo.setIndex(new THREE.BufferAttribute(new Uint32Array(newTriIndices.map((i) => remap.get(i)!)), 1));
+          flushPositions(geo, newPositions);
+          modelingActions.clearSelection();
+        });
       }
     };
     window.addEventListener("keydown", onKey);
@@ -356,37 +296,12 @@ export function ModelingOverlay(): React.JSX.Element | null {
       if (!mesh) return;
       const selUUID = useSceneStore.getState().selectedUUID;
       if (!selUUID) return;
-      const mState = useModelingStore.getState();
-      const faces = mState.selectedElements.filter((el) => el.type === "face");
-      if (faces.length === 0) return;
-      const before = snapshotGeometry(selUUID);
-      const polygons = groupFacesIntoPolygons(
-        faces.map((el) => el.index),
-        mesh.geometry,
-      );
-      polygons.sort((a, b) => {
-        const aMin = a.kind === "quad" ? Math.min(a.faceIdxA, a.faceIdxB) : a.faceIdx;
-        const bMin = b.kind === "quad" ? Math.min(b.faceIdxA, b.faceIdxB) : b.faceIdx;
-        return bMin - aMin;
+      const faces = useModelingStore.getState().selectedElements.filter((el) => el.type === "face");
+      if (!faces.length) return;
+      withGeoOp(selUUID, "Extrude (Interactive)", () => {
+        applyExtrude(mesh.geometry, faces, amount);
+        modelingActions.clearSelection();
       });
-      for (const poly of polygons) {
-        if (poly.kind === "quad") {
-          extrudeQuadFace(mesh.geometry, poly.faceIdxA, poly.faceIdxB, amount);
-        } else {
-          extrudeFace(mesh.geometry, poly.faceIdx, amount);
-        }
-      }
-      modelingActions.clearSelection();
-      if (before) {
-        const after = snapshotGeometry(selUUID);
-        if (after) {
-          historyActions.executeCommand(
-            new GeometryEditCommand(selUUID, before.positions, before.indices, after.positions, after.indices, "Extrude (Interactive)"),
-          );
-          return;
-        }
-      }
-      sceneActions.invalidate();
     },
     [mesh],
   );
@@ -402,19 +317,9 @@ export function ModelingOverlay(): React.JSX.Element | null {
       if (!mesh) return;
       const selUUID = useSceneStore.getState().selectedUUID;
       if (!selUUID) return;
-      const before = snapshotGeometry(selUUID);
-      const localPoint = mesh.worldToLocal(worldPoint.clone());
-      addVertexOnEdge(mesh.geometry, a, b, localPoint);
-      if (before) {
-        const after = snapshotGeometry(selUUID);
-        if (after) {
-          historyActions.executeCommand(
-            new GeometryEditCommand(selUUID, before.positions, before.indices, after.positions, after.indices, "Add Vertex on Edge"),
-          );
-          return;
-        }
-      }
-      sceneActions.invalidate();
+      withGeoOp(selUUID, "Add Vertex on Edge", () => {
+        addVertexOnEdge(mesh.geometry, a, b, mesh.worldToLocal(worldPoint.clone()));
+      });
     },
     [mesh],
   );
@@ -424,19 +329,9 @@ export function ModelingOverlay(): React.JSX.Element | null {
       if (!mesh) return;
       const selUUID = useSceneStore.getState().selectedUUID;
       if (!selUUID) return;
-      const before = snapshotGeometry(selUUID);
-      const localPoint = mesh.worldToLocal(worldPoint.clone());
-      addVertexOnFace(mesh.geometry, faceIdx, localPoint);
-      if (before) {
-        const after = snapshotGeometry(selUUID);
-        if (after) {
-          historyActions.executeCommand(
-            new GeometryEditCommand(selUUID, before.positions, before.indices, after.positions, after.indices, "Add Vertex on Face"),
-          );
-          return;
-        }
-      }
-      sceneActions.invalidate();
+      withGeoOp(selUUID, "Add Vertex on Face", () => {
+        addVertexOnFace(mesh.geometry, faceIdx, mesh.worldToLocal(worldPoint.clone()));
+      });
     },
     [mesh],
   );
