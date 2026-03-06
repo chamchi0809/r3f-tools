@@ -1,6 +1,7 @@
 import { MapControls, TransformControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import { updateOrthoTarget, subscribeOrthoTarget, type OrthoAxis } from "../store/orthoCameraStore";
 import * as THREE from "three/webgpu";
 import type { TransformMode } from "./Toolbar";
 import { ViewportGizmo, ViewportGizmoAnimator } from "./ViewportGizmo";
@@ -429,8 +430,58 @@ function ModelingVisualsOverlay() {
   );
 }
 
+// ─── Shared camera position sync ─────────────────────────────────────────────
+
+function OrthoCameraLink({ axes, viewId }: { axes: OrthoAxis[]; viewId: string }) {
+  const { controls, camera } = useThree() as { controls: any; camera: THREE.Camera };
+  const axesSet = useMemo(() => new Set(axes), [axes]);
+  const prevTarget = useRef({ x: NaN, y: NaN, z: NaN });
+  const pendingRef = useRef<{ x?: number; y?: number; z?: number } | null>(null);
+
+  useEffect(() => {
+    return subscribeOrthoTarget((target, source) => {
+      if (source === viewId) return;
+      const patch: { x?: number; y?: number; z?: number } = {};
+      for (const ax of axesSet) {
+        patch[ax] = target[ax];
+      }
+      pendingRef.current = patch;
+    });
+  }, [axesSet, viewId]);
+
+  useFrame(() => {
+    if (!controls?.target) return;
+    const t = controls.target as THREE.Vector3;
+
+    const pending = pendingRef.current;
+    if (pending) {
+      pendingRef.current = null;
+      const delta = { x: 0, y: 0, z: 0 };
+      if (pending.x !== undefined) { delta.x = pending.x - t.x; t.x = pending.x; }
+      if (pending.y !== undefined) { delta.y = pending.y - t.y; t.y = pending.y; }
+      if (pending.z !== undefined) { delta.z = pending.z - t.z; t.z = pending.z; }
+      camera.position.x += delta.x;
+      camera.position.y += delta.y;
+      camera.position.z += delta.z;
+      controls.update?.();
+      prevTarget.current = { x: t.x, y: t.y, z: t.z };
+      return;
+    }
+
+    const prev = prevTarget.current;
+    const values: { x?: number; y?: number; z?: number } = {};
+    if (axesSet.has("x") && t.x !== prev.x) { values.x = t.x; prev.x = t.x; }
+    if (axesSet.has("y") && t.y !== prev.y) { values.y = t.y; prev.y = t.y; }
+    if (axesSet.has("z") && t.z !== prev.z) { values.z = t.z; prev.z = t.z; }
+    if (Object.keys(values).length > 0) {
+      updateOrthoTarget(axes, values, viewId);
+    }
+  });
+
+  return null;
+}
+
 // ─── Camera orientation helper ────────────────────────────────────────────────
-// Sets camera rotation/up after the Canvas creates it
 
 function OrthoCamera({
   rotation,
@@ -455,6 +506,7 @@ type OrthoViewDef = {
   position: [number, number, number];
   rotation: [number, number, number];
   up: [number, number, number];
+  axes: OrthoAxis[];
 };
 
 type OrthoCanvasProps = OrthoViewDef & {
@@ -576,18 +628,21 @@ const ORTHO_VIEWS: OrthoViewDef[] = [
     position: [0, 50, 0],
     rotation: [-Math.PI / 2, 0, 0],
     up: [0, 0, -1],
+    axes: ["x", "z"],
   },
   {
     label: "Front",
     position: [0, 0, 50],
     rotation: [0, 0, 0],
     up: [0, 1, 0],
+    axes: ["x", "y"],
   },
   {
     label: "Right",
     position: [50, 0, 0],
     rotation: [0, Math.PI / 2, 0],
     up: [0, 1, 0],
+    axes: ["y", "z"],
   },
 ];
 
@@ -596,6 +651,7 @@ function OrthoCanvas({
   position,
   rotation,
   up,
+  axes,
   isModeling,
   isBrush,
   transformDragging,
@@ -694,7 +750,8 @@ function OrthoCanvas({
           {isBrush && <BrushOverlay />}
           {(isModeling || isBrush) && <WireframeOverlay />}
         </OrthoSceneRenderer>
-        <MapControls screenSpacePanning enableRotate={false} enabled={!transformDragging} />
+        <MapControls screenSpacePanning enableRotate={false} enabled={!transformDragging} makeDefault />
+        <OrthoCameraLink axes={axes} viewId={label} />
       </Canvas>
       <span style={labelStyle}>{label}</span>
     </div>
