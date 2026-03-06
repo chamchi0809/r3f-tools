@@ -348,7 +348,9 @@ export const ViewportGizmoAnimator: React.FC<{
 export const ViewportGizmo: React.FC<{
   cameraRef: React.RefObject<THREE.Camera | null>;
   controlsRef: React.RefObject<any>;
-}> = ({ cameraRef, controlsRef }) => {
+  isSplit?: boolean;
+  onToggleSplit?: () => void;
+}> = ({ cameraRef, controlsRef, isSplit, onToggleSplit }) => {
   const [isOrtho, setIsOrtho] = useState(false);
 
   const handleAxisClick = useCallback(
@@ -467,9 +469,21 @@ export const ViewportGizmo: React.FC<{
         />
       </div>
 
-      {/* Persp / Ortho toggle */}
-      <div className={labelStyle} onMouseDown={handleToggleOrtho}>
-        {isOrtho ? "Ortho" : "Persp"}
+      {/* Persp / Ortho toggle + quad viewport toggle */}
+      <div style={{ display: "flex", gap: 4, pointerEvents: "auto" }}>
+        <div className={labelStyle} onMouseDown={handleToggleOrtho}>
+          {isOrtho ? "Ortho" : "Persp"}
+        </div>
+        {onToggleSplit && (
+          <div
+            className={labelStyle}
+            onMouseDown={(e) => { e.stopPropagation(); onToggleSplit(); }}
+            title="Toggle quad viewport"
+            style={{ color: isSplit ? "#f0a020" : undefined }}
+          >
+            ⊞
+          </div>
+        )}
       </div>
       <SnapSettingsPanel />
     </div>

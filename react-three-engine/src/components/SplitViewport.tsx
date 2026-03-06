@@ -28,6 +28,7 @@ import { findQuadPartner } from "./viewport/modeling/helpers";
 
 type Props = {
   isSplit: boolean;
+  onToggleSplit: () => void;
   transformDragging: boolean;
   onTransformDrag: (v: boolean) => void;
   transformMode: TransformMode;
@@ -59,6 +60,53 @@ async function makeWebGPURenderer(props: any) {
   const renderer = new THREE.WebGPURenderer(props as any);
   await renderer.init();
   return renderer;
+}
+
+// ─── MultiCanvasPointerFix ───────────────────────────────────────────────────
+// Three.js MapControls/OrbitControls calls setPointerCapture() on pointerdown,
+// which locks ALL pointer events to that canvas until mouse release — blocking
+// every other canvas from receiving events during a pan.
+//
+// Fix (two parts):
+//  1. No-op setPointerCapture/releasePointerCapture so the browser never locks
+//     events to one canvas. Three.js's own pointermove/pointerup listeners on
+//     scope.domElement still fire normally while the mouse stays within that canvas.
+//  2. Relay every document-level pointerup to this canvas. Without capture,
+//     if the user releases the button while the pointer is over a different canvas,
+//     Three.js never gets the pointerup → controls get stuck in drag state.
+//     The relay ensures controls always clean up regardless of where the button
+//     was released. (bubbles:false prevents re-bubbling back to document.)
+
+function MultiCanvasPointerFix() {
+  const { gl } = useThree();
+  useEffect(() => {
+    const canvas = gl.domElement as any;
+    const origSet = canvas.setPointerCapture.bind(canvas);
+    const origRelease = canvas.releasePointerCapture.bind(canvas);
+    canvas.setPointerCapture = () => {};
+    canvas.releasePointerCapture = () => {};
+
+    const relayUp = (e: PointerEvent) => {
+      canvas.dispatchEvent(
+        new PointerEvent("pointerup", {
+          pointerId: e.pointerId,
+          button: e.button,
+          buttons: 0,
+          clientX: e.clientX,
+          clientY: e.clientY,
+          bubbles: false,
+        }),
+      );
+    };
+    document.addEventListener("pointerup", relayUp);
+
+    return () => {
+      canvas.setPointerCapture = origSet;
+      canvas.releasePointerCapture = origRelease;
+      document.removeEventListener("pointerup", relayUp);
+    };
+  }, [gl]);
+  return null;
 }
 
 // ─── OrthoCloneContext ────────────────────────────────────────────────────────
@@ -438,6 +486,9 @@ function OrthoCameraLink({ axes, viewId }: { axes: OrthoAxis[]; viewId: string }
   const axesSet = useMemo(() => new Set(axes), [axes]);
   const prevTarget = useRef({ x: NaN, y: NaN, z: NaN });
   const pendingRef = useRef<{ x?: number; y?: number; z?: number } | null>(null);
+  // True while the user is actively panning this canvas. Incoming sync is
+  // discarded during interaction so it can't override the user's input.
+  const isInteracting = useRef(false);
 
   useEffect(() => {
     return subscribeOrthoTarget((target, source) => {
@@ -450,6 +501,21 @@ function OrthoCameraLink({ axes, viewId }: { axes: OrthoAxis[]; viewId: string }
     });
   }, [axesSet, viewId]);
 
+  useEffect(() => {
+    if (!controls) return;
+    const onStart = () => {
+      isInteracting.current = true;
+      pendingRef.current = null; // discard any stale sync immediately
+    };
+    const onEnd = () => { isInteracting.current = false; };
+    controls.addEventListener("start", onStart);
+    controls.addEventListener("end", onEnd);
+    return () => {
+      controls.removeEventListener("start", onStart);
+      controls.removeEventListener("end", onEnd);
+    };
+  }, [controls]);
+
   useFrame(() => {
     if (!controls?.target) return;
     const t = controls.target as THREE.Vector3;
@@ -457,16 +523,19 @@ function OrthoCameraLink({ axes, viewId }: { axes: OrthoAxis[]; viewId: string }
     const pending = pendingRef.current;
     if (pending) {
       pendingRef.current = null;
-      const delta = { x: 0, y: 0, z: 0 };
-      if (pending.x !== undefined) { delta.x = pending.x - t.x; t.x = pending.x; }
-      if (pending.y !== undefined) { delta.y = pending.y - t.y; t.y = pending.y; }
-      if (pending.z !== undefined) { delta.z = pending.z - t.z; t.z = pending.z; }
-      camera.position.x += delta.x;
-      camera.position.y += delta.y;
-      camera.position.z += delta.z;
-      controls.update?.();
-      prevTarget.current = { x: t.x, y: t.y, z: t.z };
-      return;
+      if (!isInteracting.current) {
+        // Apply incoming sync only when user is not panning this canvas.
+        // If isInteracting, fall through so local changes are still propagated.
+        const delta = { x: 0, y: 0, z: 0 };
+        if (pending.x !== undefined) { delta.x = pending.x - t.x; t.x = pending.x; }
+        if (pending.y !== undefined) { delta.y = pending.y - t.y; t.y = pending.y; }
+        if (pending.z !== undefined) { delta.z = pending.z - t.z; t.z = pending.z; }
+        camera.position.x += delta.x;
+        camera.position.y += delta.y;
+        camera.position.z += delta.z;
+        prevTarget.current = { x: t.x, y: t.y, z: t.z };
+        return;
+      }
     }
 
     const prev = prevTarget.current;
@@ -723,6 +792,7 @@ function OrthoCanvas({
         style={{ background: "#1a1a1a" }}
         onCreated={onCreated}
       >
+        <MultiCanvasPointerFix />
         <OrthoCameraSizer />
         <OrthoCamera rotation={rotation} up={up} />
         <ambientLight intensity={0.4} />
@@ -763,6 +833,7 @@ function OrthoCanvas({
 
 export function SplitViewport({
   isSplit,
+  onToggleSplit,
   transformDragging,
   onTransformDrag,
   transformMode,
@@ -795,6 +866,7 @@ export function SplitViewport({
           gl={makeWebGPURenderer}
           style={{ background: "#1a1a1a", cursor: "inherit" }}
         >
+          <MultiCanvasPointerFix />
           <ViewportGizmoAnimator controlsRef={perspControlsRef} cameraRef={perspCameraRef} />
           <ambientLight intensity={0.4} />
           <directionalLight position={[5, 8, 5]} intensity={1} />
@@ -816,9 +888,10 @@ export function SplitViewport({
             enabled={!transformDragging && !isBrush}
           />
         </Canvas>
-        <ViewportGizmo cameraRef={perspCameraRef} controlsRef={perspControlsRef} />
         {isSplit && <span style={labelStyle}>Perspective</span>}
       </div>
+
+      <ViewportGizmo cameraRef={perspCameraRef} controlsRef={perspControlsRef} isSplit={isSplit} onToggleSplit={onToggleSplit} />
 
       {/* ── Ortho views — only mounted in split mode ──────────────────────── */}
       {isSplit && (

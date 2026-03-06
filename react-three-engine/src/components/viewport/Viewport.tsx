@@ -70,36 +70,9 @@ const Viewport = () => {
         cursor: isBrush ? (shiftHeld ? "grab" : "crosshair") : "default",
       }}
     >
-      {/* Split-view toggle button */}
-      <button
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          setIsSplitView((v) => !v);
-        }}
-        title="Toggle quad viewport"
-        style={{
-          position: "absolute",
-          top: 8,
-          left: 8,
-          zIndex: 100,
-          background: isSplitView
-            ? "rgba(80,100,220,0.55)"
-            : "rgba(0,0,0,0.45)",
-          border: `1px solid ${isSplitView ? "#6080cc" : "#555"}`,
-          borderRadius: 4,
-          color: "#ccc",
-          cursor: "pointer",
-          padding: "2px 6px",
-          fontSize: 15,
-          lineHeight: 1,
-          userSelect: "none",
-        }}
-      >
-        ⊞
-      </button>
-
       <SplitViewport
         isSplit={isSplitView}
+        onToggleSplit={() => setIsSplitView((v) => !v)}
         transformDragging={transformDragging}
         onTransformDrag={setTransformDragging}
         transformMode={transformMode}
