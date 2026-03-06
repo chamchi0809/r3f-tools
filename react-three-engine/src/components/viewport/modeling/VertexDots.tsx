@@ -2,7 +2,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import React, { useEffect, useRef, useMemo } from "react";
 import * as THREE from "three/webgpu";
 import type { SelectionMode, SelectedElement } from "../../../store/modelingStore";
-import { useSceneStore } from "../../../store/sceneStore";
+import { useSceneStore } from "../../../store/sceneStoreState";
 import {
   VERTEX_SCREEN_HIT_PX,
   VERTEX_SCREEN_VISUAL_PX,

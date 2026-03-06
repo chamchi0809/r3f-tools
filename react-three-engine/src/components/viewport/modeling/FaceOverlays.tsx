@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect } from "react";
 import * as THREE from "three/webgpu";
 import type { SelectionMode, SelectedElement } from "../../../store/modelingStore";
-import { useSceneStore } from "../../../store/sceneStore";
+import { useSceneStore } from "../../../store/sceneStoreState";
 import { FACE_COLOR_DEFAULT, FACE_COLOR_SELECTED } from "./constants";
 import { getPositions, getIndices } from "./helpers";
 

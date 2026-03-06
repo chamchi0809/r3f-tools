@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect } from "react";
 import * as THREE from "three/webgpu";
 import type { SelectionMode, SelectedElement } from "../../../store/modelingStore";
-import { useSceneStore } from "../../../store/sceneStore";
+import { useSceneStore } from "../../../store/sceneStoreState";
 import { EDGE_COLOR_DEFAULT, EDGE_COLOR_SELECTED, EDGE_HIT_RADIUS } from "./constants";
 import { getPositions, getIndices, makeCylinderGeometry } from "./helpers";
 

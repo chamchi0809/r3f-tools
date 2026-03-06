@@ -5,12 +5,9 @@
  */
 import React from "react";
 import * as THREE from "three/webgpu";
-import {
-  sceneActions,
-  useSceneStore,
-  readMaterialProps,
-  type MaterialType,
-} from "../../store/sceneStore";
+import { readMaterialProps, type MaterialType } from "../../store/serializationCore";
+import { sceneActions } from "../../store/sceneActions";
+import { useSceneStore } from "../../store/sceneStoreState";
 import { introspectMaterial } from "../objectInspector";
 import { SectionHeader, rowStyle, labelText, selectStyle } from "./fields";
 import { AutoFieldGroup } from "./FieldRegistry";

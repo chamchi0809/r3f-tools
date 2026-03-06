@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three/webgpu";
-import { sceneActions } from "../../../store/sceneStore";
+import { sceneActions } from "../../../store/sceneActions";
 import { modelingActions } from "../../../store/modelingStore";
 import { useSettingsStore, snapToGrid } from "../../../store/settingsStore";
 import { BASE_PLANE_STEP, EXTRUDE_PREVIEW_COLOR, EXTRUDE_WIRE_COLOR, HEIGHT_SENSITIVITY } from "./constants";

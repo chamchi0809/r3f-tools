@@ -18,9 +18,6 @@ import type { SceneCommand } from "./historyStore";
 import {
   useSceneStore,
   makeObject,
-  buildGeometry,
-  buildMaterial,
-  applySerializedObject,
   readMaterialProps,
   readGeometryParams,
   readLightProps,
@@ -30,51 +27,43 @@ import {
   type MaterialType,
   type GeometryType,
   type GeometryParams,
+  type GeometryPatch,
   type SerializedMaterial,
+  type MaterialPatch,
   type LightProps,
+  type LightPatch,
   type CameraProps,
+  type CameraPatch,
   type TextureMapSlot,
 } from "./sceneStore";
 import { useTagStore } from "./tagStore";
+import {
+  materializeSerializedSubtree,
+  snapshotSerializedSubtree,
+  buildRawBufferGeometry,
+  applyRawBufferGeometry,
+  snapshotRawBufferGeometry,
+  type GeometryBufferSnapshot,
+} from "./serializationCore";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Snapshot the full subtree of an object into a SerializedObject tree. */
 function snapshotSubtree(uuid: string): SerializedObject | null {
   const state = useSceneStore.getState();
-  const obj = state.objects.get(uuid);
-  const node = state.nodes.get(uuid);
-  if (!obj || !node) return null;
-
-  const snap: SerializedObject = {
-    uuid: obj.uuid,
-    name: obj.name,
-    kind: node.kind,
-    position: obj.position.toArray() as [number, number, number],
-    rotation: [obj.rotation.x, obj.rotation.y, obj.rotation.z],
-    scale: obj.scale.toArray() as [number, number, number],
-    castShadow: obj.castShadow,
-    receiveShadow: obj.receiveShadow,
-    children: node.childUUIDs
-      .map((childUUID) => snapshotSubtree(childUUID))
-      .filter((c): c is SerializedObject => c !== null),
-  };
-
-  if (obj instanceof THREE.Mesh) {
-    snap.geometry = readGeometryParams(obj.geometry);
-    snap.material = readMaterialProps(obj.material as THREE.Material);
-  }
-  if (obj instanceof THREE.Light) {
-    snap.lightProps = readLightProps(obj);
-  }
-  if (obj instanceof THREE.PerspectiveCamera) {
-    snap.cameraProps = readCameraProps(obj);
-  }
-
-  const tags = useTagStore.getState().objectTags.get(uuid);
-  if (tags && tags.size > 0) snap.tags = Array.from(tags);
-
-  return snap;
+  return snapshotSerializedSubtree(
+    uuid,
+    (nodeUUID) => {
+      const node = state.nodes.get(nodeUUID);
+      if (!node) return undefined;
+      return { kind: node.kind, childUUIDs: node.childUUIDs };
+    },
+    (objectUUID) => state.objects.get(objectUUID),
+    (objectUUID) => {
+      const tags = useTagStore.getState().objectTags.get(objectUUID);
+      return tags ? Array.from(tags) : undefined;
+    },
+  );
 }
 
 /**
@@ -100,17 +89,7 @@ function restoreSubtree(
     return;
   }
 
-  const obj = makeObject(snap.kind);
-  obj.uuid = snap.uuid; // ← preserve UUID so refs stay consistent after undo
-  obj.name = snap.name;
-  obj.position.set(...snap.position);
-  obj.rotation.set(...snap.rotation);
-  obj.scale.set(...snap.scale);
-  if (obj instanceof THREE.Mesh) {
-    if (snap.geometry) obj.geometry = buildGeometry(snap.geometry);
-    if (snap.material) obj.material = buildMaterial(snap.material);
-  }
-  applySerializedObject(obj, snap);
+  const obj = materializeSerializedSubtree(snap, (kind) => makeObject(kind));
 
   if (parentObj) {
     parentObj.add(obj);
@@ -130,7 +109,16 @@ function restoreSubtree(
   useSceneStore.getState().registerObject(obj, snap.kind, parentUUID);
 
   for (const child of snap.children) {
-    restoreSubtree(child, obj.uuid);
+    registerRestoredSubtree(child, obj.uuid);
+  }
+}
+
+function registerRestoredSubtree(snap: SerializedObject, parentUUID: string | null): void {
+  const obj = useSceneStore.getState().objects.get(snap.uuid);
+  if (!obj) return;
+  useSceneStore.getState().registerObject(obj, snap.kind, parentUUID);
+  for (const child of snap.children) {
+    registerRestoredSubtree(child, obj.uuid);
   }
 }
 
@@ -311,7 +299,7 @@ export class SetMaterialPropsCommand implements SceneCommand {
   constructor(
     private readonly uuid: string,
     private readonly before: SerializedMaterial,
-    private readonly after: Partial<Omit<SerializedMaterial, "type">>,
+    private readonly after: MaterialPatch,
   ) {
     this.mergeKey = `SetMaterialProps:${uuid}`;
   }
@@ -380,7 +368,7 @@ export class SetGeometryParamsCommand implements SceneCommand {
   constructor(
     private readonly uuid: string,
     private readonly before: GeometryParams,
-    private readonly after: Partial<GeometryParams>,
+    private readonly after: GeometryPatch,
   ) {
     this.mergeKey = `SetGeometryParams:${uuid}`;
   }
@@ -403,7 +391,7 @@ export class SetLightPropsCommand implements SceneCommand {
   constructor(
     private readonly uuid: string,
     private readonly before: LightProps,
-    private readonly after: Partial<LightProps>,
+    private readonly after: LightPatch,
   ) {
     this.mergeKey = `SetLightProps:${uuid}`;
   }
@@ -426,7 +414,7 @@ export class SetCameraPropsCommand implements SceneCommand {
   constructor(
     private readonly uuid: string,
     private readonly before: CameraProps,
-    private readonly after: Partial<CameraProps>,
+    private readonly after: CameraPatch,
   ) {
     this.mergeKey = `SetCameraProps:${uuid}`;
   }
@@ -494,8 +482,7 @@ export class AddMeshWithGeometryCommand implements SceneCommand {
   private uuid: string | null = null;
 
   // Geometry snapshot stored so execute() / redo can rebuild the mesh.
-  private readonly positionArray: Float32Array;
-  private readonly indexArray: Uint32Array | null;
+  private readonly geometrySnapshot: GeometryBufferSnapshot;
   private readonly position: [number, number, number];
   private readonly parentUUID: string | null;
 
@@ -505,10 +492,9 @@ export class AddMeshWithGeometryCommand implements SceneCommand {
     parentUUID: string | null = null,
   ) {
     // Snapshot only — no side effects. The actual add happens in execute().
-    const posAttr = geo.getAttribute("position");
-    this.positionArray = new Float32Array(posAttr.array as Float32Array);
-    const idxAttr = geo.getIndex();
-    this.indexArray = idxAttr ? new Uint32Array(idxAttr.array as Uint32Array) : null;
+    const snapshot = snapshotRawBufferGeometry(geo);
+    if (!snapshot) throw new Error("Cannot create AddMeshWithGeometryCommand without position data");
+    this.geometrySnapshot = snapshot;
     this.position = center ? [center.x, center.y, center.z] : [0, 0, 0];
     this.parentUUID = parentUUID;
   }
@@ -518,17 +504,7 @@ export class AddMeshWithGeometryCommand implements SceneCommand {
       // Already present (guard against double-execute).
       return;
     }
-    // Rebuild geometry from snapshot.
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(this.positionArray), 3));
-    const count = this.positionArray.length / 3;
-    geo.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
-    geo.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(count * 2), 2));
-    if (this.indexArray) {
-      geo.setIndex(new THREE.BufferAttribute(new Uint32Array(this.indexArray), 1));
-    }
-    if (this.positionArray.length > 0) geo.computeVertexNormals();
-    geo.userData.r3eEdited = true;
+    const geo = buildRawBufferGeometry(this.geometrySnapshot);
 
     const center = new THREE.Vector3(...this.position);
     // Track the new UUID so subsequent undo/redo cycles work.
@@ -562,13 +538,7 @@ export class AddMeshWithGeometryCommand implements SceneCommand {
 export function snapshotGeometry(uuid: string): { positions: Float32Array; indices: Uint32Array | null } | null {
   const obj = useSceneStore.getState().objects.get(uuid);
   if (!(obj instanceof THREE.Mesh)) return null;
-  const geo = obj.geometry;
-  const posAttr = geo.getAttribute("position");
-  if (!posAttr) return null;
-  const positions = new Float32Array(posAttr.array as Float32Array);
-  const idxAttr = geo.getIndex();
-  const indices = idxAttr ? new Uint32Array(idxAttr.array as Uint32Array) : null;
-  return { positions, indices };
+  return snapshotRawBufferGeometry(obj.geometry);
 }
 
 /**
@@ -603,19 +573,7 @@ export class GeometryEditCommand implements SceneCommand {
   private _apply(positions: Float32Array, indices: Uint32Array | null): void {
     const obj = useSceneStore.getState().objects.get(this.uuid);
     if (!(obj instanceof THREE.Mesh)) return;
-    const geo = obj.geometry;
-    const count = positions.length / 3;
-    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(positions), 3));
-    geo.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
-    geo.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(count * 2), 2));
-    if (indices) {
-      geo.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
-    } else {
-      geo.setIndex(null);
-    }
-    if (positions.length > 0) geo.computeVertexNormals();
-    geo.computeBoundingSphere();
-    geo.userData.r3eEdited = true;
+    applyRawBufferGeometry(obj.geometry, { positions, indices });
     useSceneStore.getState().invalidate();
   }
 }

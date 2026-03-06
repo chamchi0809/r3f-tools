@@ -2,14 +2,11 @@ import { Html, TransformControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three/webgpu";
-import {
-  makeObject,
-  buildMaterial,
-  buildGeometry,
-  applySerializedObject,
-  useSceneStore,
-  type SerializedObject,
-} from "../store/sceneStore";
+import { buildMaterial, buildGeometry } from "../store/serializationCore";
+import { makeObject } from "../store/objectFactory";
+import { applySerializedObject } from "../store/sceneSerialization";
+import { useSceneStore } from "../store/sceneStoreState";
+import type { SerializedObject } from "../store/sceneTypes";
 import { historyActions } from "../store/historyStore";
 import { SetTransformCommand } from "../store/commands";
 import { useSettingsStore, resolveSnapProps } from "../store/settingsStore";

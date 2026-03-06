@@ -1,4 +1,4 @@
-import type { SerializedObject } from "../store/sceneStore";
+import type { SerializedObject } from "../store/sceneTypes";
 
 export interface ScenePrefab {
   id: string;

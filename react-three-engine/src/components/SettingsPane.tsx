@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import * as THREE from "three/webgpu";
-import { useSceneStore } from "../store/sceneStore";
+import { useSceneStore } from "../store/sceneStoreState";
 import { useSettingsStore, settingsActions } from "../store/settingsStore";
 import {
   introspectObject,

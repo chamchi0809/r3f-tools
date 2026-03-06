@@ -1,7 +1,8 @@
 import { TransformControls } from "@react-three/drei";
 import React, { useEffect, useMemo, useCallback, useRef } from "react";
 import * as THREE from "three/webgpu";
-import { useSceneStore, sceneActions } from "../../../store/sceneStore";
+import { sceneActions } from "../../../store/sceneActions";
+import { useSceneStore } from "../../../store/sceneStoreState";
 import { historyActions } from "../../../store/historyStore";
 import { GeometryEditCommand } from "../../../store/commands";
 import {

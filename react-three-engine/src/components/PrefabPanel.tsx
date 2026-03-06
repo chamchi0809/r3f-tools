@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { editorConfig } from "virtual:react-three-engine/config";
-import { sceneActions, type SerializedObject } from "../store/sceneStore";
+import { sceneActions } from "../store/sceneActions";
+import type { SerializedObject } from "../store/sceneTypes";
 import { btnStyle, textInputStyle } from "../styles";
 
 export function PrefabPanel({

@@ -2,13 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three/webgpu";
 import { editorConfig } from "virtual:react-three-engine/config";
 import type { ThreeElements } from "@react-three/fiber";
-import {
-  makeObject,
-  buildMaterial,
-  buildGeometry,
-  applySerializedObject,
-} from "../store/sceneStore";
-import type { SerializedObject } from "../store/sceneStore";
+import { buildMaterial, buildGeometry } from "../store/serializationCore";
+import { makeObject } from "../store/objectFactory";
+import { applySerializedObject } from "../store/sceneSerialization";
+import type { SerializedObject } from "../store/sceneTypes";
 import { useTagStore } from "../store/tagStore";
 import type { PrefabTypeRegistry, PrefabRef } from "../prefabTypes";
 

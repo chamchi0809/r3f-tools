@@ -24,6 +24,11 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js",
+      "require": "./dist/core.cjs"
+    },
     "./vite": {
       "types": "./dist/vitePlugin.d.ts",
       "import": "./dist/vitePlugin.js",
@@ -33,7 +38,8 @@
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:serialization": "pnpm build && node ./scripts/serialization-roundtrip.mjs"
   },
   "dependencies": {
     "@emotion/css": "^11.13.5",

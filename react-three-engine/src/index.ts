@@ -9,16 +9,35 @@ export {
 } from "./vitePlugin";
 export { default as App } from "./App";
 export { prefabRegistry, type ScenePrefab } from "./prefabs/registry";
-export { useSceneStore, sceneActions, useModelingStore, modelingActions, useTagStore, tagActions } from "./store";
+export {
+  useSceneStore,
+  sceneActions,
+  useModelingStore,
+  modelingActions,
+  useTagStore,
+  tagActions,
+  buildMaterial,
+  buildGeometry,
+  readMaterialProps,
+  readGeometryParams,
+  readLightProps,
+  readCameraProps,
+  DEFAULT_GEOMETRY_PARAMS,
+  applyMaps,
+} from "./store";
 export type {
   ObjectKind,
   BuiltinObjectKind,
   SerializedMaterial,
   SerializedObject,
+  SerializedShadow,
   TextureMapSlot,
   GeometryType,
   GeometryParams,
-  BufferGeometryParams,
+  MaterialPatch,
+  GeometryPatch,
+  LightPatch,
+  CameraPatch,
   EditorMode,
   SelectionMode,
   SelectedElement,

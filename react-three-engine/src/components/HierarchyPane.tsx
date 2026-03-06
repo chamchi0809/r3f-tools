@@ -1,5 +1,7 @@
 import React, { useRef, useState } from "react";
-import { sceneActions, useSceneStore, type ObjectKind, type SceneNode } from "../store/sceneStore";
+import { sceneActions } from "../store/sceneActions";
+import { useSceneStore } from "../store/sceneStoreState";
+import type { ObjectKind, SceneNode } from "../store/sceneTypes";
 import { useTagStore } from "../store/tagStore";
 import { loadGltfFile } from "../gltfLoader";
 import { btnStyle } from "../styles";

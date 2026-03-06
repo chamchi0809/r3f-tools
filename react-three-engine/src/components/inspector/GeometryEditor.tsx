@@ -5,12 +5,9 @@
  */
 import React from "react";
 import * as THREE from "three/webgpu";
-import {
-  sceneActions,
-  useSceneStore,
-  readGeometryParams,
-  type GeometryType,
-} from "../../store/sceneStore";
+import { readGeometryParams, type GeometryType } from "../../store/serializationCore";
+import { sceneActions } from "../../store/sceneActions";
+import { useSceneStore } from "../../store/sceneStoreState";
 import { introspectGeometry } from "../objectInspector";
 import { SectionHeader, rowStyle, labelText, selectStyle } from "./fields";
 import { AutoFieldGroup } from "./FieldRegistry";

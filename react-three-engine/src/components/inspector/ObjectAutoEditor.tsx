@@ -6,7 +6,8 @@
  */
 import React from "react";
 import * as THREE from "three/webgpu";
-import { sceneActions, useSceneStore } from "../../store/sceneStore";
+import { sceneActions } from "../../store/sceneActions";
+import { useSceneStore } from "../../store/sceneStoreState";
 import { introspectObject } from "../objectInspector";
 import { AutoFieldGroup } from "./FieldRegistry";
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import * as THREE from "three/webgpu";
-import { useSceneStore } from "../../store/sceneStore";
+import { useSceneStore } from "../../store/sceneStoreState";
 
 const WIREFRAME_COLOR = 0x111111;
 const WIREFRAME_OPACITY = 0.35;

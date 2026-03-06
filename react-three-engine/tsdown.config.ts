@@ -4,6 +4,7 @@ export default defineConfig({
   entry: {
     index: "src/index.ts",
     vitePlugin: "src/vitePlugin.ts",
+    core: "src/store/serializationCore.ts",
   },
   format: ["esm", "cjs"],
   dts: true,

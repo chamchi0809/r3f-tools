@@ -37,6 +37,18 @@ Included dependencies:
 pnpm install
 ```
 
+## Validation
+
+Run the package checks locally with:
+
+```bash
+pnpm --filter react-three-engine typecheck
+pnpm --filter react-three-engine build
+pnpm --filter react-three-engine verify:serialization
+```
+
+The serialization check exercises the browser-free `react-three-engine/core` entry and validates geometry, material, light, shadow, and camera round-trips in Node.
+
 ## Running the Demo Editor
 
 To run the development server and build the engine:

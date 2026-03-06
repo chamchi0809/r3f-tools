@@ -1,6 +1,7 @@
 import React, { useCallback } from "react";
 import * as THREE from "three/webgpu";
-import { sceneActions, useSceneStore } from "../store/sceneStore";
+import { sceneActions } from "../store/sceneActions";
+import { useSceneStore } from "../store/sceneStoreState";
 import { useSettingsStore } from "../store/settingsStore";
 import { textInputStyle } from "../styles";
 import { sectionLabel, SectionHeader, Vec3Field } from "./inspector/fields";

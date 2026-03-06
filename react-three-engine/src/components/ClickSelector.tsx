@@ -1,7 +1,8 @@
 import { useThree } from "@react-three/fiber";
 import React, { useEffect, useRef } from "react";
 import * as THREE from "three/webgpu";
-import { sceneActions, useSceneStore } from "../store/sceneStore";
+import { sceneActions } from "../store/sceneActions";
+import { useSceneStore } from "../store/sceneStoreState";
 
 export function ClickSelector({
   transformDragging,
