@@ -150,11 +150,9 @@ export class AddObjectCommand implements SceneCommand {
   }
 
   execute(): void {
-    if (this.uuid) {
-      // Re-do: restore the previously-created object
-      const state = useSceneStore.getState();
-      // If it was already re-added (e.g. double redo) do nothing
-      if (state.objects.has(this.uuid)) return;
+    if (this.uuid && useSceneStore.getState().objects.has(this.uuid)) {
+      // Already present (guard against double execute/redo).
+      return;
     }
     // Trigger the normal add flow — SceneContent will pick up pendingAdd.
     useSceneStore.getState().addObject(this.kind, this.parentUUID);

@@ -204,8 +204,9 @@ export const useSceneStore: UseBoundStore<StoreApi<SceneState>> = create<SceneSt
     const obj = objects.get(uuid);
     if (!(obj instanceof THREE.Mesh)) return;
     const current = readMaterialProps(obj.material as THREE.Material);
-    const maps = { ...(current.maps ?? {}), [slot]: url ?? undefined };
-    if (!url) delete maps[slot as keyof typeof maps];
+    const maps: Partial<Record<TextureMapSlot, string>> = { ...(current.maps ?? {}) };
+    if (url) maps[slot] = url;
+    else delete maps[slot];
     (obj.material as THREE.Material).dispose();
     obj.material = buildMaterial({ ...current, maps });
     invalidate();

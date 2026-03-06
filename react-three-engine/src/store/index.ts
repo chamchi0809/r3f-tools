@@ -13,21 +13,6 @@ export {
   applyMaps,
   TEXTURE_MAP_SLOTS,
 } from "./sceneStore";
-export {
-  buildMaterial as coreBuildMaterial,
-  buildGeometry as coreBuildGeometry,
-  readMaterialProps as coreReadMaterialProps,
-  readGeometryParams as coreReadGeometryParams,
-  readLightProps as coreReadLightProps,
-  readCameraProps as coreReadCameraProps,
-  readShadowProps as coreReadShadowProps,
-  applyLightProps as coreApplyLightProps,
-  applyCameraProps as coreApplyCameraProps,
-  applyShadowProps as coreApplyShadowProps,
-  DEFAULT_GEOMETRY_PARAMS as CORE_DEFAULT_GEOMETRY_PARAMS,
-  applyMaps as coreApplyMaps,
-  TEXTURE_MAP_SLOTS as CORE_TEXTURE_MAP_SLOTS,
-} from "./serializationCore";
 export type {
   ObjectKind,
   BuiltinObjectKind,

@@ -253,15 +253,21 @@ const GEOMETRY_FACTORIES = {
   BufferGeometry: () => buildLegacyBufferGeometry(),
 } satisfies Record<GeometryType, () => THREE.BufferGeometry>;
 
+function serializeAndDispose(geo: THREE.BufferGeometry): GeometryParams {
+  const params = serializeGeometry(geo);
+  geo.dispose();
+  return params;
+}
+
 export const DEFAULT_GEOMETRY_PARAMS: Record<GeometryType, GeometryParams> = {
-  BoxGeometry: serializeGeometry(GEOMETRY_FACTORIES.BoxGeometry()),
-  SphereGeometry: serializeGeometry(GEOMETRY_FACTORIES.SphereGeometry()),
-  CylinderGeometry: serializeGeometry(GEOMETRY_FACTORIES.CylinderGeometry()),
-  ConeGeometry: serializeGeometry(GEOMETRY_FACTORIES.ConeGeometry()),
-  PlaneGeometry: serializeGeometry(GEOMETRY_FACTORIES.PlaneGeometry()),
-  TorusGeometry: serializeGeometry(GEOMETRY_FACTORIES.TorusGeometry()),
-  CapsuleGeometry: serializeGeometry(GEOMETRY_FACTORIES.CapsuleGeometry()),
-  BufferGeometry: serializeGeometry(GEOMETRY_FACTORIES.BufferGeometry()),
+  BoxGeometry: serializeAndDispose(GEOMETRY_FACTORIES.BoxGeometry()),
+  SphereGeometry: serializeAndDispose(GEOMETRY_FACTORIES.SphereGeometry()),
+  CylinderGeometry: serializeAndDispose(GEOMETRY_FACTORIES.CylinderGeometry()),
+  ConeGeometry: serializeAndDispose(GEOMETRY_FACTORIES.ConeGeometry()),
+  PlaneGeometry: serializeAndDispose(GEOMETRY_FACTORIES.PlaneGeometry()),
+  TorusGeometry: serializeAndDispose(GEOMETRY_FACTORIES.TorusGeometry()),
+  CapsuleGeometry: serializeAndDispose(GEOMETRY_FACTORIES.CapsuleGeometry()),
+  BufferGeometry: serializeAndDispose(GEOMETRY_FACTORIES.BufferGeometry()),
 };
 
 export function buildGeometry(params: GeometryParams): THREE.BufferGeometry {
@@ -504,8 +510,8 @@ export function readShadowProps(obj: THREE.Object3D): SerializedShadow | undefin
     bias: shadow.bias,
     normalBias: shadow.normalBias,
     radius: shadow.radius,
-    mapSizeWidth: shadow.mapSize.x,
-    mapSizeHeight: shadow.mapSize.y,
+    mapSizeWidth: shadow.mapSize.width,
+    mapSizeHeight: shadow.mapSize.height,
     cameraNear: camera.near,
     cameraFar: camera.far,
   };
@@ -528,16 +534,17 @@ export function applyShadowProps(obj: THREE.Object3D, props: SerializedShadow): 
   if (props.mapSizeWidth !== undefined) shadow.mapSize.width = props.mapSizeWidth;
   if (props.mapSizeHeight !== undefined) shadow.mapSize.height = props.mapSizeHeight;
 
-  const perspective = shadow.camera as THREE.PerspectiveCamera;
-  if (props.cameraNear !== undefined) perspective.near = props.cameraNear;
-  if (props.cameraFar !== undefined) perspective.far = props.cameraFar;
+  const camera = shadow.camera as THREE.PerspectiveCamera | THREE.OrthographicCamera;
+  if (props.cameraNear !== undefined) camera.near = props.cameraNear;
+  if (props.cameraFar !== undefined) camera.far = props.cameraFar;
 
-  const ortho = shadow.camera as THREE.OrthographicCamera;
-  if (props.cameraLeft !== undefined) ortho.left = props.cameraLeft;
-  if (props.cameraRight !== undefined) ortho.right = props.cameraRight;
-  if (props.cameraTop !== undefined) ortho.top = props.cameraTop;
-  if (props.cameraBottom !== undefined) ortho.bottom = props.cameraBottom;
-  perspective.updateProjectionMatrix();
+  if (camera instanceof THREE.OrthographicCamera) {
+    if (props.cameraLeft !== undefined) camera.left = props.cameraLeft;
+    if (props.cameraRight !== undefined) camera.right = props.cameraRight;
+    if (props.cameraTop !== undefined) camera.top = props.cameraTop;
+    if (props.cameraBottom !== undefined) camera.bottom = props.cameraBottom;
+  }
+  camera.updateProjectionMatrix();
 }
 
 export function readCameraProps(obj: THREE.Object3D): CameraProps {
