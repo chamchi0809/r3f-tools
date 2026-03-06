@@ -55,6 +55,9 @@ interface SettingsState {
   /** Snap configuration. Ctrl activates snapping when enabled=true. */
   snap: SnapSettings;
 
+  /** When true, meshes are rendered as wireframe only (solid material hidden). */
+  wireframe: boolean;
+
   // ─── actions ──────────────────────────────────────────────────────────────
 
   setDebugMode: (enabled: boolean) => void;
@@ -73,6 +76,8 @@ interface SettingsState {
   setSnap: (patch: Partial<SnapSettings>) => void;
   /** Reset snap settings to defaults. */
   resetSnap: () => void;
+
+  toggleWireframe: () => void;
 }
 
 // ─── Serialization helpers ────────────────────────────────────────────────────
@@ -124,6 +129,9 @@ export const useSettingsStore = create<SettingsState>()(
       setSnap: (patch) => set((s) => ({ snap: { ...s.snap, ...patch } })),
 
       resetSnap: () => set({ snap: { ...DEFAULT_SNAP } }),
+
+      wireframe: false,
+      toggleWireframe: () => set((s) => ({ wireframe: !s.wireframe })),
     }),
     {
       name: "react-three-engine:settings",
@@ -162,6 +170,7 @@ export const settingsActions: {
   isFieldVisible: (className: string, propKey: string) => boolean;
   setSnap: (patch: Partial<SnapSettings>) => void;
   resetSnap: () => void;
+  toggleWireframe: () => void;
 } = {
   setDebugMode: (enabled) => useSettingsStore.getState().setDebugMode(enabled),
   toggleDebugMode: () => useSettingsStore.getState().toggleDebugMode(),
@@ -178,6 +187,7 @@ export const settingsActions: {
   },
   setSnap: (patch) => useSettingsStore.getState().setSnap(patch),
   resetSnap: () => useSettingsStore.getState().resetSnap(),
+  toggleWireframe: () => useSettingsStore.getState().toggleWireframe(),
 };
 
 // ─── Derived snap helpers ─────────────────────────────────────────────────────

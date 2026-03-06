@@ -9,6 +9,7 @@ import { SceneContent } from "./SceneContent";
 import { ModelingOverlay } from "./viewport/modeling";
 import { BrushOverlay } from "./viewport/brush";
 import { WireframeOverlay } from "./viewport/WireframeOverlay";
+import { WireframeOnlyMode } from "./viewport/WireframeOnlyMode";
 import { OrbitControls } from "@react-three/drei";
 import { sceneActions } from "../store/sceneActions";
 import { useSceneStore } from "../store/sceneStoreState";
@@ -882,6 +883,7 @@ export function SplitViewport({
           {isModeling && <ModelingOverlay />}
           {isBrush && <BrushOverlay />}
           {(isModeling || isBrush) && <WireframeOverlay />}
+          <WireframeOnlyMode />
           <OrbitControls
             ref={perspControlsRef}
             makeDefault

@@ -4,6 +4,7 @@ import * as THREE from "three/webgpu";
 import { css } from "@emotion/css";
 import { useSettingsStore, settingsActions, DEFAULT_SNAP } from "../store/settingsStore";
 
+
 // ─── Shared animation state (written by DOM, read by R3F loop) ────────────────
 
 export const gizmoState = {
@@ -352,6 +353,7 @@ export const ViewportGizmo: React.FC<{
   onToggleSplit?: () => void;
 }> = ({ cameraRef, controlsRef, isSplit, onToggleSplit }) => {
   const [isOrtho, setIsOrtho] = useState(false);
+  const isWireframe = useSettingsStore((s) => s.wireframe);
 
   const handleAxisClick = useCallback(
     (dir: THREE.Vector3) => {
@@ -484,6 +486,14 @@ export const ViewportGizmo: React.FC<{
             ⊞
           </div>
         )}
+        <div
+          className={labelStyle}
+          onMouseDown={(e) => { e.stopPropagation(); settingsActions.toggleWireframe(); }}
+          title="Toggle wireframe"
+          style={{ color: isWireframe ? "#f0a020" : undefined }}
+        >
+          ⬡
+        </div>
       </div>
       <SnapSettingsPanel />
     </div>
