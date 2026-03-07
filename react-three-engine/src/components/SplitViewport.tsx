@@ -1,7 +1,18 @@
 import { MapControls, TransformControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
-import { updateOrthoTarget, subscribeOrthoTarget, type OrthoAxis } from "../store/orthoCameraStore";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
+import {
+  updateOrthoTarget,
+  subscribeOrthoTarget,
+  type OrthoAxis,
+} from "../store/orthoCameraStore";
 import * as THREE from "three/webgpu";
 import type { TransformMode } from "./Toolbar";
 import { ViewportGizmo, ViewportGizmoAnimator } from "./ViewportGizmo";
@@ -13,7 +24,11 @@ import { WireframeOnlyMode } from "./viewport/WireframeOnlyMode";
 import { OrbitControls } from "@react-three/drei";
 import { sceneActions } from "../store/sceneActions";
 import { useSceneStore } from "../store/sceneStoreState";
-import { useModelingStore, modelingActions, type SelectedElement } from "../store/modelingStore";
+import {
+  useModelingStore,
+  modelingActions,
+  type SelectedElement,
+} from "../store/modelingStore";
 import { SetTransformCommand } from "../store/commands";
 import { historyActions } from "../store/historyStore";
 import { useSettingsStore, resolveSnapProps } from "../store/settingsStore";
@@ -128,69 +143,81 @@ function OrthoSceneRenderer({ children }: { children?: React.ReactNode }) {
   const cloneToOriginal = useRef(new Map<string, string>());
   const version = useSceneStore((s) => s.version);
 
-  const syncCloneFromOriginal = useCallback((original: THREE.Mesh, clone: THREE.Mesh) => {
-    const newGeo = original.geometry.clone();
-    const newMat = Array.isArray(original.material)
-      ? (original.material as THREE.Material[]).map((m) => m.clone())
-      : (original.material as THREE.Material).clone();
-    clone.geometry.dispose();
-    if (Array.isArray(clone.material)) clone.material.forEach((m) => m.dispose());
-    else clone.material.dispose();
-    clone.geometry = newGeo;
-    clone.material = newMat;
-    clone.visible = original.visible;
-    clone.castShadow = original.castShadow;
-    clone.receiveShadow = original.receiveShadow;
-  }, []);
+  const syncCloneFromOriginal = useCallback(
+    (original: THREE.Mesh, clone: THREE.Mesh) => {
+      const newGeo = original.geometry.clone();
+      const newMat = Array.isArray(original.material)
+        ? (original.material as THREE.Material[]).map((m) => m.clone())
+        : (original.material as THREE.Material).clone();
+      clone.geometry.dispose();
+      if (Array.isArray(clone.material))
+        clone.material.forEach((m) => m.dispose());
+      else clone.material.dispose();
+      clone.geometry = newGeo;
+      clone.material = newMat;
+      clone.visible = original.visible;
+      clone.castShadow = original.castShadow;
+      clone.receiveShadow = original.receiveShadow;
+    },
+    [],
+  );
 
-  const syncCloneGeometry = useCallback((original: THREE.Mesh, clone: THREE.Mesh) => {
-    const source = original.geometry;
-    const target = clone.geometry;
-    const sourceAttrs = source.attributes;
-    const targetAttrs = target.attributes;
-    const sourceKeys = Object.keys(sourceAttrs);
-    const targetKeys = Object.keys(targetAttrs);
+  const syncCloneGeometry = useCallback(
+    (original: THREE.Mesh, clone: THREE.Mesh) => {
+      const source = original.geometry;
+      const target = clone.geometry;
+      const sourceAttrs = source.attributes;
+      const targetAttrs = target.attributes;
+      const sourceKeys = Object.keys(sourceAttrs);
+      const targetKeys = Object.keys(targetAttrs);
 
-    const needsRebuild =
-      sourceKeys.length !== targetKeys.length ||
-      sourceKeys.some((key) => !(key in targetAttrs)) ||
-      Boolean(source.getIndex()) !== Boolean(target.getIndex());
+      const needsRebuild =
+        sourceKeys.length !== targetKeys.length ||
+        sourceKeys.some((key) => !(key in targetAttrs)) ||
+        Boolean(source.getIndex()) !== Boolean(target.getIndex());
 
-    if (needsRebuild) {
-      const next = source.clone();
-      target.dispose();
-      clone.geometry = next;
-      return;
-    }
-
-    for (const key of sourceKeys) {
-      const srcAttr = sourceAttrs[key] as THREE.BufferAttribute;
-      const dstAttr = targetAttrs[key] as THREE.BufferAttribute | undefined;
-      if (!dstAttr || srcAttr.array.length !== dstAttr.array.length) {
+      if (needsRebuild) {
         const next = source.clone();
         target.dispose();
         clone.geometry = next;
         return;
       }
-      (dstAttr.array as Float32Array).set(srcAttr.array as Float32Array);
-      dstAttr.needsUpdate = true;
-    }
 
-    const srcIdx = source.getIndex();
-    const dstIdx = target.getIndex();
-    if (srcIdx && dstIdx && srcIdx.array.length === dstIdx.array.length) {
-      (dstIdx.array as Uint16Array | Uint32Array).set(srcIdx.array as Uint16Array | Uint32Array);
-      dstIdx.needsUpdate = true;
-    } else if (srcIdx || dstIdx) {
-      const next = source.clone();
-      target.dispose();
-      clone.geometry = next;
-      return;
-    }
+      for (const key of sourceKeys) {
+        const srcAttr = sourceAttrs[key] as THREE.BufferAttribute;
+        const dstAttr = targetAttrs[key] as THREE.BufferAttribute | undefined;
+        if (!dstAttr || srcAttr.array.length !== dstAttr.array.length) {
+          const next = source.clone();
+          target.dispose();
+          clone.geometry = next;
+          return;
+        }
+        (dstAttr.array as Float32Array).set(srcAttr.array as Float32Array);
+        dstAttr.needsUpdate = true;
+      }
 
-    clone.geometry.setDrawRange(source.drawRange.start, source.drawRange.count);
-    clone.geometry.groups = source.groups.map((g) => ({ ...g }));
-  }, []);
+      const srcIdx = source.getIndex();
+      const dstIdx = target.getIndex();
+      if (srcIdx && dstIdx && srcIdx.array.length === dstIdx.array.length) {
+        (dstIdx.array as Uint16Array | Uint32Array).set(
+          srcIdx.array as Uint16Array | Uint32Array,
+        );
+        dstIdx.needsUpdate = true;
+      } else if (srcIdx || dstIdx) {
+        const next = source.clone();
+        target.dispose();
+        clone.geometry = next;
+        return;
+      }
+
+      clone.geometry.setDrawRange(
+        source.drawRange.start,
+        source.drawRange.count,
+      );
+      clone.geometry.groups = source.groups.map((g) => ({ ...g }));
+    },
+    [],
+  );
 
   // Rebuild the clone set whenever the scene version changes
   useEffect(() => {
@@ -203,7 +230,8 @@ function OrthoSceneRenderer({ children }: { children?: React.ReactNode }) {
       if (!objects.has(uuid) || !(objects.get(uuid) instanceof THREE.Mesh)) {
         scene.remove(clone);
         clone.geometry.dispose();
-        if (Array.isArray(clone.material)) clone.material.forEach((m) => m.dispose());
+        if (Array.isArray(clone.material))
+          clone.material.forEach((m) => m.dispose());
         else clone.material.dispose();
         reverseMap.delete(clone.uuid);
         map.delete(uuid);
@@ -257,15 +285,23 @@ function OrthoSceneRenderer({ children }: { children?: React.ReactNode }) {
       clone.matrixWorldNeedsUpdate = false;
 
       const geometry = original.geometry;
-      const posAttr = geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
+      const posAttr = geometry.getAttribute("position") as
+        | THREE.BufferAttribute
+        | undefined;
       if (!posAttr) continue;
       const idxAttr = geometry.getIndex() as THREE.BufferAttribute | null;
-      const normalAttr = geometry.getAttribute("normal") as THREE.BufferAttribute | undefined;
+      const normalAttr = geometry.getAttribute("normal") as
+        | THREE.BufferAttribute
+        | undefined;
       const signature = {
         geometryId: geometry.uuid,
         position: { version: posAttr.version, count: posAttr.count },
-        normal: normalAttr ? { version: normalAttr.version, count: normalAttr.count } : null,
-        index: idxAttr ? { version: idxAttr.version, count: idxAttr.count } : null,
+        normal: normalAttr
+          ? { version: normalAttr.version, count: normalAttr.count }
+          : null,
+        index: idxAttr
+          ? { version: idxAttr.version, count: idxAttr.count }
+          : null,
       };
       const prev = geometrySync.current.get(original.uuid);
       if (
@@ -273,7 +309,8 @@ function OrthoSceneRenderer({ children }: { children?: React.ReactNode }) {
         prev.geometryId !== signature.geometryId ||
         prev.position.version !== signature.position.version ||
         prev.position.count !== signature.position.count ||
-        (prev.normal?.version ?? null) !== (signature.normal?.version ?? null) ||
+        (prev.normal?.version ?? null) !==
+          (signature.normal?.version ?? null) ||
         (prev.normal?.count ?? null) !== (signature.normal?.count ?? null) ||
         (prev.index?.version ?? null) !== (signature.index?.version ?? null) ||
         (prev.index?.count ?? null) !== (signature.index?.count ?? null)
@@ -291,7 +328,8 @@ function OrthoSceneRenderer({ children }: { children?: React.ReactNode }) {
       for (const { clone } of cloneMap.current.values()) {
         scene.remove(clone);
         clone.geometry.dispose();
-        if (Array.isArray(clone.material)) clone.material.forEach((m) => m.dispose());
+        if (Array.isArray(clone.material))
+          clone.material.forEach((m) => m.dispose());
         else clone.material.dispose();
         reverseMap.delete(clone.uuid);
       }
@@ -311,7 +349,11 @@ function OrthoSceneRenderer({ children }: { children?: React.ReactNode }) {
 // Like ClickSelector but raycasts against the ortho scene's clones and maps
 // clone UUIDs back to original UUIDs via OrthoCloneContext.
 
-function OrthoClickSelector({ transformDragging }: { transformDragging: boolean }) {
+function OrthoClickSelector({
+  transformDragging,
+}: {
+  transformDragging: boolean;
+}) {
   const { camera, raycaster, gl, scene } = useThree();
   const cloneToOriginal = useContext(OrthoCloneContext);
   const pointerDown = useRef<{ x: number; y: number } | null>(null);
@@ -378,7 +420,10 @@ function ModelingVisualsOverlay() {
   const version = useSceneStore((s) => s.version);
   const selectedElements = useModelingStore((s) => s.selectedElements);
   const selectionMode = useModelingStore((s) => s.selectionMode);
-  const hoverGizmoRef = useRef<{ pos: THREE.Vector3; isSelected: boolean } | null>(null);
+  const hoverGizmoRef = useRef<{
+    pos: THREE.Vector3;
+    isSelected: boolean;
+  } | null>(null);
 
   void version;
 
@@ -396,50 +441,66 @@ function ModelingVisualsOverlay() {
     return entries;
   }, [objects]);
 
-  const handleVertexClick = useCallback((uuid: string, idx: number, additive: boolean) => {
-    if (uuid !== useSceneStore.getState().selectedUUID) {
-      sceneActions.select(uuid);
-      modelingActions.clearSelection();
-      additive = false;
-    }
-    modelingActions.selectElement({ type: "vertex", index: idx }, additive);
-  }, []);
+  const handleVertexClick = useCallback(
+    (uuid: string, idx: number, additive: boolean) => {
+      if (uuid !== useSceneStore.getState().selectedUUID) {
+        sceneActions.select(uuid);
+        modelingActions.clearSelection();
+        additive = false;
+      }
+      modelingActions.selectElement({ type: "vertex", index: idx }, additive);
+    },
+    [],
+  );
 
-  const handleEdgeClick = useCallback((uuid: string, a: number, b: number, additive: boolean) => {
-    if (uuid !== useSceneStore.getState().selectedUUID) {
-      sceneActions.select(uuid);
-      modelingActions.clearSelection();
-    }
-    modelingActions.selectElement(
-      { type: "edge", index: Math.min(a, b), index2: Math.max(a, b) },
-      additive,
-    );
-  }, []);
+  const handleEdgeClick = useCallback(
+    (uuid: string, a: number, b: number, additive: boolean) => {
+      if (uuid !== useSceneStore.getState().selectedUUID) {
+        sceneActions.select(uuid);
+        modelingActions.clearSelection();
+      }
+      modelingActions.selectElement(
+        { type: "edge", index: Math.min(a, b), index2: Math.max(a, b) },
+        additive,
+      );
+    },
+    [],
+  );
 
-  const handleFaceClick = useCallback((uuid: string, m: THREE.Mesh, faceIdx: number, additive: boolean) => {
-    if (uuid !== useSceneStore.getState().selectedUUID) {
-      sceneActions.select(uuid);
-      modelingActions.clearSelection();
-      additive = false;
-    }
-    const partnerIdx = findQuadPartner(m.geometry, faceIdx);
-    if (additive) {
-      modelingActions.selectElement({ type: "face", index: faceIdx }, true);
-      if (partnerIdx !== null) modelingActions.selectElement({ type: "face", index: partnerIdx }, true);
-    } else {
-      const elements: SelectedElement[] = [{ type: "face", index: faceIdx }];
-      if (partnerIdx !== null) elements.push({ type: "face", index: partnerIdx });
-      useModelingStore.getState().clearSelection();
-      for (const el of elements) modelingActions.selectElement(el, true);
-    }
-  }, []);
+  const handleFaceClick = useCallback(
+    (uuid: string, m: THREE.Mesh, faceIdx: number, additive: boolean) => {
+      if (uuid !== useSceneStore.getState().selectedUUID) {
+        sceneActions.select(uuid);
+        modelingActions.clearSelection();
+        additive = false;
+      }
+      const partnerIdx = findQuadPartner(m.geometry, faceIdx);
+      if (additive) {
+        modelingActions.selectElement({ type: "face", index: faceIdx }, true);
+        if (partnerIdx !== null)
+          modelingActions.selectElement(
+            { type: "face", index: partnerIdx },
+            true,
+          );
+      } else {
+        const elements: SelectedElement[] = [{ type: "face", index: faceIdx }];
+        if (partnerIdx !== null)
+          elements.push({ type: "face", index: partnerIdx });
+        useModelingStore.getState().clearSelection();
+        for (const el of elements) modelingActions.selectElement(el, true);
+      }
+    },
+    [],
+  );
 
   if (meshEntries.length === 0) return null;
 
   return (
     <>
       {mesh && <BoundingBoxGizmo mesh={mesh} showLabels={false} />}
-      {selectionMode === "vertex" && <VertexHoverGizmo stateRef={hoverGizmoRef} />}
+      {selectionMode === "vertex" && (
+        <VertexHoverGizmo stateRef={hoverGizmoRef} />
+      )}
 
       {meshEntries.map(({ uuid, mesh: m }) => {
         const isActive = uuid === selectedUUID;
@@ -451,14 +512,18 @@ function ModelingVisualsOverlay() {
               selectedElements={activeElements}
               selectionMode={selectionMode}
               hoverGizmoRef={isActive ? hoverGizmoRef : undefined}
-              onClick={(idx, additive) => handleVertexClick(uuid, idx, additive)}
+              onClick={(idx, additive) =>
+                handleVertexClick(uuid, idx, additive)
+              }
             />
             <group matrixAutoUpdate={false} matrix={m.matrixWorld}>
               <EdgeLines
                 mesh={m}
                 selectedElements={activeElements}
                 selectionMode={selectionMode}
-                onClick={(a, b, additive) => handleEdgeClick(uuid, a, b, additive)}
+                onClick={(a, b, additive) =>
+                  handleEdgeClick(uuid, a, b, additive)
+                }
                 addMode={false}
                 onAddVertex={() => {}}
                 onAddVertexHover={() => {}}
@@ -467,7 +532,9 @@ function ModelingVisualsOverlay() {
                 mesh={m}
                 selectedElements={activeElements}
                 selectionMode={selectionMode}
-                onClick={(faceIdx, additive) => handleFaceClick(uuid, m, faceIdx, additive)}
+                onClick={(faceIdx, additive) =>
+                  handleFaceClick(uuid, m, faceIdx, additive)
+                }
                 addMode={false}
                 onAddVertex={() => {}}
                 onAddVertexHover={() => {}}
@@ -482,11 +549,22 @@ function ModelingVisualsOverlay() {
 
 // ─── Shared camera position sync ─────────────────────────────────────────────
 
-function OrthoCameraLink({ axes, viewId }: { axes: OrthoAxis[]; viewId: string }) {
-  const { controls, camera } = useThree() as { controls: any; camera: THREE.Camera };
+function OrthoCameraLink({
+  axes,
+  viewId,
+}: {
+  axes: OrthoAxis[];
+  viewId: string;
+}) {
+  const { controls, camera } = useThree() as {
+    controls: any;
+    camera: THREE.Camera;
+  };
   const axesSet = useMemo(() => new Set(axes), [axes]);
   const prevTarget = useRef({ x: NaN, y: NaN, z: NaN });
-  const pendingRef = useRef<{ x?: number; y?: number; z?: number } | null>(null);
+  const pendingRef = useRef<{ x?: number; y?: number; z?: number } | null>(
+    null,
+  );
   // True while the user is actively panning this canvas. Incoming sync is
   // discarded during interaction so it can't override the user's input.
   const isInteracting = useRef(false);
@@ -508,7 +586,9 @@ function OrthoCameraLink({ axes, viewId }: { axes: OrthoAxis[]; viewId: string }
       isInteracting.current = true;
       pendingRef.current = null; // discard any stale sync immediately
     };
-    const onEnd = () => { isInteracting.current = false; };
+    const onEnd = () => {
+      isInteracting.current = false;
+    };
     controls.addEventListener("start", onStart);
     controls.addEventListener("end", onEnd);
     return () => {
@@ -528,9 +608,18 @@ function OrthoCameraLink({ axes, viewId }: { axes: OrthoAxis[]; viewId: string }
         // Apply incoming sync only when user is not panning this canvas.
         // If isInteracting, fall through so local changes are still propagated.
         const delta = { x: 0, y: 0, z: 0 };
-        if (pending.x !== undefined) { delta.x = pending.x - t.x; t.x = pending.x; }
-        if (pending.y !== undefined) { delta.y = pending.y - t.y; t.y = pending.y; }
-        if (pending.z !== undefined) { delta.z = pending.z - t.z; t.z = pending.z; }
+        if (pending.x !== undefined) {
+          delta.x = pending.x - t.x;
+          t.x = pending.x;
+        }
+        if (pending.y !== undefined) {
+          delta.y = pending.y - t.y;
+          t.y = pending.y;
+        }
+        if (pending.z !== undefined) {
+          delta.z = pending.z - t.z;
+          t.z = pending.z;
+        }
         camera.position.x += delta.x;
         camera.position.y += delta.y;
         camera.position.z += delta.z;
@@ -541,9 +630,18 @@ function OrthoCameraLink({ axes, viewId }: { axes: OrthoAxis[]; viewId: string }
 
     const prev = prevTarget.current;
     const values: { x?: number; y?: number; z?: number } = {};
-    if (axesSet.has("x") && t.x !== prev.x) { values.x = t.x; prev.x = t.x; }
-    if (axesSet.has("y") && t.y !== prev.y) { values.y = t.y; prev.y = t.y; }
-    if (axesSet.has("z") && t.z !== prev.z) { values.z = t.z; prev.z = t.z; }
+    if (axesSet.has("x") && t.x !== prev.x) {
+      values.x = t.x;
+      prev.x = t.x;
+    }
+    if (axesSet.has("y") && t.y !== prev.y) {
+      values.y = t.y;
+      prev.y = t.y;
+    }
+    if (axesSet.has("z") && t.z !== prev.z) {
+      values.z = t.z;
+      prev.z = t.z;
+    }
     if (Object.keys(values).length > 0) {
       updateOrthoTarget(axes, values, viewId);
     }
@@ -645,7 +743,11 @@ function OrthoTransformControls({
       onMouseDown={() => {
         transformStartRef.current = {
           position: selectedObj.position.toArray() as [number, number, number],
-          rotation: [selectedObj.rotation.x, selectedObj.rotation.y, selectedObj.rotation.z],
+          rotation: [
+            selectedObj.rotation.x,
+            selectedObj.rotation.y,
+            selectedObj.rotation.z,
+          ],
           scale: selectedObj.scale.toArray() as [number, number, number],
         };
         draggingRef.current = true;
@@ -658,12 +760,16 @@ function OrthoTransformControls({
         transformStartRef.current = null;
         if (start && selectedUUID) {
           const after = {
-            position: selectedObj.position.toArray() as [number, number, number],
-            rotation: [selectedObj.rotation.x, selectedObj.rotation.y, selectedObj.rotation.z] as [
+            position: selectedObj.position.toArray() as [
               number,
               number,
               number,
             ],
+            rotation: [
+              selectedObj.rotation.x,
+              selectedObj.rotation.y,
+              selectedObj.rotation.z,
+            ] as [number, number, number],
             scale: selectedObj.scale.toArray() as [number, number, number],
           };
           const moved =
@@ -737,8 +843,8 @@ function OrthoCanvas({
   const selectedElements = useModelingStore((s) => s.selectedElements);
   const showModelingTransform = Boolean(
     isModeling &&
-      selectedObj instanceof THREE.Mesh &&
-      selectedElements.length > 0,
+    selectedObj instanceof THREE.Mesh &&
+    selectedElements.length > 0,
   );
   const [ctrlHeld, setCtrlHeld] = React.useState(false);
 
@@ -756,17 +862,26 @@ function OrthoCanvas({
       window.removeEventListener("keyup", onUp);
     };
   }, []);
-  const onCreated = useCallback(({ camera, size }: { camera: THREE.Camera; size: { width: number; height: number } }) => {
-    const ortho = camera as THREE.OrthographicCamera;
-    if (!ortho.isOrthographicCamera) return;
-    const halfW = size.width / 2;
-    const halfH = size.height / 2;
-    ortho.left = -halfW;
-    ortho.right = halfW;
-    ortho.top = halfH;
-    ortho.bottom = -halfH;
-    ortho.updateProjectionMatrix();
-  }, []);
+  const onCreated = useCallback(
+    ({
+      camera,
+      size,
+    }: {
+      camera: THREE.Camera;
+      size: { width: number; height: number };
+    }) => {
+      const ortho = camera as THREE.OrthographicCamera;
+      if (!ortho.isOrthographicCamera) return;
+      const halfW = size.width / 2;
+      const halfH = size.height / 2;
+      ortho.left = -halfW;
+      ortho.right = halfW;
+      ortho.top = halfH;
+      ortho.bottom = -halfH;
+      ortho.updateProjectionMatrix();
+    },
+    [],
+  );
 
   function OrthoCameraSizer() {
     const { camera, size } = useThree();
@@ -817,12 +932,19 @@ function OrthoCanvas({
           />
         ) : null}
         <OrthoSceneRenderer>
-          {!isModeling && !isBrush && <OrthoClickSelector transformDragging={transformDragging} />}
+          {!isModeling && !isBrush && (
+            <OrthoClickSelector transformDragging={transformDragging} />
+          )}
           {isModeling && <ModelingVisualsOverlay />}
           {isBrush && <BrushOverlay />}
           {(isModeling || isBrush) && <WireframeOverlay />}
         </OrthoSceneRenderer>
-        <MapControls screenSpacePanning enableRotate={false} enabled={!transformDragging} makeDefault />
+        <MapControls
+          screenSpacePanning
+          enableRotate={false}
+          enabled={!transformDragging}
+          makeDefault
+        />
         <OrthoCameraLink axes={axes} viewId={label} />
       </Canvas>
       <span style={labelStyle}>{label}</span>
@@ -868,7 +990,10 @@ export function SplitViewport({
           style={{ background: "#1a1a1a", cursor: "inherit" }}
         >
           <MultiCanvasPointerFix />
-          <ViewportGizmoAnimator controlsRef={perspControlsRef} cameraRef={perspCameraRef} />
+          <ViewportGizmoAnimator
+            controlsRef={perspControlsRef}
+            cameraRef={perspCameraRef}
+          />
           <ambientLight intensity={0.4} />
           <directionalLight position={[5, 8, 5]} intensity={1} />
           <gridHelper args={[20, 20, "#333", "#2a2a2a"]} />
@@ -893,7 +1018,12 @@ export function SplitViewport({
         {isSplit && <span style={labelStyle}>Perspective</span>}
       </div>
 
-      <ViewportGizmo cameraRef={perspCameraRef} controlsRef={perspControlsRef} isSplit={isSplit} onToggleSplit={onToggleSplit} />
+      <ViewportGizmo
+        cameraRef={perspCameraRef}
+        controlsRef={perspControlsRef}
+        isSplit={isSplit}
+        onToggleSplit={onToggleSplit}
+      />
 
       {/* ── Ortho views — only mounted in split mode ──────────────────────── */}
       {isSplit && (
@@ -923,7 +1053,6 @@ export function SplitViewport({
               marginLeft: -1,
             }}
           />
-
           {/* Top — top-right quadrant */}
           <div
             style={{
@@ -943,8 +1072,7 @@ export function SplitViewport({
               onTransformDrag={onTransformDrag}
             />
           </div>
-
-          {/* Front — bottom-left quadrant */}
+          {/* Right — bottom-left quadrant */}
           <div
             style={{
               position: "absolute",
@@ -955,7 +1083,7 @@ export function SplitViewport({
             }}
           >
             <OrthoCanvas
-              {...ORTHO_VIEWS[1]}
+              {...ORTHO_VIEWS[2]}
               isModeling={isModeling}
               isBrush={isBrush}
               transformDragging={transformDragging}
@@ -963,8 +1091,7 @@ export function SplitViewport({
               onTransformDrag={onTransformDrag}
             />
           </div>
-
-          {/* Right — bottom-right quadrant */}
+          {/* Front — bottom-right quadrant */}
           <div
             style={{
               position: "absolute",
@@ -975,7 +1102,7 @@ export function SplitViewport({
             }}
           >
             <OrthoCanvas
-              {...ORTHO_VIEWS[2]}
+              {...ORTHO_VIEWS[1]}
               isModeling={isModeling}
               isBrush={isBrush}
               transformDragging={transformDragging}
