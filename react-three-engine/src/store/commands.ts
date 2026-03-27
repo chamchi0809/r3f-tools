@@ -576,6 +576,86 @@ export class GeometryEditCommand implements SceneCommand {
   }
 }
 
+// ─── DuplicateObjectCommand ───────────────────────────────────────────────────
+
+/**
+ * Duplicate a scene object and its entire subtree.
+ * Snapshots the original, remaps all UUIDs to fresh ones, then materializes
+ * the copy as a sibling (same parent) of the original.
+ */
+export class DuplicateObjectCommand implements SceneCommand {
+  readonly label: string;
+  private snapshot: SerializedObject | null = null;
+  private parentUUID: string | null = null;
+  private duplicatedRootUUID: string | null = null;
+
+  constructor(private readonly sourceUUID: string) {
+    const node = useSceneStore.getState().nodes.get(sourceUUID);
+    this.label = `Duplicate ${node?.name ?? sourceUUID}`;
+  }
+
+  execute(): void {
+    if (this.duplicatedRootUUID && useSceneStore.getState().objects.has(this.duplicatedRootUUID)) {
+      return; // guard against double-execute
+    }
+
+    // Snapshot the source subtree (on first execute only)
+    if (!this.snapshot) {
+      this.snapshot = snapshotSubtree(this.sourceUUID);
+      this.parentUUID = useSceneStore.getState().nodes.get(this.sourceUUID)?.parentUUID ?? null;
+    }
+    if (!this.snapshot) return;
+
+    // Remap all UUIDs in the snapshot to fresh ones
+    const remapped = remapUUIDs(this.snapshot);
+    this.duplicatedRootUUID = remapped.uuid;
+
+    // Materialize the copy as a sibling
+    restoreSubtree(remapped, this.parentUUID);
+
+    // Copy tags from original to duplicate
+    const tagState = useTagStore.getState();
+    copySubtreeTags(this.snapshot, remapped, tagState);
+
+    // Select the duplicated root
+    useSceneStore.getState().select(this.duplicatedRootUUID);
+  }
+
+  undo(): void {
+    if (!this.duplicatedRootUUID) return;
+    removeSubtreeImmediate(this.duplicatedRootUUID);
+    this.duplicatedRootUUID = null;
+  }
+}
+
+/** Recursively remap all UUIDs in a serialized snapshot to fresh THREE UUIDs. */
+function remapUUIDs(snap: SerializedObject): SerializedObject {
+  return {
+    ...snap,
+    uuid: THREE.MathUtils.generateUUID(),
+    children: snap.children.map(remapUUIDs),
+  };
+}
+
+/** Copy tags from the original subtree to the duplicated subtree. */
+function copySubtreeTags(
+  original: SerializedObject,
+  duplicate: SerializedObject,
+  tagState: ReturnType<typeof useTagStore.getState>,
+): void {
+  const tags = tagState.objectTags.get(original.uuid);
+  if (tags) {
+    for (const tag of tags) {
+      tagState.attachTag(duplicate.uuid, tag);
+    }
+  }
+  for (let i = 0; i < original.children.length; i++) {
+    if (duplicate.children[i]) {
+      copySubtreeTags(original.children[i], duplicate.children[i], tagState);
+    }
+  }
+}
+
 // ─── AddGltfCommand ───────────────────────────────────────────────────────────
 
 export class AddGltfCommand implements SceneCommand {

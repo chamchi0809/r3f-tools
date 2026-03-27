@@ -53,6 +53,7 @@ export const sceneActions: {
     position?: THREE.Vector3,
     parentUUID?: string | null,
   ) => void;
+  duplicateObject: (uuid: string) => void;
   addGltf: (root: THREE.Object3D) => void;
 } = {
   addObject: (kind, parentUUID) => {
@@ -166,6 +167,11 @@ export const sceneActions: {
   },
 
   invalidate: () => useSceneStore.getState().invalidate(),
+
+  duplicateObject: (uuid) => {
+    const cmd = new (commands().DuplicateObjectCommand)(uuid);
+    history().executeCommand(cmd);
+  },
 
   addGltf: (root) => {
     const cmd = new (commands().AddGltfCommand)(root);

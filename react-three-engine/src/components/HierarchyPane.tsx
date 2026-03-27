@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { sceneActions } from "../store/sceneActions";
 import { useSceneStore } from "../store/sceneStoreState";
 import type { ObjectKind, SceneNode } from "../store/sceneTypes";
@@ -47,22 +47,79 @@ function getIconForKind(kind: ObjectKind): string {
   }
 }
 
+// ─── Context menu styles ─────────────────────────────────────────────────────
+
+const menuStyle: React.CSSProperties = {
+  position: "fixed",
+  background: "#252525",
+  border: "1px solid #444",
+  borderRadius: 4,
+  zIndex: 1000,
+  minWidth: 160,
+  boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+  padding: "4px 0",
+};
+
+const menuItemStyle: React.CSSProperties = {
+  padding: "6px 12px",
+  fontSize: 12,
+  cursor: "pointer",
+  color: "#ddd",
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+  position: "relative",
+};
+
+const menuSeparatorStyle: React.CSSProperties = {
+  height: 1,
+  background: "#444",
+  margin: "4px 0",
+};
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface ContextMenuState {
+  x: number;
+  y: number;
+  uuid: string | null; // null = right-clicked on empty area
+}
+
+// ─── HierarchyNode ───────────────────────────────────────────────────────────
+
 function HierarchyNode({
   node,
   depth,
   selectedUUID,
   nodes,
+  renamingUUID,
+  onContextMenu,
+  onRenameCommit,
+  onRenameCancel,
 }: {
   node: SceneNode;
   depth: number;
   selectedUUID: string | null;
   nodes: Map<string, SceneNode>;
+  renamingUUID: string | null;
+  onContextMenu: (e: React.MouseEvent, uuid: string) => void;
+  onRenameCommit: (uuid: string, name: string) => void;
+  onRenameCancel: () => void;
 }) {
   const tags = useTagStore((s) => s.objectTags.get(node.uuid));
   const isSelected = node.uuid === selectedUUID;
+  const isRenaming = node.uuid === renamingUUID;
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.childUUIDs.length > 0;
   const icon = getIconForKind(node.kind);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isRenaming && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [isRenaming]);
 
   return (
     <div>
@@ -70,6 +127,11 @@ function HierarchyNode({
         onClick={(e) => {
           e.stopPropagation();
           sceneActions.select(isSelected ? null : node.uuid);
+        }}
+        onContextMenu={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          onContextMenu(e, node.uuid);
         }}
         style={{
           display: "flex",
@@ -101,11 +163,38 @@ function HierarchyNode({
           <span style={{ width: 10 }} />
         )}
         <span style={{ opacity: 0.6, marginRight: 2 }}>{icon}</span>
-        <span
-          style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-        >
-          {node.name || node.kind}
-        </span>
+        {isRenaming ? (
+          <input
+            ref={renameInputRef}
+            defaultValue={node.name || node.kind}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                onRenameCommit(node.uuid, (e.target as HTMLInputElement).value);
+              } else if (e.key === "Escape") {
+                onRenameCancel();
+              }
+            }}
+            onBlur={(e) => onRenameCommit(node.uuid, e.target.value)}
+            style={{
+              flex: 1,
+              background: "#1a1a1a",
+              border: "1px solid #555",
+              borderRadius: 2,
+              color: "#ddd",
+              fontSize: 12,
+              padding: "1px 4px",
+              outline: "none",
+              minWidth: 0,
+            }}
+          />
+        ) : (
+          <span
+            style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+          >
+            {node.name || node.kind}
+          </span>
+        )}
         {tags && tags.size > 0 && (
           <span style={{ display: "flex", gap: 3, flexShrink: 0, marginLeft: 4 }}>
             {Array.from(tags).map((t) => (
@@ -142,12 +231,160 @@ function HierarchyNode({
               depth={depth + 1}
               selectedUUID={selectedUUID}
               nodes={nodes}
+              renamingUUID={renamingUUID}
+              onContextMenu={onContextMenu}
+              onRenameCommit={onRenameCommit}
+              onRenameCancel={onRenameCancel}
             />
           ) : null;
         })}
     </div>
   );
 }
+
+// ─── ContextMenu ─────────────────────────────────────────────────────────────
+
+function MenuItem({
+  label,
+  icon,
+  onClick,
+  children,
+}: {
+  label: string;
+  icon?: string;
+  onClick?: () => void;
+  children?: React.ReactNode;
+}) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...menuItemStyle,
+        background: hovered ? "#333" : "transparent",
+      }}
+    >
+      {icon && <span style={{ opacity: 0.7, width: 16, textAlign: "center" }}>{icon}</span>}
+      <span style={{ flex: 1 }}>{label}</span>
+      {children && <span style={{ opacity: 0.5, fontSize: 10 }}>▸</span>}
+      {children && hovered && (
+        <div
+          style={{
+            ...menuStyle,
+            position: "absolute",
+            left: "100%",
+            top: 0,
+          }}
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AddObjectSubmenu({
+  parentUUID,
+  onDone,
+}: {
+  parentUUID: string | null;
+  onDone: () => void;
+}) {
+  return (
+    <>
+      {getAllKinds().map(({ kind, label, icon }) => (
+        <MenuItem
+          key={kind}
+          label={label}
+          icon={icon}
+          onClick={() => {
+            sceneActions.addObject(kind, parentUUID);
+            onDone();
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+function ContextMenu({
+  ctx,
+  onClose,
+  onRename,
+}: {
+  ctx: ContextMenuState;
+  onClose: () => void;
+  onRename: (uuid: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  if (ctx.uuid === null) {
+    // Right-clicked on empty area — only show Add Object
+    return (
+      <div ref={ref} style={{ ...menuStyle, left: ctx.x, top: ctx.y }}>
+        <MenuItem label="Add Object" icon="+">
+          <AddObjectSubmenu parentUUID={null} onDone={onClose} />
+        </MenuItem>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={ref} style={{ ...menuStyle, left: ctx.x, top: ctx.y }}>
+      <MenuItem
+        label="Rename"
+        icon="✏"
+        onClick={() => {
+          onRename(ctx.uuid!);
+          onClose();
+        }}
+      />
+      <MenuItem
+        label="Duplicate"
+        icon="⧉"
+        onClick={() => {
+          sceneActions.duplicateObject(ctx.uuid!);
+          onClose();
+        }}
+      />
+      <MenuItem
+        label="Delete"
+        icon="🗑"
+        onClick={() => {
+          sceneActions.removeObject(ctx.uuid!);
+          onClose();
+        }}
+      />
+      <div style={menuSeparatorStyle} />
+      <MenuItem label="Add Child" icon="+">
+        <AddObjectSubmenu parentUUID={ctx.uuid} onDone={onClose} />
+      </MenuItem>
+    </div>
+  );
+}
+
+// ─── HierarchyPane ───────────────────────────────────────────────────────────
 
 export function HierarchyPane(): React.JSX.Element {
   const rootUUIDs = useSceneStore((s) => s.rootUUIDs);
@@ -156,6 +393,8 @@ export function HierarchyPane(): React.JSX.Element {
   const editorMode = useModelingStore((s) => s.editorMode);
   const isModeling = editorMode === "modeling";
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [renamingUUID, setRenamingUUID] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAdd = (kind: ObjectKind) => {
@@ -188,6 +427,32 @@ export function HierarchyPane(): React.JSX.Element {
       });
   };
 
+  const handleNodeContextMenu = (e: React.MouseEvent, uuid: string) => {
+    if (isModeling) return;
+    sceneActions.select(uuid);
+    setContextMenu({ x: e.clientX, y: e.clientY, uuid });
+    setShowAddMenu(false);
+  };
+
+  const handleEmptyContextMenu = (e: React.MouseEvent) => {
+    if (isModeling) return;
+    e.preventDefault();
+    sceneActions.select(null);
+    setContextMenu({ x: e.clientX, y: e.clientY, uuid: null });
+    setShowAddMenu(false);
+  };
+
+  const handleRenameCommit = (uuid: string, name: string) => {
+    const trimmed = name.trim();
+    if (trimmed) {
+      sceneActions.renameObject(uuid, trimmed);
+    }
+    setRenamingUUID(null);
+  };
+
+  const handleRenameCancel = () => {
+    setRenamingUUID(null);
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -310,6 +575,7 @@ export function HierarchyPane(): React.JSX.Element {
       <div
         style={{ flex: 1, overflowY: "auto", padding: "4px 4px" }}
         onClick={() => sceneActions.select(null)}
+        onContextMenu={handleEmptyContextMenu}
       >
         {rootUUIDs.map((uuid) => {
           const node = nodes.get(uuid);
@@ -320,6 +586,10 @@ export function HierarchyPane(): React.JSX.Element {
               depth={0}
               selectedUUID={selectedUUID}
               nodes={nodes}
+              renamingUUID={renamingUUID}
+              onContextMenu={handleNodeContextMenu}
+              onRenameCommit={handleRenameCommit}
+              onRenameCancel={handleRenameCancel}
             />
           ) : null;
         })}
@@ -329,6 +599,13 @@ export function HierarchyPane(): React.JSX.Element {
           </div>
         )}
       </div>
+      {contextMenu && !isModeling && (
+        <ContextMenu
+          ctx={contextMenu}
+          onClose={() => setContextMenu(null)}
+          onRename={(uuid) => setRenamingUUID(uuid)}
+        />
+      )}
     </div>
   );
 }
