@@ -26,12 +26,14 @@ function useDirtyFlag() {
   const markClean = useCallback(() => {
     ignoreRef.current = true;
     setDirty(false);
-    // Re-enable tracking after deserialization settles (version may bump
-    // several times as objects are added to the scene).
-    const timer = setTimeout(() => {
+    // Re-enable tracking after deserialization settles.  We wait for a
+    // requestAnimationFrame + microtask so all synchronous version bumps
+    // from deserialize() (and the resulting React renders) have landed.
+    const raf = requestAnimationFrame(() => {
+      prevVersionRef.current = useSceneStore.getState().version;
       ignoreRef.current = false;
-    }, 500);
-    return () => clearTimeout(timer);
+    });
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   return { dirty, markClean };

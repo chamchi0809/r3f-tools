@@ -39,13 +39,17 @@ export function WireframeOnlyMode(): null {
 
   // Apply wireframe to meshes added while mode is active.
   // Uses a store subscription instead of version in deps to avoid invalidate() loops.
+  // Skips the first version bump (caused by invalidate() in the toggle effect above).
   useEffect(() => {
     if (!isWireframe) return;
-    return useSceneStore.subscribe((state, prevState) => {
+    let skip = true;
+    const unsub = useSceneStore.subscribe((state, prevState) => {
       if (state.version !== prevState.version) {
+        if (skip) { skip = false; return; }
         applyWireframe(true);
       }
     });
+    return unsub;
   }, [isWireframe]);
 
   return null;

@@ -27,24 +27,10 @@ function getAllKinds(): { kind: ObjectKind; label: string; icon: string }[] {
 }
 
 function getIconForKind(kind: ObjectKind): string {
-  switch (kind) {
-    case "mesh":
-      return "⬛";
-    case "group":
-      return "📁";
-    case "ambientLight":
-      return "☀";
-    case "directionalLight":
-      return "🔆";
-    case "pointLight":
-      return "💡";
-    case "perspectiveCamera":
-      return "📷";
-    default: {
-      const custom = getCustomObjectKinds().find((e) => e.kind === kind);
-      return custom?.meta.icon ?? "⬜";
-    }
-  }
+  const builtin = BUILTIN_KINDS.find((b) => b.kind === kind);
+  if (builtin) return builtin.icon;
+  const custom = getCustomObjectKinds().find((e) => e.kind === kind);
+  return custom?.meta.icon ?? "⬜";
 }
 
 // ─── Context menu styles ─────────────────────────────────────────────────────
